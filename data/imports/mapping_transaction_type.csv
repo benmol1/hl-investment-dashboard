@@ -1,0 +1,9 @@
+﻿Reference,Transaction_type,Transaction_subtype
+REG. SAVER,Contribution,Contribution - regular
+FPC,Contribution,Contribution - one-off
+Card Web,Contribution,Contribution - one-off
+Transfer,Other,Other
+URIBH0P2M9,Other,Other
+URIB644PG0,Other,Other
+INTEREST,Interest paid,Interest paid
+MANAGE FEE,Management fee,Management fee

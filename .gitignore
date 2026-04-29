@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv/
+
+# Database — contains personal financial data, never commit
+data/hl_dashboard.duckdb
+data/hl_dashboard.duckdb.wal
+
+# HL CSV exports — contain personal financial data, never commit
+data/imports/HL_*.csv
+
+# Node / frontend (added when frontend is built)
+frontend/node_modules/
+frontend/dist/
+
+# Environment files
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
