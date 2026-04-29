@@ -21,7 +21,7 @@ Usage:
 import argparse
 import sys
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -56,8 +56,10 @@ def fetch_morningstar_prices(
     morningstar_code: str, start: date, end: date
 ) -> list[tuple[date, float]]:
     """
-    Returns list of (date, price_pence) for a fund using Morningstar's COMPACTJSON endpoint.
-    Prices from Morningstar for UK OEICs are in pence (p).
+    Returns list of (date, price_pence) for a fund.
+
+    The Morningstar API returns a flat JSON array of [unix_timestamp_ms, price_gbp] pairs.
+    We multiply by 100 to convert GBP -> pence for storage (consistent with HL transaction data).
     """
     params = {
         "id": f"{morningstar_code}]2]0]FOUK",
@@ -72,20 +74,18 @@ def fetch_morningstar_prices(
     resp.raise_for_status()
     data = resp.json()
 
-    try:
-        history = (
-            data["TimeSeries"]["Security"][0]["HistoryDetail"]
-        )
-    except (KeyError, IndexError, TypeError):
+    # Response is [[timestamp_ms, price_gbp], ...]
+    if not isinstance(data, list):
         return []
 
     results = []
-    for entry in history:
+    for entry in data:
         try:
-            dt = datetime.strptime(entry["EndDate"], "%Y-%m-%d").date()
-            price = float(entry["Value"])
-            results.append((dt, price))
-        except (KeyError, ValueError):
+            ts_ms, price_gbp = entry[0], entry[1]
+            dt = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).date()
+            price_pence = round(price_gbp * 100, 6)
+            results.append((dt, price_pence))
+        except (IndexError, TypeError, ValueError):
             continue
 
     return results
@@ -152,7 +152,7 @@ def fetch_benchmarks(
             print(f"  {index_id}: up to date")
             continue
 
-        print(f"  {index_id} ({ticker}): fetching {start} → {end}")
+        print(f"  {index_id} ({ticker}): fetching {start} to {end}")
         try:
             df = yf.download(ticker, start=start.isoformat(), end=end.isoformat(), progress=False)
         except Exception as e:
@@ -170,7 +170,7 @@ def fetch_benchmarks(
                 INSERT OR REPLACE INTO benchmarks (index_id, date, level, ticker)
                 VALUES (?, ?, ?, ?)
                 """,
-                (index_id, dt.date(), float(row["Close"]), ticker),
+                (index_id, dt.date(), float(row["Close"].iloc[0]), ticker),
             )
             inserted += 1
 
@@ -229,7 +229,7 @@ def main() -> None:
             print(f"  {fund_name}: up to date")
             continue
 
-        print(f"  {fund_name} ({ms_code}): fetching {start} → {today}")
+        print(f"  {fund_name} ({ms_code}): fetching {start} to {today}")
         try:
             prices = fetch_morningstar_prices(ms_code, start, today)
         except requests.HTTPError as e:
