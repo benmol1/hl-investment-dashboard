@@ -68,58 +68,48 @@ CREATE TABLE IF NOT EXISTS benchmarks (
 -- Analytical views
 -- ---------------------------------------------------------------------------
 
--- Running unit balance per fund per day across all accounts
+-- Running unit balance per fund per calendar day.
+-- Uses ASOF JOIN to forward-fill the cumulative unit balance from each trade date
+-- to every subsequent day, which is correct and efficient.
 CREATE OR REPLACE VIEW v_holdings AS
-WITH daily_moves AS (
+WITH delta AS (
     SELECT
         fund_id,
-        trade_date AS date,
-        -- value_gbp < 0 = money out = units acquired; value_gbp > 0 = money in = units disposed
+        trade_date,
         SUM(CASE WHEN value_gbp < 0 THEN quantity ELSE -quantity END) AS unit_delta
     FROM transactions
     WHERE transaction_type IN ('BUY', 'SELL', 'SWITCH_IN', 'SWITCH_OUT')
       AND fund_id IS NOT NULL
       AND quantity IS NOT NULL
     GROUP BY fund_id, trade_date
+),
+running AS (
+    SELECT
+        fund_id,
+        trade_date,
+        SUM(unit_delta) OVER (PARTITION BY fund_id ORDER BY trade_date) AS units_held
+    FROM delta
+),
+fund_dates AS (
+    SELECT d.date, r.fund_id
+    FROM dim_date d
+    CROSS JOIN (SELECT DISTINCT fund_id FROM running) r
+    WHERE d.date >= (SELECT MIN(trade_date) FROM running)
 )
-SELECT
-    d.date,
-    m.fund_id,
-    SUM(m.unit_delta) OVER (
-        PARTITION BY m.fund_id
-        ORDER BY d.date
-        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-    ) AS units_held
-FROM dim_date d
-JOIN daily_moves m ON m.date <= d.date
-WHERE d.date >= (SELECT MIN(trade_date) FROM transactions);
+SELECT fd.date, fd.fund_id, r.units_held
+FROM fund_dates fd
+ASOF JOIN running r ON (fd.fund_id = r.fund_id AND fd.date >= r.trade_date);
 
--- Portfolio value over time (requires prices to be loaded)
+-- Portfolio value per fund per day (requires prices to be loaded)
 CREATE OR REPLACE VIEW v_portfolio_value AS
 SELECT
     h.date,
     h.fund_id,
     f.name AS fund_name,
     h.units_held,
-    p.price_pence,
+    p.price_pence / 100.0 AS price_gbp,
     ROUND(h.units_held * p.price_pence / 100.0, 2) AS value_gbp
 FROM v_holdings h
 JOIN funds f ON f.id = h.fund_id
 JOIN prices p ON p.fund_id = h.fund_id AND p.date = h.date
 WHERE h.units_held > 0.0001;
-
--- Cumulative contributions vs portfolio value (for growth breakdown)
-CREATE OR REPLACE VIEW v_contributions_vs_value AS
-SELECT
-    d.date,
-    COALESCE(SUM(t.value_gbp) OVER (ORDER BY d.date ROWS UNBOUNDED PRECEDING), 0) AS cumulative_contributions,
-    COALESCE(pv.total_value, 0) AS portfolio_value
-FROM dim_date d
-LEFT JOIN transactions t
-    ON t.trade_date = d.date
-    AND t.transaction_type = 'CONTRIBUTION'
-LEFT JOIN (
-    SELECT date, SUM(value_gbp) AS total_value
-    FROM v_portfolio_value
-    GROUP BY date
-) pv ON pv.date = d.date;
