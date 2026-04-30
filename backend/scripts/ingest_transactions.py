@@ -1,25 +1,33 @@
 """
-Parse an HL transaction history CSV and upsert rows into DuckDB.
+Ingest HL transaction CSVs from data/imports/raw_transactions/{ISA,SIPP}/ into DuckDB.
 
-HL CSV columns (confirmed from sample export):
-    Trade_date, Settle_date, Reference, Description, Unit_cost_pence, Quantity, Value_GBP
+On each run:
+  1. Any file in a raw_transactions subfolder that does not already follow the
+     {ACCOUNT}_{YYYY-MM-DD}.csv naming convention is renamed using the file's
+     creation date before processing.
+  2. All CSV files in each subfolder are processed and upserted into the
+     transactions table (already-present rows are silently skipped).
 
-Usage:
-    python backend/scripts/ingest_transactions.py \
-        --file data/imports/HL_stock_share_ISA_tx_raw.csv \
-        --account ISA
+Raw HL CSV format:
+  - Lines 1-5: metadata (portfolio summary, client name/number, valuation date, blank)
+  - Line 6:    column headers
+  - Line 7+:   data rows
 
-    python backend/scripts/ingest_transactions.py \
-        --file data/imports/HL_SIPP_tx_raw.csv \
-        --account SIPP
+Raw column headers -> internal names:
+    Trade date      -> Trade_date
+    Settle date     -> Settle_date
+    Reference       -> Reference
+    Description     -> Description
+    Unit cost (p)   -> Unit_cost_pence
+    Quantity        -> Quantity
+    Value (£)       -> Value_GBP
 """
 
-import argparse
 import csv
 import hashlib
 import re
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -27,6 +35,80 @@ import duckdb
 
 ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = ROOT / "data" / "hl_dashboard.duckdb"
+RAW_TX_DIR = ROOT / "data" / "imports" / "raw_transactions"
+ACCOUNTS = ["ISA", "SIPP"]
+SKIP_ROWS = 5
+
+_RENAMED_PATTERN = re.compile(r"^(ISA|SIPP)_\d{4}-\d{2}-\d{2}(?:_\d+)?\.csv$")
+
+# Substring-based mapping so column matching survives minor HL formatting changes
+# (e.g. £ encoding differences). Checked in order; first match wins.
+_COLUMN_REMAP: list[tuple[str, str]] = [
+    ("Trade date", "Trade_date"),
+    ("Settle date", "Settle_date"),
+    ("Unit cost", "Unit_cost_pence"),
+    ("Value", "Value_GBP"),
+    ("Reference", "Reference"),
+    ("Description", "Description"),
+    ("Quantity", "Quantity"),
+]
+
+
+# ---------------------------------------------------------------------------
+# File renaming
+# ---------------------------------------------------------------------------
+
+def _rename_raw_files() -> list[tuple[Path, str]]:
+    """
+    Scan each account subfolder. Rename any file not already following the
+    {ACCOUNT}_{YYYY-MM-DD}.csv convention to that convention using the file's
+    creation date. Returns a sorted list of (file_path, account_id) for every
+    CSV found (renamed or not).
+    """
+    results: list[tuple[Path, str]] = []
+
+    for account in ACCOUNTS:
+        folder = RAW_TX_DIR / account
+        if not folder.exists():
+            continue
+
+        for f in sorted(folder.glob("*.csv")):
+            if _RENAMED_PATTERN.match(f.name):
+                results.append((f, account))
+                continue
+
+            created = datetime.fromtimestamp(f.stat().st_ctime).date()
+            base_name = f"{account}_{created}.csv"
+            new_path = folder / base_name
+
+            # Avoid collisions if two files share the same creation date
+            counter = 1
+            while new_path.exists():
+                new_path = folder / f"{account}_{created}_{counter}.csv"
+                counter += 1
+
+            f.rename(new_path)
+            print(f"  Renamed: {f.name} -> {new_path.name}")
+            results.append((new_path, account))
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Column header normalisation
+# ---------------------------------------------------------------------------
+
+def _remap_headers(raw_headers: list[str]) -> list[str]:
+    """Map raw HL column names to internal names using substring matching."""
+    remapped = []
+    for h in raw_headers:
+        internal = h  # default: keep original if no match
+        for pattern, name in _COLUMN_REMAP:
+            if pattern.lower() in h.lower():
+                internal = name
+                break
+        remapped.append(internal)
+    return remapped
 
 
 # ---------------------------------------------------------------------------
@@ -37,7 +119,6 @@ def parse_date(s: str) -> Optional[date]:
     s = s.strip()
     if not s:
         return None
-    from datetime import datetime
     return datetime.strptime(s, "%d/%m/%Y").date()
 
 
@@ -66,10 +147,10 @@ def classify_transaction(reference: str, value_gbp: float) -> tuple[str, Optiona
 
     Named references (REG. SAVER etc.) are handled explicitly.
     Patterned references follow HL's trade reference conventions:
-      - B[digits]   → BUY
-      - BX[digits]  → SWITCH_IN  (buy leg of a fund class switch)
-      - X[digits]   → SWITCH_OUT (sell leg of a fund class switch)
-      - URIB...     → REBATE     (unit rebate reinvestment cash credit)
+      - B[digits]   -> BUY
+      - BX[digits]  -> SWITCH_IN  (buy leg of a fund class switch)
+      - X[digits]   -> SWITCH_OUT (sell leg of a fund class switch)
+      - URIB...     -> REBATE     (unit rebate reinvestment cash credit)
     """
     ref = reference.strip()
 
@@ -125,10 +206,7 @@ def extract_fund_name(description: str) -> Optional[str]:
 
 
 def build_fund_lookup(con: duckdb.DuckDBPyConnection) -> dict[str, str]:
-    """
-    Returns {normalised_fund_name: fund_id} from the funds table.
-    Normalisation: lowercase + collapse whitespace.
-    """
+    """Returns {normalised_fund_name: fund_id} from the funds table."""
     rows = con.execute("SELECT id, name FROM funds").fetchall()
     return {" ".join(name.lower().split()): fund_id for fund_id, name in rows}
 
@@ -147,7 +225,6 @@ def match_fund(description: str, lookup: dict[str, str]) -> Optional[str]:
 # ---------------------------------------------------------------------------
 
 def ingest(file_path: Path, account_id: str, con: duckdb.DuckDBPyConnection) -> None:
-    # Verify account exists
     exists = con.execute(
         "SELECT 1 FROM accounts WHERE id = ?", (account_id,)
     ).fetchone()
@@ -156,16 +233,23 @@ def ingest(file_path: Path, account_id: str, con: duckdb.DuckDBPyConnection) -> 
         sys.exit(1)
 
     fund_lookup = build_fund_lookup(con)
-
     warnings: list[str] = []
     rows_before = con.execute(
         "SELECT COUNT(*) FROM transactions WHERE account_id = ?", (account_id,)
     ).fetchone()[0]
 
     processed = 0
-    with open(file_path, newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        for line_num, row in enumerate(reader, start=2):  # line 1 = header
+    with open(file_path, newline="", encoding="cp1252") as f:
+        for _ in range(SKIP_ROWS):
+            next(f)
+
+        raw_reader = csv.reader(f)
+        raw_headers = next(raw_reader)
+        fieldnames = _remap_headers(raw_headers)
+
+        # Data rows start at absolute line SKIP_ROWS + 2 (header is SKIP_ROWS + 1)
+        reader = csv.DictReader(f, fieldnames=fieldnames)
+        for line_num, row in enumerate(reader, start=SKIP_ROWS + 2):
             trade_date = parse_date(row["Trade_date"])
             settle_date = parse_date(row["Settle_date"])
             reference = row["Reference"].strip()
@@ -180,7 +264,6 @@ def ingest(file_path: Path, account_id: str, con: duckdb.DuckDBPyConnection) -> 
 
             tx_type, tx_subtype = classify_transaction(reference, value_gbp)
 
-            # Resolve fund for buy/sell transactions
             fund_id: Optional[str] = None
             if tx_type in ("BUY", "SELL", "SWITCH_IN", "SWITCH_OUT") and description:
                 fund_id = match_fund(description, fund_lookup)
@@ -230,26 +313,19 @@ def ingest(file_path: Path, account_id: str, con: duckdb.DuckDBPyConnection) -> 
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Ingest HL transaction CSV into DuckDB")
-    parser.add_argument("--file", required=True, help="Path to HL transaction CSV")
-    parser.add_argument(
-        "--account",
-        required=True,
-        choices=["ISA", "SIPP"],
-        help="Account type the CSV belongs to",
-    )
-    args = parser.parse_args()
+    print("Scanning for raw transaction files...")
+    files = _rename_raw_files()
 
-    file_path = Path(args.file)
-    if not file_path.exists():
-        print(f"ERROR: file not found: {file_path}")
-        sys.exit(1)
+    if not files:
+        print("No transaction files found in raw_transactions subfolders.")
+        return
 
-    print(f"Ingesting {file_path.name} -> account={args.account}")
     con = duckdb.connect(str(DB_PATH))
-    ingest(file_path, args.account, con)
+    for file_path, account_id in files:
+        print(f"\nIngesting {file_path.name} -> account={account_id}")
+        ingest(file_path, account_id, con)
     con.close()
-    print("Done.")
+    print("\nDone.")
 
 
 if __name__ == "__main__":

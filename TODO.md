@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-04-29*
+*Last updated: 2026-04-30*
 
 ---
 
@@ -16,21 +16,44 @@
 
 ---
 
+## Phase 1b — Raw Transaction Import Pipeline ✅ COMPLETE
+
+- [x] Create `data/imports/raw_transactions/ISA/` and `data/imports/raw_transactions/SIPP/` as drop folders for unmodified HL CSV exports
+- [x] Rewrite `ingest_transactions.py` to auto-discover and process both folders (no CLI args needed)
+- [x] Auto-renamer: any file not matching `{ACCOUNT}_{YYYY-MM-DD}.csv` is renamed on each run using file creation date; date collisions get `_1`, `_2` suffixes
+- [x] Handle raw HL CSV format: skip 5 metadata header lines; remap column names (`Trade date` → `Trade_date`, `Unit cost (p)` → `Unit_cost_pence`, `Value (£)` → `Value_GBP`) with encoding-tolerant substring matching
+- [x] Incremental upsert confirmed working — re-running never duplicates rows
+- [x] Update `setup_db.py` to use `INSERT OR REPLACE` for funds so re-seeding always reflects `dim_funds.csv`
+- [x] ISA and SIPP transactions ingested: 62 ISA rows, 159 SIPP rows
+
+---
+
+## Morningstar Fund Codes ✅ MOSTLY COMPLETE
+
+- [x] Ranmore Global Equity Investor (`IE00B61ZVB30`) → `0P000136HH`
+- [x] Invesco Global ex-UK Enhanced Index Class Z (`GB00BZ8GWT74`) → `0P000184GO`
+- [x] Baillie Gifford Managed Class B (`GB00BV0V1394`) → `0P00000QWU`
+- [x] Baillie Gifford UK Equity Alpha Class B (`GB0005858195`) → `0P00000QWH`
+- [x] HL UK Income Fund Class A (`GB0032033127`) → `0P00000STJ`
+- [x] IFSL Evenlode Income Class B (`GB00BD0B7C49`) → `0P0001BH5V`
+- [x] Liontrust UK Smaller Companies Class I (`GB00B8HWPP49`) → `0P00015BZ7`
+- [x] Rathbone Global Opportunities Inclusive R Acc — ISIN resolved (`GB0030349095`) → `0P00000HST`; price fetch returning no data (see outstanding issues)
+- [ ] **L&G Global 100 Index Class C** (`0P000102M0`) — Morningstar API returning no data; code may be stale or fund may have been renamed/merged
+- [ ] **Rathbone Global Opportunities Inclusive R Acc** — `0P00000HST` code is correct but Morningstar API returns no prices; this may be a legacy share class no longer published via the API. Consider using the Class I or Class S price as a proxy.
+
+---
+
 ## Immediate Next Steps (before using the dashboard)
 
-- [ ] **Ingest SIPP transactions** — drop SIPP CSV into `data/imports/` and run:
-  ```
-  python backend/scripts/ingest_transactions.py --file data/imports/<sipp_filename>.csv --account SIPP
-  ```
-- [ ] **Find Morningstar code for Ranmore Global Equity** — the only currently-held fund missing a `morningstar_code`. Look it up on [morningstar.co.uk](https://www.morningstar.co.uk), then update the funds table:
-  ```sql
-  UPDATE funds SET morningstar_code = '<code>' WHERE id = 'IE00B61ZVB30';
-  ```
-- [ ] **Backfill all historical prices** — once Ranmore's code is added, run:
+- [x] ~~Ingest SIPP transactions~~ — done via new raw import pipeline
+- [x] ~~Find Morningstar code for Ranmore~~ — resolved
+- [ ] **Resolve L&G Global 100 price data** — inspect the Morningstar Network tab on `morningstar.co.uk` for the current token/endpoint, or check if fund was renamed
+- [ ] **Resolve Rathbone Inclusive price data** — confirm whether `0P00000HST` is queryable; if not, decide whether to use the I or S class price as a proxy and update `dim_funds.csv`
+- [ ] **Backfill all historical prices** — run a full backfill for funds that have codes but limited history:
   ```
   python backend/scripts/fetch_prices.py --backfill 2017-01-01
   ```
-- [ ] **Validate unit totals** — cross-check the unit counts derived from transactions against your current HL portfolio page to confirm the ingestion is correct
+- [ ] **Validate unit totals** — cross-check unit counts from transactions against the current HL portfolio page to confirm ingestion is correct
 
 ---
 
@@ -128,7 +151,9 @@ dbt test --profiles-dir .   # run all 112 tests
 
 | # | Question |
 |---|----------|
-| 1 | Does the SIPP export use the same CSV column format as the ISA? (Parser should work, but worth confirming) |
+| 1 | ~~Does the SIPP export use the same CSV column format as the ISA?~~ — Confirmed: same column structure, same 5-line metadata header. ✅ |
 | 2 | Morningstar API token (`9vehuxllxs`) is unofficial — if price fetches start failing, inspect the Network tab on morningstar.co.uk to find the current token |
-| 3 | Remote access outside the home network needed? If yes, add Tailscale to Phase 4 |
+| 3 | Remote access outside the home network needed? If yes, add Tailscale to Phase 6 |
 | 4 | Should the daily price-fetch cron run inside the backend container or as a separate Docker service? |
+| 5 | L&G Global 100 (`0P000102M0`) returns no price data from Morningstar API — has this fund been renamed or merged? |
+| 6 | Rathbone Global Opportunities Inclusive R Acc (`0P00000HST`) — is this share class still actively priced, or should we proxy it with I or S class NAV? |

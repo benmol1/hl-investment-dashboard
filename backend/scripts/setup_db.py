@@ -66,7 +66,7 @@ def seed_funds(con: duckdb.DuckDBPyConnection) -> None:
 
             con.execute(
                 """
-                INSERT OR IGNORE INTO funds (id, name, isin, morningstar_code)
+                INSERT OR REPLACE INTO funds (id, name, isin, morningstar_code)
                 VALUES (?, ?, ?, ?)
                 """,
                 (fund_id, name, isin_value, code),
