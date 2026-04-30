@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-04-30*
+*Last updated: 2026-04-30 | 14:00 UK time*
 
 ---
 
@@ -71,7 +71,7 @@ cd frontend && npm run dev
 
 ---
 
-## Phase 4 — dbt Data Layer ✅ COMPLETE
+## Phase 4 — dbt Data Layer [In progress]
 
 - [x] Add `dbt-duckdb` dependency; install `dbt-utils` package
 - [x] Bootstrap dbt project (`dbt/dbt_project.yml`, `profiles.yml`, `packages.yml`)
