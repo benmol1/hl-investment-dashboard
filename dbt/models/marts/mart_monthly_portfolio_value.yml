@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: mart_monthly_portfolio_value
+    description: >
+      Month-end portfolio snapshot per account. Each row is the last available
+      trading day within a calendar month, carrying the portfolio value,
+      cumulative contributions, and growth figure from mart_portfolio_contributions.
+      year_month and financial_year are sourced from dim_date for easy time-based
+      slicing and UK tax-year grouping.
+    columns:
+      - name: account_id
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: year_month
+        description: "YYYY-MM string for the calendar month (e.g. 2024-03)."
+        tests:
+          - not_null
+      - name: financial_year
+        description: "UK tax-year label for the month-end date (e.g. FY25 = April 2024 – March 2025)."
+        tests:
+          - not_null
+      - name: month_end_date
+        description: "Actual last trading day with data in the month."
+        tests:
+          - not_null
+      - name: portfolio_value_gbp
+        description: "Total market value of the portfolio on the month-end date."
+        tests:
+          - not_null
+      - name: cumulative_contributions_gbp
+        description: "Running total of all contributions up to and including the month-end date."
+        tests:
+          - not_null
+      - name: growth_gbp
+        description: "portfolio_value_gbp minus cumulative_contributions_gbp at month end."
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [account_id, year_month]

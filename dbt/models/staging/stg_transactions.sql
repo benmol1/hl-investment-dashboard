@@ -14,7 +14,7 @@ select
 
     -- Derived flags used by downstream intermediate models
     transaction_type in ('BUY', 'SELL', 'SWITCH_IN', 'SWITCH_OUT') as is_trade,
-    transaction_type = 'CONTRIBUTION'                               as is_contribution,
+    transaction_type in ('CONTRIBUTION', 'TRANSFER')                as is_contribution,
 
     -- HL sign convention: value_gbp < 0 means money left the account (a purchase).
     -- Encoding this once here avoids repeating the CASE expression in every delta CTE.

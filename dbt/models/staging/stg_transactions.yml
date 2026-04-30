@@ -27,8 +27,9 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [BUY, SELL, SWITCH_IN, SWITCH_OUT, CONTRIBUTION, FEE,
-                       INTEREST, REBATE, TRANSFER, REJECTED, OTHER]
+              arguments:
+                values: [BUY, SELL, SWITCH_IN, SWITCH_OUT, CONTRIBUTION, FEE,
+                         INTEREST, REBATE, TRANSFER, REJECTED, OTHER]
       - name: value_gbp
         description: "Transaction value in GBP. Negative = debit (purchase/fee); positive = credit."
         tests:
@@ -38,7 +39,7 @@ models:
         tests:
           - not_null
       - name: is_contribution
-        description: "True for CONTRIBUTION rows."
+        description: "True for CONTRIBUTION and TRANSFER rows."
         tests:
           - not_null
       - name: unit_direction
@@ -49,4 +50,5 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [1, -1]
+              arguments:
+                values: [1, -1]

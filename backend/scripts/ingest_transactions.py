@@ -180,8 +180,8 @@ def classify_transaction(reference: str, value_gbp: float) -> tuple[str, Optiona
     if ref == "INTEREST":
         return "INTEREST", None
 
-    if ref == "Transfer":
-        return "TRANSFER", None
+    if ref in ("Transfer", "BACS"):
+        return "TRANSFER", "Transfer in"
 
     if ref.upper().startswith("URIB"):
         return "REBATE", "Unit rebate"
