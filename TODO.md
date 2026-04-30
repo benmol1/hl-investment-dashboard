@@ -16,7 +16,7 @@
 
 ---
 
-## Immediate Next Steps (before Phase 2)
+## Immediate Next Steps (before using the dashboard)
 
 - [ ] **Ingest SIPP transactions** — drop SIPP CSV into `data/imports/` and run:
   ```
@@ -34,34 +34,46 @@
 
 ---
 
-## Phase 2 — Backend API
+## Phase 2 — Backend API ✅ COMPLETE
 
-- [ ] Create `backend/app/main.py` — FastAPI app skeleton
-- [ ] Create `backend/app/db.py` — DuckDB connection management
-- [ ] Create `backend/app/models.py` — Pydantic response schemas
-- [ ] Implement API endpoints:
-  - [ ] `GET /portfolio/value?from=&to=` — time-series of total portfolio value
-  - [ ] `GET /portfolio/allocation` — current allocation by fund
-  - [ ] `GET /funds/{id}/performance` — fund value indexed to 100 at first purchase, with benchmark overlay
-  - [ ] `GET /contributions` — cumulative contributions vs portfolio value over time
-  - [ ] `GET /transactions` — paginated, filterable transaction log
-- [ ] Add APScheduler or cron inside the app to run `fetch_prices.py` daily at ~18:00
+- [x] Create `backend/app/main.py` — FastAPI app skeleton
+- [x] Create `backend/app/db.py` — DuckDB connection management (read-only per request)
+- [x] Create `backend/app/models.py` — Pydantic response schemas
+- [x] Implement API endpoints:
+  - [x] `GET /portfolio/value?from=&to=&account=` — time-series of total portfolio value
+  - [x] `GET /portfolio/allocation?as_of=&account=` — current allocation by fund
+  - [x] `GET /portfolio/contributions?from=&to=&account=` — cumulative contributions vs portfolio value
+  - [x] `GET /portfolio/performance?from=&to=&account=` — portfolio + all 3 benchmarks indexed to 100
+  - [x] `GET /portfolio/holdings?account=` — holdings with cost basis and unrealised gain
+  - [x] `GET /funds` — list funds (active_only filter)
+  - [x] `GET /funds/{id}/performance?from=&to=&benchmark=` — fund indexed to 100 + benchmark overlay
+  - [x] `GET /transactions?page=&per_page=&account=&type=&from=&to=` — paginated, filterable transaction log
+- [x] APScheduler in lifespan runs `fetch_prices.py` daily at 18:00
 
 ---
 
-## Phase 3 — React Frontend
+## Phase 3 — React Frontend ✅ COMPLETE
 
-- [ ] Scaffold with Vite + React + TypeScript (`frontend/`)
-- [ ] Install Recharts for charting
-- [ ] Build pages:
-  - [ ] Portfolio Overview — total value line chart + allocation donut
-  - [ ] Contributions vs Growth — stacked area chart
-  - [ ] Fund Performance — per-fund indexed line chart with benchmark overlay
-  - [ ] Benchmark Comparison — portfolio vs FTSE 100, S&P 500, Nasdaq
-  - [ ] Holdings Table — current units, price, value, cost basis, unrealised gain
-  - [ ] Transaction Log — searchable/filterable table
-- [ ] Wire all pages up to FastAPI endpoints
-- [ ] Test on mobile layout
+- [x] Scaffold with Vite + React + TypeScript (`frontend/`)
+- [x] Tailwind CSS v4 + Recharts
+- [x] Pages:
+  - [x] Portfolio Overview — total value line chart + allocation donut with table
+  - [x] Contributions vs Growth — stacked area chart + summary KPIs
+  - [x] Fund Performance — fund list page + per-fund indexed line chart with benchmark overlay
+  - [x] Benchmark Comparison — portfolio vs FTSE 100, S&P 500, Nasdaq (all indexed to 100)
+  - [x] Holdings Table — units, price, value, cost basis, unrealised gain, weight
+  - [x] Transaction Log — paginated, filterable by account + type
+- [x] All pages wired to FastAPI endpoints via `/api` Vite proxy
+- [x] ISA / SIPP / All account filter on Overview, Contributions, Benchmarks, Holdings
+
+**To run locally:**
+```bash
+# Terminal 1 — backend (PYTHONPATH puts backend/ on sys.path so 'from app.xxx import' works)
+PYTHONPATH=backend uv run uvicorn app.main:app --reload --port 8000
+
+# Terminal 2 — frontend dev server
+cd frontend && npm run dev
+```
 
 ---
 

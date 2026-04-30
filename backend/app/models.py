@@ -65,3 +65,27 @@ class TransactionPage(BaseModel):
     page: int
     per_page: int
     items: list[Transaction]
+
+
+class HoldingItem(BaseModel):
+    fund_id: str
+    fund_name: str
+    units_held: float
+    price_gbp: float
+    value_gbp: float
+    cost_basis_gbp: float
+    unrealised_gain_gbp: float
+    unrealised_gain_pct: float
+    percentage: float
+
+
+class BenchmarkSeries(BaseModel):
+    series: list[PerformancePoint]
+
+
+class PortfolioPerformanceResponse(BaseModel):
+    start_date: date
+    portfolio: list[PerformancePoint]
+    FTSE100: list[PerformancePoint]
+    SP500: list[PerformancePoint]
+    NASDAQ: list[PerformancePoint]
