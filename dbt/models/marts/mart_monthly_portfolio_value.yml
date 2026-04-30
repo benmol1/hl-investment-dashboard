@@ -33,8 +33,8 @@ models:
         description: "Running total of all contributions up to and including the month-end date."
         tests:
           - not_null
-      - name: growth_gbp
-        description: "portfolio_value_gbp minus cumulative_contributions_gbp at month end."
+      - name: monthly_contributions_gbp
+        description: "Total contributions made within the calendar month."
         tests:
           - not_null
     tests:

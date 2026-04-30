@@ -21,14 +21,14 @@ models:
         description: "Total market value of the portfolio on this date."
         tests:
           - not_null
+      - name: contributions_gbp
+        description: "Amount contributed on this date. Zero on non-contribution dates."
+        tests:
+          - not_null
       - name: cumulative_contributions_gbp
         description: >
           Running total of all contributions to this account up to and including
           this date. Zero on dates before the first contribution.
-        tests:
-          - not_null
-      - name: growth_gbp
-        description: "portfolio_value_gbp minus cumulative_contributions_gbp. Negative early on is normal."
         tests:
           - not_null
     tests:

@@ -1,16 +1,23 @@
+with joined as (
+    select
+        pv.account_id,
+        pv.date,
+        pv.portfolio_value_gbp,
+        coalesce(dc.contributed_today, 0) as contributions_gbp
+    from {{ ref('mart_daily_portfolio_value') }} pv
+    left join {{ ref('int_daily_contributions') }} dc
+        on  dc.account_id = pv.account_id
+        and dc.contribution_date = pv.date
+)
+
 select
-    pv.account_id,
-    pv.date,
-    pv.portfolio_value_gbp,
-
-    coalesce(dc.cumulative_contributions_gbp, 0) as cumulative_contributions_gbp,
-
-    round(
-        pv.portfolio_value_gbp - coalesce(dc.cumulative_contributions_gbp, 0),
-        2
-    ) as growth_gbp
-
-from {{ ref('mart_daily_portfolio_value') }} pv
-left join {{ ref('int_daily_contributions') }} dc
-    on  dc.account_id = pv.account_id
-    and dc.date       = pv.date
+    account_id,
+    date,
+    portfolio_value_gbp,
+    contributions_gbp,
+    sum(contributions_gbp) over (
+        partition by account_id
+        order by date
+        rows between unbounded preceding and current row
+    ) as cumulative_contributions_gbp
+from joined
