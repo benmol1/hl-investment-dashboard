@@ -91,7 +91,7 @@ def fetch_morningstar_prices(
     return results
 
 
-def upsert_fund_prices(
+def insert_fund_prices(
     con: duckdb.DuckDBPyConnection,
     fund_id: str,
     prices: list[tuple[date, float]],
@@ -101,7 +101,7 @@ def upsert_fund_prices(
     for dt, price_pence in prices:
         con.execute(
             """
-            INSERT OR REPLACE INTO prices (fund_id, date, price_pence, source)
+            INSERT OR IGNORE INTO prices (fund_id, date, price_pence, source)
             VALUES (?, ?, ?, ?)
             """,
             (fund_id, dt, price_pence, source),
@@ -167,14 +167,14 @@ def fetch_benchmarks(
         for dt, row in df.iterrows():
             con.execute(
                 """
-                INSERT OR REPLACE INTO benchmarks (index_id, date, level, ticker)
+                INSERT OR IGNORE INTO benchmarks (index_id, date, level, ticker)
                 VALUES (?, ?, ?, ?)
                 """,
                 (index_id, dt.date(), float(row["Close"].iloc[0]), ticker),
             )
             inserted += 1
 
-        print(f"    Upserted {inserted:,} rows")
+        print(f"    Inserted {inserted:,} rows")
 
 
 def get_benchmark_start(
@@ -243,8 +243,8 @@ def main() -> None:
             print(f"    No price data returned — fund may need manual lookup")
             continue
 
-        n = upsert_fund_prices(con, fund_id, prices)
-        print(f"    Upserted {n:,} rows")
+        n = insert_fund_prices(con, fund_id, prices)
+        print(f"    Inserted {n:,} rows")
         time.sleep(REQUEST_DELAY_SECONDS)
 
     # Warn about funds without Morningstar codes
