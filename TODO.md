@@ -28,35 +28,6 @@
 
 ---
 
-## Morningstar Fund Codes ✅ MOSTLY COMPLETE
-
-- [x] Ranmore Global Equity Investor (`IE00B61ZVB30`) → `0P000136HH`
-- [x] Invesco Global ex-UK Enhanced Index Class Z (`GB00BZ8GWT74`) → `0P000184GO`
-- [x] Baillie Gifford Managed Class B (`GB00BV0V1394`) → `0P00000QWU`
-- [x] Baillie Gifford UK Equity Alpha Class B (`GB0005858195`) → `0P00000QWH`
-- [x] HL UK Income Fund Class A (`GB0032033127`) → `0P00000STJ`
-- [x] IFSL Evenlode Income Class B (`GB00BD0B7C49`) → `0P0001BH5V`
-- [x] Liontrust UK Smaller Companies Class I (`GB00B8HWPP49`) → `0P00015BZ7`
-- [x] Rathbone Global Opportunities Inclusive R Acc — ISIN resolved (`GB0030349095`) → `0P00000HST`; price fetch returning no data (see outstanding issues)
-- [ ] **L&G Global 100 Index Class C** (`0P000102M0`) — Morningstar API returning no data; code may be stale or fund may have been renamed/merged
-- [ ] **Rathbone Global Opportunities Inclusive R Acc** — `0P00000HST` code is correct but Morningstar API returns no prices; this may be a legacy share class no longer published via the API. Consider using the Class I or Class S price as a proxy.
-
----
-
-## Immediate Next Steps (before using the dashboard)
-
-- [x] ~~Ingest SIPP transactions~~ — done via new raw import pipeline
-- [x] ~~Find Morningstar code for Ranmore~~ — resolved
-- [ ] **Resolve L&G Global 100 price data** — inspect the Morningstar Network tab on `morningstar.co.uk` for the current token/endpoint, or check if fund was renamed
-- [ ] **Resolve Rathbone Inclusive price data** — confirm whether `0P00000HST` is queryable; if not, decide whether to use the I or S class price as a proxy and update `dim_funds.csv`
-- [ ] **Backfill all historical prices** — run a full backfill for funds that have codes but limited history:
-  ```
-  python backend/scripts/fetch_prices.py --backfill 2017-01-01
-  ```
-- [ ] **Validate unit totals** — cross-check unit counts from transactions against the current HL portfolio page to confirm ingestion is correct
-
----
-
 ## Phase 2 — Backend API ✅ COMPLETE
 
 - [x] Create `backend/app/main.py` — FastAPI app skeleton
@@ -111,6 +82,8 @@ cd frontend && npm run dev
 - [x] Mart layer (tables): `mart_daily_portfolio_value`, `mart_current_holdings` (daily snapshot), `mart_portfolio_contributions`, `mart_benchmark_levels`
 - [x] 112/112 data tests pass; all 13 models build successfully
 - [x] Drop old `v_holdings` and `v_portfolio_value` views from DuckDB and `001_init.sql`
+- [ ] Review data model end-to-end. Polish, make improvements and align it with Kimball style (primary keys being integers; more explicit column names)
+- [ ] Build out a monthly snapshort mart table which has grain account x fund x month-end date. Include fields for contribution / net amount purchased.
 
 **To run dbt:**
 ```bash
