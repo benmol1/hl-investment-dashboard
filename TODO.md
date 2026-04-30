@@ -135,6 +135,15 @@ dbt test --profiles-dir .   # run all 112 tests
 
 ---
 
+## Cash Balance Tracking (Low Priority)
+
+- [ ] Build a `int_daily_cash_balance` intermediate model — a running ledger derived from contributions, sell proceeds, buy costs, fees, and interest using `stg_transactions`
+- [ ] Join cash balance into `int_daily_fund_values` (or a new `int_daily_account_values`) so uninvested cash is included in the portfolio total
+- [ ] Update `mart_daily_portfolio_value` to sum fund values + cash balance
+- **Why:** On days where a sell is executed but the replacement buy hasn't been placed yet (e.g. a switch taking 2 days), the proceeds sit as uninvested cash and are currently excluded from the portfolio total, causing a false one-day drop followed by an immediate recovery
+
+---
+
 ## Phase 6 — Deployment
 
 - [ ] Write `docker-compose.yml` — FastAPI service + Nginx serving React build

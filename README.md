@@ -123,36 +123,13 @@ This creates `data/hl_dashboard.duckdb` and seeds:
 - `dim_date` — date dimension table from `data/imports/dim_date.csv`
 - `transaction_type_mapping` — reference-pattern-to-type lookup
 
-### 3. Ingest your ISA transactions
+### 3. Ingest your transactions
 
 Download your transaction history from HL (History tab → Export) and drop the CSV into `data/imports/`. Then run:
 
-```bash
-cd backend
-uv run python scripts/ingest_transactions.py \
-    --file ../data/imports/<your_isa_file>.csv \
-    --account ISA
-```
+[TO BE UPDATED]
 
-For the SIPP, repeat with `--account SIPP`.
-
-The script classifies all transaction types (BUY, SELL, SWITCH, CONTRIBUTION, FEE, REBATE, etc.), links trades to funds by name matching, and upserts with deduplication — safe to re-run on the same file.
-
-### 4. Find the Morningstar code for Ranmore Global Equity
-
-Ranmore Global Equity is the one currently-held fund whose `morningstar_code` is missing. Look it up on [morningstar.co.uk](https://www.morningstar.co.uk), then update the database:
-
-```bash
-cd backend
-uv run python -c "
-import duckdb
-con = duckdb.connect('../data/hl_dashboard.duckdb')
-con.execute(\"UPDATE funds SET morningstar_code = '<code>' WHERE id = 'IE00B61ZVB30'\")
-con.close()
-"
-```
-
-### 5. Backfill historical prices
+### 4. Backfill historical prices
 
 ```bash
 cd backend

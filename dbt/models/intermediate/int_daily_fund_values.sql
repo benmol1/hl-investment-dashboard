@@ -10,9 +10,9 @@ select
     round(h.units_held * p.price_gbp, 2) as value_gbp
 
 from {{ ref('int_daily_unit_balances') }} h
-join {{ ref('stg_prices') }} p
+asof join {{ ref('stg_prices') }} p
     on p.fund_id = h.fund_id
-    and p.date   = h.date
+    and p.date  <= h.date
 join {{ source('hl_dashboard', 'funds') }} f
     on f.id = h.fund_id
 
