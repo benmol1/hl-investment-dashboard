@@ -1,6 +1,6 @@
 # dbt Refactor Plan — HL Investment Dashboard
 
-*Status: Agreed — ready for implementation*
+*Status: Complete*
 *Date: 2026-04-30*
 
 ---
@@ -629,45 +629,46 @@ models:
 
 ## Migration Approach
 
-### Step 1 — Bootstrap the dbt project (no data changes)
+### Step 1 — Bootstrap the dbt project ✅
 
-- `dbt init` inside a new `dbt/` directory; configure `profiles.yml` to connect to `data/hl_dashboard.duckdb`
-- Move `data/imports/dim_date.csv` to `dbt/seeds/dim_date.csv`; run `dbt seed` to load it
-- Register the remaining 6 source tables in `sources.yml`
-- Run `dbt source freshness` to confirm connection
+- `dbt/` directory created; `profiles.yml` configured to connect to `data/hl_dashboard.duckdb`
+- `data/imports/dim_date.csv` converted (ISO dates, snake_case headers) and moved to `dbt/seeds/dim_date.csv`; loaded via `dbt seed` (4,997 rows)
+- 6 source tables registered in `sources.yml`
+- `dbt-duckdb 1.10.1` and `dbt-utils 1.3.3` installed
 
-### Step 2 — Staging layer
+### Step 2 — Staging layer ✅
 
-- Write and test `stg_transactions`, `stg_prices`, `stg_benchmarks`
-- All materialised as views; no DuckDB state changes
-- `dbt test` must pass before proceeding
+- `stg_transactions`, `stg_prices`, `stg_benchmarks` written and tested
+- All materialised as views
 
-### Step 3 — Intermediate layer (in order)
+### Step 3 — Intermediate layer ✅
 
-Build in dependency order:
+Built and tested in dependency order:
 1. `int_trade_unit_deltas`
 2. `int_cumulative_unit_balances`
-3. `int_daily_unit_balances` ← first table materialisation, replaces `v_holdings`
-4. `int_daily_fund_values` ← replaces `v_portfolio_value`
+3. `int_daily_unit_balances` (ASOF JOIN; account-aware replacement for `v_holdings`)
+4. `int_daily_fund_values` (replacement for `v_portfolio_value`)
 5. `int_fund_cost_basis`
 6. `int_daily_contributions`
 
-After step 3 is passing, drop the old views `v_holdings` and `v_portfolio_value` from `001_init.sql`.
+`v_holdings` and `v_portfolio_value` dropped from DuckDB and removed from `001_init.sql`.
 
-### Step 4 — Mart layer
+### Step 4 — Mart layer ✅
 
 1. `mart_daily_portfolio_value`
-2. `mart_current_holdings`
+2. `mart_current_holdings` (daily snapshot grain)
 3. `mart_portfolio_contributions`
 4. `mart_benchmark_levels`
 
-### Step 5 — Update FastAPI routers
+**112/112 data tests pass. 13/13 models build successfully.**
+
+### Step 5 — Update FastAPI routers ⏳ pending
 
 For each endpoint, replace the inline CTE SQL with a simpler query against the mart or intermediate model. The API signatures don't change. Inline account filter and date range WHERE clauses remain in Python.
 
-### Step 6 — Schedule dbt in the daily refresh
+### Step 6 — Schedule dbt in the daily refresh ⏳ pending
 
-Add `dbt run` to the daily 18:00 job (after `fetch_prices.py` completes) so the mart tables are always fresh. This replaces the APScheduler running raw SQL.
+Add `dbt run` to the daily 18:00 job (after `fetch_prices.py` completes) so the mart tables are always fresh.
 
 ---
 

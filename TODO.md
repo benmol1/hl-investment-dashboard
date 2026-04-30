@@ -77,7 +77,42 @@ cd frontend && npm run dev
 
 ---
 
-## Phase 4 — Deployment
+## Phase 4 — dbt Data Layer ✅ COMPLETE
+
+- [x] Add `dbt-duckdb` dependency; install `dbt-utils` package
+- [x] Bootstrap dbt project (`dbt/dbt_project.yml`, `profiles.yml`, `packages.yml`)
+- [x] Promote `dim_date.csv` to a dbt seed (ISO dates, snake_case headers)
+- [x] Declare 6 source tables in `sources.yml` with not-null, unique, referential integrity, and accepted-values tests
+- [x] Staging layer (views): `stg_transactions` (adds `is_trade`, `is_contribution`, `unit_direction`), `stg_prices` (adds `price_gbp`), `stg_benchmarks`
+- [x] Intermediate layer (tables): `int_trade_unit_deltas` → `int_cumulative_unit_balances` → `int_daily_unit_balances` (ASOF JOIN, account-aware), `int_daily_fund_values`, `int_fund_cost_basis`, `int_daily_contributions`
+- [x] Mart layer (tables): `mart_daily_portfolio_value`, `mart_current_holdings` (daily snapshot), `mart_portfolio_contributions`, `mart_benchmark_levels`
+- [x] 112/112 data tests pass; all 13 models build successfully
+- [x] Drop old `v_holdings` and `v_portfolio_value` views from DuckDB and `001_init.sql`
+
+**To run dbt:**
+```bash
+cd dbt
+dbt seed --profiles-dir .   # load dim_date (first time only)
+dbt run  --profiles-dir .   # build all models
+dbt test --profiles-dir .   # run all 112 tests
+```
+
+---
+
+## Phase 5 — Wire API to dbt Marts
+
+- [ ] Update `GET /portfolio/value` to query `mart_daily_portfolio_value` instead of inline CTEs
+- [ ] Update `GET /portfolio/contributions` to query `mart_portfolio_contributions`
+- [ ] Update `GET /portfolio/holdings` to query `mart_current_holdings`
+- [ ] Update `GET /portfolio/performance` to query `mart_daily_portfolio_value` + `mart_benchmark_levels`
+- [ ] Update `GET /portfolio/allocation` to query `int_daily_fund_values` (point-in-time filter)
+- [ ] Update `GET /funds/{id}/performance` to query `int_daily_fund_values` + `mart_benchmark_levels`
+- [ ] Add `dbt run` to the APScheduler daily job (runs after `fetch_prices.py`)
+- [ ] Remove old `v_holdings` / `v_portfolio_value` references from any remaining Python code
+
+---
+
+## Phase 6 — Deployment
 
 - [ ] Write `docker-compose.yml` — FastAPI service + Nginx serving React build
 - [ ] Write `Dockerfile` for the backend
