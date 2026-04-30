@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: int_trade_unit_deltas
+    description: >
+      Net unit movement per (account, fund, trade_date). Consolidates all trades
+      that hit the same fund on the same day into a single signed delta.
+      This is the "delta CTE" that previously appeared in five separate Python
+      router queries, now written once and tested.
+    columns:
+      - name: account_id
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: fund_id
+        description: "ISIN of the fund."
+        tests:
+          - not_null
+      - name: trade_date
+        description: "Date the trade was executed."
+        tests:
+          - not_null
+      - name: unit_delta
+        description: >
+          Signed net unit change on this date. Positive = net purchase (units added);
+          negative = net sale (units removed).
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [account_id, fund_id, trade_date]

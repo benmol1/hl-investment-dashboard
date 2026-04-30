@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: int_fund_cost_basis
+    description: >
+      Simplified cost basis per (account, fund): total purchase cost (BUY +
+      SWITCH_IN) minus total sale proceeds (SELL + SWITCH_OUT). This is a
+      static snapshot — cost basis only changes when trades occur. Extracted
+      from the holdings endpoint into a named, tested model so the approximation
+      method is documented and not hidden in inline SQL.
+      Caveat: does not account for switching events in the cost calculation;
+      suitable as a directional guide, not a tax record.
+    columns:
+      - name: account_id
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: fund_id
+        description: "ISIN of the fund."
+        tests:
+          - not_null
+      - name: total_buy_cost
+        description: "Sum of abs(value_gbp) for all BUY and SWITCH_IN transactions."
+        tests:
+          - not_null
+      - name: total_units_bought
+        description: "Total units acquired via BUY and SWITCH_IN."
+        tests:
+          - not_null
+      - name: total_sell_proceeds
+        description: "Sum of abs(value_gbp) for all SELL and SWITCH_OUT transactions. Zero if no sales."
+        tests:
+          - not_null
+      - name: total_units_sold
+        description: "Total units disposed via SELL and SWITCH_OUT. Zero if no sales."
+        tests:
+          - not_null
+      - name: cost_basis_gbp
+        description: >
+          Estimated remaining cost basis: total_buy_cost − total_sell_proceeds,
+          floored at zero. Used for unrealised gain/loss calculations.
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [account_id, fund_id]

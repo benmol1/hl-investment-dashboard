@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: mart_daily_portfolio_value
+    description: >
+      Daily total portfolio value per account — the sum of all fund values for a
+      given account on a given date. The API queries this with an optional
+      account_id filter and a date range; for the "All accounts" view it sums
+      across both ISA and SIPP. Replaces the inline CTE-heavy SQL in
+      GET /portfolio/value.
+    columns:
+      - name: account_id
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: date
+        description: "Price date."
+        tests:
+          - not_null
+      - name: portfolio_value_gbp
+        description: "Total market value of all funds held in this account on this date (GBP)."
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [account_id, date]

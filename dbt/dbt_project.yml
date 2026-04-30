@@ -1,0 +1,35 @@
+name: hl_dashboard
+version: '1.0.0'
+config-version: 2
+
+profile: hl_dashboard
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+analysis-paths: ["analyses"]
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  hl_dashboard:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: table
+    marts:
+      +materialized: table
+
+seeds:
+  hl_dashboard:
+    dim_date:
+      +column_types:
+        date: date
+        year: integer
+        month: integer
+        day: integer
+        year_month: varchar
+        financial_year: varchar

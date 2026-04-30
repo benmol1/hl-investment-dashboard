@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: mart_benchmark_levels
+    description: >
+      Cleaned benchmark index levels (FTSE 100, S&P 500, Nasdaq) for every
+      available market date. Absolute closing levels are stored here; the
+      indexed-to-100 calculation is applied in the API at query time since
+      the base date varies per request (start of the selected date range).
+      Consumed by GET /portfolio/performance and GET /funds/{id}/performance.
+    columns:
+      - name: index_id
+        description: "Benchmark identifier: FTSE100, SP500, or NASDAQ."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [FTSE100, SP500, NASDAQ]
+      - name: date
+        description: "Market date."
+        tests:
+          - not_null
+      - name: level
+        description: "Index closing level (points)."
+        tests:
+          - not_null
+      - name: ticker
+        description: "Yahoo Finance ticker used to source this series."
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [index_id, date]

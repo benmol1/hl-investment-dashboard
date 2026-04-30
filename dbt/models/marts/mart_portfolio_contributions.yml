@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: mart_portfolio_contributions
+    description: >
+      Daily portfolio value alongside cumulative contributions per account.
+      The difference (growth_gbp) is the return attributable to investment
+      performance rather than fresh capital. Non-contribution dates carry
+      forward the cumulative contribution total via LEFT JOIN + COALESCE.
+      Replaces the multi-CTE inline SQL in GET /portfolio/contributions.
+    columns:
+      - name: account_id
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: date
+        description: "Price date."
+        tests:
+          - not_null
+      - name: portfolio_value_gbp
+        description: "Total market value of the portfolio on this date."
+        tests:
+          - not_null
+      - name: cumulative_contributions_gbp
+        description: >
+          Running total of all contributions to this account up to and including
+          this date. Zero on dates before the first contribution.
+        tests:
+          - not_null
+      - name: growth_gbp
+        description: "portfolio_value_gbp minus cumulative_contributions_gbp. Negative early on is normal."
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [account_id, date]

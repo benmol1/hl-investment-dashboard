@@ -1,0 +1,33 @@
+version: 2
+
+seeds:
+  - name: dim_date
+    description: "Date dimension table covering 2016 onwards, with UK financial year grouping."
+    columns:
+      - name: date
+        description: "Calendar date (ISO 8601). Primary key."
+        tests:
+          - not_null
+          - unique
+      - name: year
+        description: "Calendar year (e.g. 2024)."
+        tests:
+          - not_null
+      - name: month
+        description: "Month number 1–12."
+        tests:
+          - not_null
+      - name: day
+        description: "Day of month 1–31."
+        tests:
+          - not_null
+      - name: year_month
+        description: "YYYY-MM string, for month-level grouping."
+        tests:
+          - not_null
+      - name: financial_year
+        description: >
+          UK tax-year label (e.g. FY17 = April 2016 – March 2017).
+          Useful for grouping contributions and gains by tax year.
+        tests:
+          - not_null

@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: int_daily_contributions
+    description: >
+      Running total of contributions per (account, date). Only contains dates
+      on which a CONTRIBUTION transaction occurred — the mart joins this to
+      portfolio value with a LEFT JOIN and COALESCE to fill non-contribution
+      dates with zero. Contributions carry a positive value_gbp (money credited).
+    columns:
+      - name: account_id
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: date
+        description: "Date on which a contribution was received."
+        tests:
+          - not_null
+      - name: contributed_today
+        description: "Total contribution amount received on this date (GBP, positive)."
+        tests:
+          - not_null
+      - name: cumulative_contributions_gbp
+        description: "Running total of all contributions to this account up to and including this date."
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [account_id, date]

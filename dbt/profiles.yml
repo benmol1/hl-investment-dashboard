@@ -1,0 +1,14 @@
+# Run dbt from inside the dbt/ directory:
+#   cd dbt
+#   dbt seed --profiles-dir .
+#   dbt run  --profiles-dir .
+#   dbt test --profiles-dir .
+
+hl_dashboard:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "../data/hl_dashboard.duckdb"
+      schema: main
+      threads: 4

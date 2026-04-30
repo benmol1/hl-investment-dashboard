@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: int_daily_fund_values
+    description: >
+      Daily GBP value per (account, fund) — units × price — for every date where
+      a price exists and units_held > 0. Replaces v_portfolio_value, which was not
+      account-aware. Materialised as a table since it sits downstream of the large
+      ASOF JOIN table and is queried by multiple mart models.
+    config:
+      materialized: table
+    columns:
+      - name: date
+        description: "Price date."
+        tests:
+          - not_null
+      - name: account_id
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: fund_id
+        description: "ISIN of the fund."
+        tests:
+          - not_null
+      - name: fund_name
+        description: "Human-readable fund name from the funds reference table."
+        tests:
+          - not_null
+      - name: units_held
+        description: "Units held in this account on this date."
+        tests:
+          - not_null
+      - name: price_gbp
+        description: "NAV in GBP on this date."
+        tests:
+          - not_null
+      - name: value_gbp
+        description: "Market value in GBP (units_held × price_gbp, rounded to 2 d.p.)."
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [account_id, fund_id, date]

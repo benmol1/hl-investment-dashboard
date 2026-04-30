@@ -1,0 +1,96 @@
+version: 2
+
+sources:
+  - name: hl_dashboard
+    schema: main
+    description: "Raw tables loaded by setup_db.py and the ingest/fetch scripts."
+
+    tables:
+      - name: transactions
+        description: "One row per HL transaction, classified by type and linked to a fund."
+        columns:
+          - name: id
+            description: "MD5 of (account_id | trade_date | reference | value_gbp). Primary key."
+            tests:
+              - not_null
+              - unique
+          - name: account_id
+            description: "ISA or SIPP."
+            tests:
+              - not_null
+              - relationships:
+                  to: source('hl_dashboard', 'accounts')
+                  field: id
+          - name: fund_id
+            description: "ISIN of the fund; NULL for non-trade rows (contributions, fees)."
+            tests:
+              - relationships:
+                  to: source('hl_dashboard', 'funds')
+                  field: id
+                  config:
+                    where: "fund_id is not null"
+          - name: transaction_type
+            tests:
+              - not_null
+              - accepted_values:
+                  values: [BUY, SELL, SWITCH_IN, SWITCH_OUT, CONTRIBUTION, FEE,
+                           INTEREST, REBATE, TRANSFER, REJECTED, OTHER]
+          - name: value_gbp
+            tests:
+              - not_null
+
+      - name: prices
+        description: "Daily NAV per fund in pence, sourced from Morningstar."
+        columns:
+          - name: fund_id
+            tests:
+              - not_null
+          - name: date
+            tests:
+              - not_null
+          - name: price_pence
+            tests:
+              - not_null
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [fund_id, date]
+
+      - name: benchmarks
+        description: "Daily closing level for FTSE 100, S&P 500, and Nasdaq, sourced from yfinance."
+        columns:
+          - name: index_id
+            tests:
+              - not_null
+              - accepted_values:
+                  values: [FTSE100, SP500, NASDAQ]
+          - name: date
+            tests:
+              - not_null
+          - name: level
+            tests:
+              - not_null
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [index_id, date]
+
+      - name: accounts
+        description: "Two-row lookup: ISA and SIPP."
+        columns:
+          - name: id
+            tests:
+              - not_null
+              - unique
+              - accepted_values:
+                  values: [ISA, SIPP]
+
+      - name: funds
+        description: "Fund reference data — ISIN, name, Morningstar code."
+        columns:
+          - name: id
+            description: "ISIN, or CASH for the cash position."
+            tests:
+              - not_null
+              - unique
+
+      - name: transaction_type_mapping
+        description: "Named HL reference strings mapped to transaction types."

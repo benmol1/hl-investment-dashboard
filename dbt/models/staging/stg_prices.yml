@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: stg_prices
+    description: >
+      Cleaned fund price data from Morningstar. Adds price_gbp (price_pence / 100)
+      so downstream models never repeat the unit conversion arithmetic.
+    columns:
+      - name: fund_id
+        description: "ISIN of the fund."
+        tests:
+          - not_null
+      - name: date
+        description: "Price date."
+        tests:
+          - not_null
+      - name: price_pence
+        description: "NAV in pence, as received from Morningstar (consistent with HL raw data)."
+        tests:
+          - not_null
+      - name: price_gbp
+        description: "NAV in GBP (price_pence / 100). Used by all downstream valuation models."
+        tests:
+          - not_null
+      - name: source
+        description: "Data source identifier (always 'morningstar' for fund prices)."
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fund_id, date]
