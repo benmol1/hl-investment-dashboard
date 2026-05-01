@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: mart_portfolio_returns
+    description: >
+      One row per (account, calendar month), starting from the second month of
+      data per account (the first month has no prior period and cannot produce a
+      return). Monthly returns use the Modified Dietz method with mid-period cash
+      flow weighting (W = 0.5). The trailing 12-month return geometrically links
+      the 12 most recent monthly returns. The trailing 36-month return geometrically
+      links 36 monthly returns and is then annualised to a per-year figure.
+      Both trailing returns are null until sufficient history exists for the account.
+    columns:
+      - name: account_id
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: year_month
+        description: "YYYY-MM string for the calendar month (e.g. 2024-03)."
+        tests:
+          - not_null
+      - name: financial_year
+        description: "UK tax-year label (e.g. FY25 = April 2024 – March 2025)."
+        tests:
+          - not_null
+      - name: month_end_date
+        description: "Actual last trading day with data in the month."
+      - name: month_end_value_gbp
+        description: "Total market value of the portfolio on the month-end date (EMV)."
+      - name: prev_month_end_value_gbp
+        description: "Portfolio value at the end of the prior month (BMV)."
+      - name: month_contributions_gbp
+        description: "External cash flows into the account during the month (CF). Fund switches are excluded as they are internal movements."
+      - name: monthly_return
+        description: >
+          Modified Dietz return for the month: (EMV - BMV - CF) / (BMV + 0.5 * CF).
+          Assumes cash flows arrive at the mid-point of the month (W = 0.5).
+          Null when the denominator is zero.
+      - name: trailing_12m_return
+        description: >
+          Trailing 12-month return, computed by geometrically linking monthly Modified Dietz
+          returns: EXP(SUM(LN(1 + r))) - 1.
+          Null until 12 full months of history exist, or if any month in the window has a null return.
+      - name: trailing_36m_return_annualised
+        description: >
+          Trailing 3-year return, annualised: (1 + r_36m)^(1/3) - 1, where r_36m is the
+          geometrically linked product of 36 monthly Modified Dietz returns.
+          Null until 36 full months of history exist, or if any month in the window has a null return.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [account_id, year_month]
