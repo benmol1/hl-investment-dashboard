@@ -25,7 +25,7 @@ with fund_account_dates as (
 )
 
 select
-    fd.date,
+    fd.date as valuation_date,
     fd.account_id,
     fd.fund_id,
     r.units_held

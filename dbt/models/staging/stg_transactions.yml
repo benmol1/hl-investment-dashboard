@@ -7,8 +7,8 @@ models:
       (is_trade, is_contribution, unit_direction) that encode HL-specific business
       rules in one place, removing the repeated CASE expressions from the Python routers.
     columns:
-      - name: id
-        description: "MD5 surrogate key. Primary key."
+      - name: transaction_id
+        description: "MD5 of (account_id | trade_date | reference | value_gbp). Natural deduplication key — not a sequential integer surrogate."
         tests:
           - not_null
           - unique

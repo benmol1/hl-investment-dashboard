@@ -2,9 +2,9 @@ with month_end_dates as (
     select
         account_id,
         dd.year_month,
-        max(pv.date) as month_end_date
+        max(pv.valuation_date) as month_end_date
     from {{ ref('mart_portfolio_contributions') }} pv
-    inner join {{ ref('dim_date') }} dd on dd.date = pv.date
+    inner join {{ ref('dim_date') }} dd on dd.date = pv.valuation_date
     group by account_id, dd.year_month
 ),
 
@@ -48,7 +48,7 @@ left join month_end_dates med
     and med.year_month = ams.year_month
 left join {{ ref('mart_portfolio_contributions') }} pv
     on  pv.account_id = med.account_id
-    and pv.date       = med.month_end_date
+    and pv.valuation_date = med.month_end_date
 left join monthly_contributions mc
     on  mc.account_id = ams.account_id
     and mc.year_month = ams.year_month

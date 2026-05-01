@@ -7,7 +7,7 @@ with account_open_months as (
         union all
         select account_id, dd.year_month
         from {{ ref('mart_daily_portfolio_value') }} pv
-        inner join {{ ref('dim_date') }} dd on dd.date = pv.date
+        inner join {{ ref('dim_date') }} dd on dd.date = pv.valuation_date
     )
     group by account_id
 )

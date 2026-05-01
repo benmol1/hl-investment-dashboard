@@ -13,7 +13,7 @@ models:
         description: "ISA or SIPP."
         tests:
           - not_null
-      - name: date
+      - name: valuation_date
         description: "Price date."
         tests:
           - not_null
@@ -34,4 +34,4 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [account_id, date]
+            combination_of_columns: [account_id, valuation_date]

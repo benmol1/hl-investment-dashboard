@@ -1,7 +1,7 @@
 select
     index_id,
-    date,
-    level,
+    market_date,
+    index_level,
     ticker
 
 from {{ ref('stg_benchmarks') }}

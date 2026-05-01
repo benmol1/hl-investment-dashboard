@@ -1,11 +1,12 @@
 version: 2
 
 models:
-  - name: mart_current_holdings
+  - name: fact_daily_holdings
     description: >
-      Daily snapshot of holdings with cost basis and unrealised gain/loss per
-      (account, fund, date). The GET /portfolio/holdings endpoint queries this
-      filtered to the latest available price date. The daily grain allows future
+      Grain: one row per (account_id, fund_id, date).
+      Periodic snapshot fact table. Daily holdings with cost basis and unrealised
+      gain/loss per account and fund. The GET /portfolio/holdings endpoint queries
+      this filtered to the latest available price date. The daily grain allows
       drill-down into historical holding snapshots without recomputation.
       Portfolio weight (percentage) is not pre-computed here — it depends on
       the account filter applied at query time and is calculated as a window
@@ -23,7 +24,7 @@ models:
         description: "Human-readable fund name."
         tests:
           - not_null
-      - name: date
+      - name: valuation_date
         description: "Price date for this snapshot."
         tests:
           - not_null
@@ -56,4 +57,4 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [account_id, fund_id, date]
+            combination_of_columns: [account_id, fund_id, valuation_date]

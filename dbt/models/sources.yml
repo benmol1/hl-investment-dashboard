@@ -10,7 +10,7 @@ sources:
         description: "One row per HL transaction, classified by type and linked to a fund."
         columns:
           - name: id
-            description: "MD5 of (account_id | trade_date | reference | value_gbp). Primary key."
+            description: "MD5 of (account_id | trade_date | reference | value_gbp). Aliased as transaction_id in stg_transactions."
             tests:
               - not_null
               - unique
@@ -83,6 +83,7 @@ sources:
         description: "Two-row lookup: ISA and SIPP."
         columns:
           - name: id
+            description: "Account identifier (ISA or SIPP). Aliased as account_id in dim_account."
             tests:
               - not_null
               - unique
@@ -94,7 +95,7 @@ sources:
         description: "Fund reference data — ISIN, name, Morningstar code."
         columns:
           - name: id
-            description: "ISIN, or CASH for the cash position."
+            description: "ISIN, or CASH for the cash position. Aliased as fund_id in dim_fund."
             tests:
               - not_null
               - unique

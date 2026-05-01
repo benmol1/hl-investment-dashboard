@@ -17,15 +17,15 @@ with cumulative_contribs as (
 
 select
     pv.account_id,
-    pv.date,
+    pv.valuation_date,
     pv.portfolio_value_gbp,
     coalesce(dc.contributed_today, 0)          as contributions_gbp,
     coalesce(cc.cumulative_contributions_gbp, 0) as cumulative_contributions_gbp
 
 from {{ ref('mart_daily_portfolio_value') }} pv
 left join {{ ref('int_daily_contributions') }} dc
-    on  dc.account_id       = pv.account_id
-    and dc.contribution_date = pv.date
+    on  dc.account_id        = pv.account_id
+    and dc.contribution_date = pv.valuation_date
 asof left join cumulative_contribs cc
-    on  pv.account_id = cc.account_id
-    and pv.date       >= cc.contribution_date
+    on  pv.account_id         = cc.account_id
+    and pv.valuation_date     >= cc.contribution_date

@@ -4,8 +4,13 @@ seeds:
   - name: dim_date
     description: "Date dimension table covering 2016 onwards, with UK financial year grouping."
     columns:
+      - name: date_key
+        description: "Integer surrogate key in YYYYMMDD format (e.g. 20240101). Kimball standard for date dimensions."
+        tests:
+          - not_null
+          - unique
       - name: date
-        description: "Calendar date (ISO 8601). Primary key."
+        description: "Calendar date (ISO 8601). Natural key."
         tests:
           - not_null
           - unique

@@ -2,6 +2,8 @@
 
 Reference guide for applying Kimball-style data warehouse design to this project.
 
+*Last modified: 2026-05-01 12:22*
+
 ---
 
 ## Core Modelling Principles
@@ -134,7 +136,7 @@ Each TODO is independently executable. Work through them in order as later steps
 
 ---
 
-### TODO 1 — Create `dim_fund`
+### ✅ TODO 1 — Create `dim_fund` *(completed 2026-05-01 12:22)*
 
 Create `models/dimensions/dim_fund.sql` sourced from `source('hl_dashboard', 'funds')`.
 
@@ -146,7 +148,7 @@ Create `models/dimensions/dim_fund.sql` sourced from `source('hl_dashboard', 'fu
 
 ---
 
-### TODO 2 — Create `dim_account`
+### ✅ TODO 2 — Create `dim_account` *(completed 2026-05-01 12:22)*
 
 Create `models/dimensions/dim_account.sql` sourced from `source('hl_dashboard', 'accounts')`.
 
@@ -156,7 +158,7 @@ Create `models/dimensions/dim_account.sql` sourced from `source('hl_dashboard', 
 
 ---
 
-### TODO 3 — Add `date_key` to `dim_date` seed
+### ✅ TODO 3 — Add `date_key` to `dim_date` seed *(completed 2026-05-01 12:22)*
 
 The `dim_date` seed has no integer surrogate key. Kimball's standard for date dimensions is an integer in `YYYYMMDD` format.
 
@@ -166,7 +168,7 @@ The `dim_date` seed has no integer surrogate key. Kimball's standard for date di
 
 ---
 
-### TODO 4 — Create `facts/` folder and rename `mart_current_holdings` → `fact_daily_holdings`
+### ✅ TODO 4 — Create `facts/` folder and rename `mart_current_holdings` → `fact_daily_holdings` *(completed 2026-05-01 12:22)*
 
 `mart_current_holdings` is a true Kimball periodic snapshot fact (grain: account × fund × date). Move it to a new `facts/` folder under its new name.
 
@@ -178,7 +180,7 @@ The `dim_date` seed has no integer surrogate key. Kimball's standard for date di
 
 ---
 
-### TODO 5 — Create `fact_transactions`
+### ✅ TODO 5 — Create `fact_transactions` *(completed 2026-05-01 12:22)*
 
 Create `models/facts/fact_transactions.sql` as the mart-layer representation of transaction data. Carries the `fund_key` and `account_key` foreign keys from the dimension models (TODOs 1 & 2 must be done first).
 
@@ -190,7 +192,7 @@ Create `models/facts/fact_transactions.sql` as the mart-layer representation of 
 
 ---
 
-### TODO 6 — Rename the generic `date` column to context-specific names
+### ✅ TODO 6 — Rename the generic `date` column to context-specific names *(completed 2026-05-01 12:22)*
 
 Replace the bare `date` column with a descriptive name in every model that uses it.
 
@@ -208,13 +210,13 @@ Note: ASOF JOINs in `int_daily_fund_values` use `p.date <= h.date` — update bo
 
 ---
 
-### TODO 7 — Rename `level` → `index_level` in benchmarks
+### ✅ TODO 7 — Rename `level` → `index_level` in benchmarks *(completed 2026-05-01 12:22)*
 
 In `stg_benchmarks.sql` and `stg_benchmarks.yml`, rename `level` → `index_level`. Update `mart_benchmark_levels` and its `.yml` to match.
 
 ---
 
-### TODO 8 — Rename `stg_transactions.id` → `transaction_id`
+### ✅ TODO 8 — Rename `stg_transactions.id` → `transaction_id` *(completed 2026-05-01 12:22)*
 
 Rename `id` to `transaction_id` in:
 - `sources.yml` (source column description)
@@ -224,7 +226,7 @@ Document in the `.yml` that `transaction_id` is an MD5 content-hash (a natural d
 
 ---
 
-### TODO 9 — Alias `funds.id` and `accounts.id` in dimension models
+### ✅ TODO 9 — Alias `funds.id` and `accounts.id` in dimension models *(completed 2026-05-01 12:22)*
 
 The source tables use bare `id`. The dimension models created in TODOs 1 & 2 should alias these clearly:
 
@@ -234,7 +236,7 @@ The source tables use bare `id`. The dimension models created in TODOs 1 & 2 sho
 
 ---
 
-### TODO 10 — Add explicit grain declarations to all fact `.yml` files
+### ✅ TODO 10 — Add explicit grain declarations to all fact `.yml` files *(completed 2026-05-01 12:22)*
 
 Each fact model's `.yml` description should open with a one-line grain statement. Example format:
 

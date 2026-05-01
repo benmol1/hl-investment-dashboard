@@ -1,0 +1,81 @@
+version: 2
+
+models:
+  - name: fact_transactions
+    description: >
+      Grain: one row per transaction (each unique transaction_id).
+      Atomic event fact table. All HL transactions with surrogate foreign keys
+      to dim_account and dim_fund. Non-trade rows (contributions, fees) have a
+      null fund_key and fund_id. Carries the derived flags is_trade and
+      is_contribution from staging. unit_direction is omitted here as it is
+      an implementation detail for unit balance calculations rather than a
+      reportable fact.
+    columns:
+      - name: transaction_id
+        description: "MD5 of (account_id | trade_date | reference | value_gbp). Natural deduplication key — not a sequential integer surrogate."
+        tests:
+          - not_null
+          - unique
+      - name: account_key
+        description: "Foreign key to dim_account.account_key."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_account')
+              field: account_key
+      - name: fund_key
+        description: "Foreign key to dim_fund.fund_key. Null for non-trade rows (contributions, fees)."
+        tests:
+          - relationships:
+              to: ref('dim_fund')
+              field: fund_key
+              config:
+                where: "fund_key is not null"
+      - name: account_id
+        description: "ISA or SIPP. Natural key retained for readability."
+        tests:
+          - not_null
+      - name: fund_id
+        description: "ISIN of the fund. Natural key retained for readability. Null for non-trade rows."
+      - name: fund_name
+        description: "Human-readable fund name from dim_fund. Null for non-trade rows."
+      - name: trade_date
+        description: "Date the trade was executed."
+        tests:
+          - not_null
+      - name: settle_date
+        description: "Settlement date."
+      - name: reference
+        description: "HL transaction reference string."
+      - name: raw_description
+        description: "Raw description from the HL transaction export."
+      - name: transaction_type
+        description: "Classified transaction type."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [BUY, SELL, SWITCH_IN, SWITCH_OUT, CONTRIBUTION, FEE,
+                         INTEREST, REBATE, TRANSFER, REJECTED, OTHER]
+      - name: transaction_subtype
+        description: "Optional subtype for further classification."
+      - name: unit_cost_pence
+        description: "Unit price in pence at the time of the trade."
+      - name: quantity
+        description: "Number of units traded. Null for non-trade rows."
+      - name: value_gbp
+        description: "Transaction value in GBP. Negative = debit (purchase/fee); positive = credit."
+        tests:
+          - not_null
+      - name: is_trade
+        description: "True for BUY, SELL, SWITCH_IN, SWITCH_OUT rows."
+        tests:
+          - not_null
+      - name: is_contribution
+        description: "True for CONTRIBUTION and TRANSFER rows."
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [transaction_id]

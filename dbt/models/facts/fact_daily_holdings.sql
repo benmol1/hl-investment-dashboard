@@ -2,7 +2,7 @@ select
     v.account_id,
     v.fund_id,
     v.fund_name,
-    v.date,
+    v.valuation_date,
     v.units_held,
     v.price_gbp,
     v.value_gbp,

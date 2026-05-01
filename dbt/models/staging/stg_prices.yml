@@ -10,7 +10,7 @@ models:
         description: "ISIN of the fund."
         tests:
           - not_null
-      - name: date
+      - name: price_date
         description: "Price date."
         tests:
           - not_null
@@ -27,4 +27,4 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [fund_id, date]
+            combination_of_columns: [fund_id, price_date]

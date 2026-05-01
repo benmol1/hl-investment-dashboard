@@ -1,6 +1,6 @@
 select
     fund_id,
-    date,
+    date as price_date,
     price_pence,
     price_pence / 100.0 as price_gbp,
     source

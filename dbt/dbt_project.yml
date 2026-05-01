@@ -20,6 +20,10 @@ models:
       +materialized: view
     intermediate:
       +materialized: table
+    dimensions:
+      +materialized: table
+    facts:
+      +materialized: table
     marts:
       +materialized: table
 
@@ -27,6 +31,7 @@ seeds:
   hl_dashboard:
     dim_date:
       +column_types:
+        date_key: integer
         date: date
         year: integer
         month: integer

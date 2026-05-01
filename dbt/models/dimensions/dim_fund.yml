@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: dim_fund
+    description: "Fund dimension. One row per fund. fund_key is the surrogate primary key; fund_id is the ISIN natural key retained as an attribute."
+    columns:
+      - name: fund_key
+        description: "Sequential integer surrogate key. Use this for all joins between fact tables and dim_fund."
+        tests:
+          - not_null
+          - unique
+      - name: fund_id
+        description: "ISIN (or CASH for the cash position). Natural/business key — stored as an attribute, not used for joins."
+        tests:
+          - not_null
+          - unique
+      - name: fund_name
+        description: "Human-readable fund name."
+        tests:
+          - not_null
+      - name: morningstar_code
+        description: "Morningstar identifier used to fetch price data."

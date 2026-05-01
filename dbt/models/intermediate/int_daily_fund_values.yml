@@ -10,7 +10,7 @@ models:
     config:
       materialized: table
     columns:
-      - name: date
+      - name: valuation_date
         description: "Price date."
         tests:
           - not_null
@@ -41,4 +41,4 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [account_id, fund_id, date]
+            combination_of_columns: [account_id, fund_id, valuation_date]

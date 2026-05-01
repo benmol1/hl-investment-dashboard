@@ -1,5 +1,5 @@
 select
-    id,
+    id as transaction_id,
     account_id,
     fund_id,
     trade_date,
