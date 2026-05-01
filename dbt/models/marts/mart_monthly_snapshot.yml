@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: mart_monthly_portfolio_value
+  - name: mart_monthly_snapshot
     description: >
       One row per (account, calendar month) from account opening through the
       current month, driven by int_account_month_spine. Months before the first
@@ -28,6 +28,13 @@ models:
         description: "Running total of all contributions up to and including the month-end date. Null for months before first portfolio value."
       - name: month_total_contributions_gbp
         description: "Total contributions made within the calendar month. Null for months with no contributions."
+      - name: net_fund_purchases_gbp
+        description: >
+          Gross fund buys minus gross fund sells within the calendar month.
+          Positive = net buyer, negative = net seller. Zero for months with no trades.
+          Differs from month_total_contributions_gbp because cash can sit uninvested
+          between contribution and deployment.
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [account_id, year_month]
+          arguments:
+            combination_of_columns: [account_id, year_month]

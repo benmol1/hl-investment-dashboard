@@ -19,22 +19,25 @@ sources:
             tests:
               - not_null
               - relationships:
-                  to: source('hl_dashboard', 'accounts')
-                  field: id
+                  arguments:
+                    to: source('hl_dashboard', 'accounts')
+                    field: id
           - name: fund_id
             description: "ISIN of the fund; NULL for non-trade rows (contributions, fees)."
             tests:
               - relationships:
-                  to: source('hl_dashboard', 'funds')
-                  field: id
+                  arguments:
+                    to: source('hl_dashboard', 'funds')
+                    field: id
                   config:
                     where: "fund_id is not null"
           - name: transaction_type
             tests:
               - not_null
               - accepted_values:
-                  values: [BUY, SELL, SWITCH_IN, SWITCH_OUT, CONTRIBUTION, FEE,
-                           INTEREST, REBATE, TRANSFER, REJECTED, OTHER]
+                  arguments:
+                    values: [BUY, SELL, SWITCH_IN, SWITCH_OUT, CONTRIBUTION, FEE,
+                             INTEREST, REBATE, TRANSFER, REJECTED, OTHER]
           - name: value_gbp
             tests:
               - not_null
@@ -53,7 +56,8 @@ sources:
               - not_null
         tests:
           - dbt_utils.unique_combination_of_columns:
-              combination_of_columns: [fund_id, date]
+              arguments:
+                combination_of_columns: [fund_id, date]
 
       - name: benchmarks
         description: "Daily closing level for FTSE 100, S&P 500, and Nasdaq, sourced from yfinance."
@@ -62,7 +66,8 @@ sources:
             tests:
               - not_null
               - accepted_values:
-                  values: [FTSE100, SP500, NASDAQ]
+                  arguments:
+                    values: [FTSE100, SP500, NASDAQ]
           - name: date
             tests:
               - not_null
@@ -71,7 +76,8 @@ sources:
               - not_null
         tests:
           - dbt_utils.unique_combination_of_columns:
-              combination_of_columns: [index_id, date]
+              arguments:
+                combination_of_columns: [index_id, date]
 
       - name: accounts
         description: "Two-row lookup: ISA and SIPP."
@@ -81,7 +87,8 @@ sources:
               - not_null
               - unique
               - accepted_values:
-                  values: [ISA, SIPP]
+                  arguments:
+                    values: [ISA, SIPP]
 
       - name: funds
         description: "Fund reference data — ISIN, name, Morningstar code."

@@ -26,4 +26,5 @@ models:
         description: "Data source identifier (always 'morningstar' for fund prices)."
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [fund_id, date]
+          arguments:
+            combination_of_columns: [fund_id, date]

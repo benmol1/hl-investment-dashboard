@@ -14,7 +14,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [FTSE100, SP500, NASDAQ]
+              arguments:
+                values: [FTSE100, SP500, NASDAQ]
       - name: date
         description: "Market date."
         tests:
@@ -27,4 +28,5 @@ models:
         description: "Yahoo Finance ticker used to source this series."
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [index_id, date]
+          arguments:
+            combination_of_columns: [index_id, date]
