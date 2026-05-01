@@ -83,7 +83,9 @@ cd frontend && npm run dev
 - [x] 112/112 data tests pass; all 13 models build successfully
 - [x] Drop old `v_holdings` and `v_portfolio_value` views from DuckDB and `001_init.sql`
 - [ ] Review data model end-to-end. Polish, make improvements and align it with Kimball style (primary keys being integers; more explicit column names)
-- [ ] Build out a monthly snapshort mart table which has grain account x fund x month-end date. Include fields for contribution / net amount purchased.
+- [ ] Add the Mercer pension fund as an additional benchmark
+- [ ] Understand and calculate Sharpe ratios for each account + benchmarks
+
 
 **To run dbt:**
 ```bash
