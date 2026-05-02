@@ -1,0 +1,63 @@
+version: 2
+
+models:
+  - name: mart_benchmarks
+    description: >
+      One row per (index, calendar month), starting from the second month of
+      data per index (the first month has no prior period and cannot produce a
+      return). Monthly return is simple price return: (level_t - level_t-1) / level_t-1.
+      Trailing 12-month return geometrically links the 12 most recent monthly returns.
+      Trailing 36-month return geometrically links 36 monthly returns and is then
+      annualised to a per-year figure. Trailing 12- and 36-month annualised Sharpe
+      ratios are computed as (mean monthly return / stddev_samp of monthly returns)
+      * sqrt(12), with risk-free rate assumed zero. Both trailing metrics are null
+      until sufficient history exists.
+    columns:
+      - name: index_id
+        description: "Benchmark identifier: FTSE100, SP500, or NASDAQ."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [FTSE100, SP500, NASDAQ]
+      - name: ticker
+        description: "Yahoo Finance ticker used to source this series."
+      - name: year_month
+        description: "YYYY-MM string for the calendar month (e.g. 2024-03)."
+        tests:
+          - not_null
+      - name: month_end_date
+        description: "Last market date with data in the month."
+        tests:
+          - not_null
+      - name: month_end_level
+        description: "Index closing level on the last trading day of the month (points)."
+        tests:
+          - not_null
+      - name: prev_month_end_level
+        description: "Index closing level at the end of the prior month (points)."
+      - name: monthly_return
+        description: "Simple price return for the month: (level_t - level_t-1) / level_t-1."
+      - name: trailing_12m_return
+        description: >
+          Trailing 12-month return, computed by geometrically linking monthly returns:
+          EXP(SUM(LN(1 + r))) - 1. Null until 12 full months of history exist.
+      - name: trailing_36m_return_annualised
+        description: >
+          Trailing 3-year return, annualised: (1 + r_36m)^(1/3) - 1, where r_36m is the
+          geometrically linked product of 36 monthly returns.
+          Null until 36 full months of history exist.
+      - name: trailing_12m_sharpe
+        description: >
+          Annualised Sharpe ratio over the trailing 12 months: (mean monthly return /
+          stddev_samp of monthly returns) * sqrt(12). Risk-free rate assumed zero.
+          Null until 12 full months of history exist, or if return volatility is zero.
+      - name: trailing_36m_sharpe
+        description: >
+          Annualised Sharpe ratio over the trailing 36 months: (mean monthly return /
+          stddev_samp of monthly returns) * sqrt(12). Risk-free rate assumed zero.
+          Null until 36 full months of history exist, or if return volatility is zero.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [index_id, year_month]

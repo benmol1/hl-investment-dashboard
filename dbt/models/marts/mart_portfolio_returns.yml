@@ -10,6 +10,8 @@ models:
       the 12 most recent monthly returns. The trailing 36-month return geometrically
       links 36 monthly returns and is then annualised to a per-year figure.
       Both trailing returns are null until sufficient history exists for the account.
+      Trailing 12- and 36-month annualised Sharpe ratios are also included, calculated as
+      (mean monthly return / stddev_samp of monthly returns) * sqrt(12), with risk-free rate = 0.
     columns:
       - name: account_id
         description: "ISA or SIPP."
@@ -46,6 +48,16 @@ models:
           Trailing 3-year return, annualised: (1 + r_36m)^(1/3) - 1, where r_36m is the
           geometrically linked product of 36 monthly Modified Dietz returns.
           Null until 36 full months of history exist, or if any month in the window has a null return.
+      - name: trailing_12m_sharpe
+        description: >
+          Annualised Sharpe ratio over the trailing 12 months: (mean monthly return / stddev_samp of
+          monthly returns) * sqrt(12). Risk-free rate is assumed to be zero. Null until 12 full months
+          of history exist, or if return volatility is zero.
+      - name: trailing_36m_sharpe
+        description: >
+          Annualised Sharpe ratio over the trailing 36 months: (mean monthly return / stddev_samp of
+          monthly returns) * sqrt(12). Risk-free rate is assumed to be zero. Null until 36 full months
+          of history exist, or if return volatility is zero.
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

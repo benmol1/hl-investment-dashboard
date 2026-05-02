@@ -25,7 +25,7 @@
 - [x] Incremental upsert confirmed working — re-running never duplicates rows
 - [x] Update `setup_db.py` to use `INSERT OR REPLACE` for funds so re-seeding always reflects `dim_funds.csv`
 - [x] ISA and SIPP transactions ingested: 62 ISA rows, 159 SIPP rows
-- [ ] Find a way to fix the Rathbone data - it changed its fund ID in May 2019, but there isn't a clean buy/sell transaction to reflect the change
+- [x] Find a way to fix the Rathbone data - it changed its fund ID in May 2019, but there isn't a clean buy/sell transaction to reflect the change
 
 ---
 
@@ -84,8 +84,7 @@ cd frontend && npm run dev
 - [x] 112/112 data tests pass; all 13 models build successfully
 - [x] Drop old `v_holdings` and `v_portfolio_value` views from DuckDB and `001_init.sql`
 - [ ] Review data model end-to-end. Polish, make improvements and align it with Kimball style (primary keys being integers; more explicit column names)
-- [ ] Add the Mercer pension fund as an additional benchmark
-- [ ] Understand and calculate Sharpe ratios for each account + benchmarks
+- [x] Understand and calculate Sharpe ratios for each account + benchmarks
 
 
 **To run dbt:**
