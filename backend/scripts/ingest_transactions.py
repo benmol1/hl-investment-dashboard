@@ -73,7 +73,7 @@ def _rename_raw_files() -> list[tuple[Path, str]]:
             continue
 
         for f in sorted(folder.glob("*.csv")):
-            if _RENAMED_PATTERN.match(f.name):
+            if _RENAMED_PATTERN.match(f.name) or f.stem.endswith("_manual"):
                 results.append((f, account))
                 continue
 
