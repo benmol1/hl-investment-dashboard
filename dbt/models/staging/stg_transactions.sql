@@ -1,6 +1,6 @@
 select
     id as transaction_id,
-    account_id as account_name,
+    account_id,
     fund_id,
     trade_date,
     settle_date,
