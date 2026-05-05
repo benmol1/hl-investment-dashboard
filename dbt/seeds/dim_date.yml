@@ -40,11 +40,11 @@ seeds:
         description: "Set to 'Month End' on the last calendar day of each month, otherwise empty."
         tests:
           - dbt_utils.expression_is_true:
-              expression: "month_end_indicator = 'Month End'"
+              expression: "= 'Month End'"
               where: "date = '2019-02-28'"
       - name: financial_year_end_indicator
         description: "Set to 'Financial Year End' on 31 March each year (the last day of the UK tax year), otherwise empty."
         tests:
           - dbt_utils.expression_is_true:
-              expression: "financial_year_end_indicator = 'Financial Year End'"
+              expression: "= 'Financial Year End'"
               where: "date = '2025-03-31'"
