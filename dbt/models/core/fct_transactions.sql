@@ -1,24 +1,24 @@
 select
-    t.transaction_id,
+    -- Foreign keys
     da.account_key,
     df.fund_key,
-    t.account_id,
-    t.fund_id,
-    df.fund_name,
+    dtt.transaction_type_key,
+
+    -- Dates
     t.trade_date,
     t.settle_date,
+
+    -- Degenerate attributes
+    t.transaction_id,
     t.reference,
     t.raw_description,
-    t.transaction_type,
-    t.transaction_subtype,
-    t.unit_cost_pence,
+
+    -- Numeric facts
     t.quantity,
-    t.value_gbp,
-    t.is_trade,
-    t.is_contribution
+    t.value_gbp
 
 from {{ ref('base__hl_transactions') }} t
-left join {{ ref('dim_account') }} da on da.account_name = t.account_id
-left join {{ ref('dim_fund') }}    df on df.fund_id    = t.fund_id
-
--- TODO: extract the descriptive fields on the transaction into a transaction_type dimension
+left join {{ ref('dim_account') }}          da  on da.account_name     = t.account_id
+left join {{ ref('dim_fund') }}             df  on df.fund_id          = t.fund_id
+left join {{ ref('dim_transaction_type') }} dtt on dtt.transaction_type    = t.transaction_type
+                                                and dtt.transaction_subtype is not distinct from t.transaction_subtype

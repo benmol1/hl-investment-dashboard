@@ -31,14 +31,14 @@ models:
                 field: fund_key
               config:
                 where: "fund_key is not null"
-      - name: account_id
-        description: "ISA or SIPP. Natural key retained for readability."
+      - name: transaction_type_key
+        description: "Foreign key to dim_transaction_type.transaction_type_key."
         tests:
           - not_null
-      - name: fund_id
-        description: "ISIN of the fund. Natural key retained for readability. Null for non-trade rows."
-      - name: fund_name
-        description: "Human-readable fund name from dim_fund. Null for non-trade rows."
+          - relationships:
+              arguments:
+                to: ref('dim_transaction_type')
+                field: transaction_type_key
       - name: trade_date
         description: "Date the trade was executed."
         tests:
@@ -49,30 +49,10 @@ models:
         description: "HL transaction reference string."
       - name: raw_description
         description: "Raw description from the HL transaction export."
-      - name: transaction_type
-        description: "Classified transaction type."
-        tests:
-          - not_null
-          - accepted_values:
-              arguments:
-                values: [BUY, SELL, SWITCH_IN, SWITCH_OUT, CONTRIBUTION, FEE,
-                         INTEREST, REBATE, TRANSFER, REJECTED, OTHER]
-      - name: transaction_subtype
-        description: "Optional subtype for further classification."
-      - name: unit_cost_pence
-        description: "Unit price in pence at the time of the trade."
       - name: quantity
         description: "Number of units traded. Null for non-trade rows."
       - name: value_gbp
         description: "Transaction value in GBP. Negative = debit (purchase/fee); positive = credit."
-        tests:
-          - not_null
-      - name: is_trade
-        description: "True for BUY, SELL, SWITCH_IN, SWITCH_OUT rows."
-        tests:
-          - not_null
-      - name: is_contribution
-        description: "True for CONTRIBUTION and TRANSFER rows."
         tests:
           - not_null
     tests:
