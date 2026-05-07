@@ -56,7 +56,7 @@ models:
                 field: date_key
               config:
                 where: "settle_date_key is not null"
-      - name: reference
+      - name: transaction_reference
         description: "HL transaction reference string."
       - name: raw_description
         description: "Raw description from the HL transaction export."

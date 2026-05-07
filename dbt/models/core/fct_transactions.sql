@@ -10,7 +10,7 @@ select
 
     -- Degenerate attributes
     t.transaction_id,
-    t.reference,
+    t.reference as transaction_reference,
     t.raw_description,
 
     -- Numeric facts
