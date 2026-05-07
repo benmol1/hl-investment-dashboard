@@ -29,10 +29,6 @@ models:
               arguments:
                 to: ref('dim_fund')
                 field: fund_key
-      - name: fund_id
-        description: "ISIN of the fund. Natural key retained for readability."
-        tests:
-          - not_null
       - name: price_gbp
         description: "End-of-day NAV in GBP."
         tests:

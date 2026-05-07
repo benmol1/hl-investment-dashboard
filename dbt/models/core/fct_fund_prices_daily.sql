@@ -1,7 +1,6 @@
 select
     dd.date_key,
     df.fund_key,
-    p.fund_id,
     p.price_gbp
 
 from {{ ref('base__hl_prices') }} p

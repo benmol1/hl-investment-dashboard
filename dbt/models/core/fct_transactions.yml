@@ -39,12 +39,23 @@ models:
               arguments:
                 to: ref('dim_transaction_type')
                 field: transaction_type_key
-      - name: trade_date
-        description: "Date the trade was executed."
+      - name: trade_date_key
+        description: "Foreign key to dim_date.date_key for the trade execution date."
         tests:
           - not_null
-      - name: settle_date
-        description: "Settlement date."
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: settle_date_key
+        description: "Foreign key to dim_date.date_key for the settlement date. Null when settlement date is unknown."
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+              config:
+                where: "settle_date_key is not null"
       - name: reference
         description: "HL transaction reference string."
       - name: raw_description

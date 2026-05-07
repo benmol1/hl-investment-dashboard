@@ -15,6 +15,14 @@ models:
       it depends on the account filter applied at query time and is calculated as a
       window function in the API.
     columns:
+      - name: date_key
+        description: "Foreign key to dim_date.date_key (YYYYMMDD integer)."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
       - name: account_key
         description: "Foreign key to dim_account.account_key."
         tests:
@@ -31,22 +39,6 @@ models:
               arguments:
                 to: ref('dim_fund')
                 field: fund_key
-      - name: account_id
-        description: "ISA or SIPP. Natural key retained for readability."
-        tests:
-          - not_null
-      - name: fund_id
-        description: "ISIN of the fund. Natural key retained for readability."
-        tests:
-          - not_null
-      - name: fund_name
-        description: "Human-readable fund name."
-        tests:
-          - not_null
-      - name: valuation_date
-        description: "Price date for this snapshot."
-        tests:
-          - not_null
       - name: units_held
         description: "Units held in this account on this date."
         tests:
@@ -62,4 +54,4 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [account_id, fund_id, valuation_date]
+            combination_of_columns: [account_key, fund_key, date_key]

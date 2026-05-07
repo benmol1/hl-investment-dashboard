@@ -1,0 +1,63 @@
+version: 2
+
+models:
+  - name: fct_daily_cash_position
+    description: >
+      Aggregate periodic snapshot fact recording daily cash movements per account.
+
+      **Grain**: One row per (account_id, trade_date)
+      **Update Frequency**: Daily (after transaction ingest)
+      **Source**: fct_transactions aggregated via dim_transaction_type indicators
+
+      Cash movements are split into three buckets:
+      trade_cash_net_gbp (net of buys and sells — switches net to zero),
+      contributions_gbp (CONTRIBUTION and TRANSFER inflows),
+      and fees_and_other_gbp (FEE, INTEREST, REBATE, and other non-trade rows).
+      net_cash_movement_gbp is the sum of all three.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [account_key, date_key]
+    columns:
+      - name: date_key
+        description: "Foreign key to dim_date.date_key (YYYYMMDD integer)."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: account_key
+        description: "Foreign key to dim_account.account_key."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_account')
+                field: account_key
+      - name: trade_cash_net_gbp
+        description: >
+          Net cash impact of trades on this day (sum of value_gbp for BUY, SELL,
+          SWITCH_IN, SWITCH_OUT). Switches net to zero when paired on the same day.
+          Negative when net purchases exceed net sales.
+        tests:
+          - not_null
+      - name: contributions_gbp
+        description: "Cash inflows from CONTRIBUTION and TRANSFER transactions."
+        tests:
+          - not_null
+      - name: fees_and_other_gbp
+        description: "Cash movements from FEE, INTEREST, REBATE, and other non-trade non-contribution rows."
+        tests:
+          - not_null
+      - name: net_cash_movement_gbp
+        description: "Total net cash movement for the account on this day (sum of all three buckets)."
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "= trade_cash_net_gbp + contributions_gbp + fees_and_other_gbp"
+      - name: cash_balance_gbp
+        description: "Running cumulative sum of net_cash_movement_gbp per account, ordered by trade_date. Represents the total cash held in the account at the end of this day."
+        tests:
+          - not_null
