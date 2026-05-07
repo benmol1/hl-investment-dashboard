@@ -1,3 +1,5 @@
+{{ config(materialized='view') }}
+
 select
     id as transaction_id,
     account_id,

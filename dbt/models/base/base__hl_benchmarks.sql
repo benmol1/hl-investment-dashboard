@@ -1,3 +1,5 @@
+{{ config(materialized='view') }}
+
 select
     index_id,
     date    as market_date,

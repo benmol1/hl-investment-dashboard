@@ -26,7 +26,7 @@ monthly_fund_purchases as (
                  then abs(value_gbp) else 0 end)
         - sum(case when transaction_type in ('SELL', 'SWITCH_OUT')
                    then abs(value_gbp) else 0 end) as net_fund_purchases_gbp
-    from {{ ref('stg_transactions') }}
+    from {{ ref('base__hl_transactions') }}
     inner join {{ ref('dim_date') }} dd on dd.date = trade_date
     where is_trade
     group by account_id, dd.year_month

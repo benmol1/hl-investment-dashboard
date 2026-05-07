@@ -4,10 +4,14 @@ models:
   - name: mart_daily_portfolio_value
     description: >
       Daily total portfolio value per account — the sum of all fund values for a
-      given account on a given date. The API queries this with an optional
-      account_id filter and a date range; for the "All accounts" view it sums
-      across both ISA and SIPP. Replaces the inline CTE-heavy SQL in
-      GET /portfolio/value.
+      given account on a given date.
+
+      **Grain**: One row per (account_id, valuation_date)
+      **Update Frequency**: Daily (after price ingest)
+      **Source**: int_daily_fund_values
+
+      The API queries this with an optional account_id filter and a date range;
+      for the "All accounts" view it sums across both ISA and SIPP.
     columns:
       - name: account_id
         description: "ISA or SIPP."

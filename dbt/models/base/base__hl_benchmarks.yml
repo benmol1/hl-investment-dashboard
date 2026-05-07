@@ -1,11 +1,14 @@
 version: 2
 
 models:
-  - name: stg_benchmarks
+  - name: base__hl_benchmarks
     description: >
-      Daily closing levels for the three benchmark indices (FTSE 100, S&P 500, Nasdaq)
-      sourced from yfinance. The absolute level is stored here; the API applies the
+      Base view on daily closing levels for the three benchmark indices (FTSE 100, S&P 500,
+      Nasdaq) sourced from yfinance. The absolute level is stored here; the API applies the
       indexed-to-100 calculation at query time since the base date varies per request.
+
+      **Grain**: One row per (index_id, market_date)
+      **Source**: hl_dashboard.benchmarks (raw ingest)
     columns:
       - name: index_id
         description: "Benchmark identifier: FTSE100, SP500, or NASDAQ."

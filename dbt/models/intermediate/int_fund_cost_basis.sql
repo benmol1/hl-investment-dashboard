@@ -4,7 +4,7 @@ with buys as (
         fund_id,
         sum(abs(value_gbp)) as total_buy_cost,
         sum(quantity)       as total_units_bought
-    from {{ ref('stg_transactions') }}
+    from {{ ref('base__hl_transactions') }}
     where transaction_type in ('BUY', 'SWITCH_IN')
       and fund_id  is not null
       and quantity is not null
@@ -17,7 +17,7 @@ sells as (
         fund_id,
         sum(abs(value_gbp)) as total_sell_proceeds,
         sum(quantity)       as total_units_sold
-    from {{ ref('stg_transactions') }}
+    from {{ ref('base__hl_transactions') }}
     where transaction_type in ('SELL', 'SWITCH_OUT')
       and fund_id  is not null
       and quantity is not null

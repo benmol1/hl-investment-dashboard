@@ -1,3 +1,5 @@
+{{ config(materialized='view') }}
+
 select
     fund_id,
     date as price_date,
