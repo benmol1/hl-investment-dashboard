@@ -20,3 +20,5 @@ select
 from {{ ref('base__hl_transactions') }} t
 left join {{ ref('dim_account') }} da on da.account_name = t.account_id
 left join {{ ref('dim_fund') }}    df on df.fund_id    = t.fund_id
+
+-- TODO: extract the descriptive fields on the transaction into a transaction_type dimension

@@ -59,20 +59,6 @@ models:
         description: "Market value in GBP (units_held × price_gbp)."
         tests:
           - not_null
-      - name: cost_basis_gbp
-        description: >
-          Estimated cost basis from int_fund_cost_basis (total buy cost minus sale
-          proceeds, floored at zero). Static — does not vary by date.
-        tests:
-          - not_null
-      - name: unrealised_gain_gbp
-        description: "value_gbp minus cost_basis_gbp."
-        tests:
-          - not_null
-      - name: unrealised_gain_pct
-        description: "Percentage gain relative to cost basis; 0.0 if cost basis is zero."
-        tests:
-          - not_null
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
