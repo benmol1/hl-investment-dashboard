@@ -1,14 +1,61 @@
-select
-    dd.date_key,
-    da.account_key,
-    df.fund_key,
-    v.units_held,
-    v.price_gbp,
-    v.value_gbp
+with account_fund_pairs as (
+    select distinct account_key, fund_key
+    from {{ ref('fct_transactions') }}
+    where fund_key is not null
+),
 
-from {{ ref('int_daily_fund_values') }} v
-inner join {{ ref('dim_date') }}    dd on dd.date        = v.valuation_date
-left join  {{ ref('dim_account') }} da on da.account_name = v.account_id
-left join  {{ ref('dim_fund') }}    df on df.fund_id      = v.fund_id
+-- Spine: every (account, fund, date) combination for which a price exists
+price_spine as (
+    select
+        afp.account_key,
+        fp.fund_key,
+        fp.date_key,
+        fp.fund_price_gbp
+    from account_fund_pairs afp
+    inner join {{ ref('fct_fund_prices_daily') }} fp using (fund_key)
+),
 
--- TODO: check wheter we actually need this file, or whether we'd rather handle this information via a different route.
+-- Cumulative units held per account/fund as of each price date
+cumulative_units as (
+    select
+        ps.date_key,
+        ps.account_key,
+        ps.fund_key,
+        ps.fund_price_gbp,
+        coalesce(sum(ft.quantity), 0) as units_held
+    from price_spine ps
+    left join {{ ref('fct_transactions') }} ft
+        on  ft.account_key     = ps.account_key
+        and ft.fund_key        = ps.fund_key
+        and ft.trade_date_key <= ps.date_key
+    group by ps.date_key, ps.account_key, ps.fund_key, ps.fund_price_gbp
+),
+
+fund_holdings as (
+    select
+        date_key,
+        account_key,
+        fund_key,
+        'Fund'                          as holding_type,
+        units_held,
+        fund_price_gbp,
+        units_held * fund_price_gbp     as value_gbp
+    from cumulative_units
+    where units_held > 0
+),
+
+cash_holdings as (
+    select
+        date_key,
+        account_key,
+        null                            as fund_key,
+        'Cash'                          as holding_type,
+        null                            as units_held,
+        null                            as fund_price_gbp,
+        cash_balance_gbp                as value_gbp
+    from {{ ref('fct_daily_cash_position') }}
+)
+
+select * from fund_holdings
+union all
+select * from cash_holdings
