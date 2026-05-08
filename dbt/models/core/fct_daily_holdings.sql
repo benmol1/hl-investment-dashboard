@@ -9,39 +9,50 @@ price_spine as (
     select
         afp.account_key,
         fp.fund_key,
-        fp.date_key,
-        fp.fund_price_gbp
+        fp.date_key
     from account_fund_pairs afp
     inner join {{ ref('fct_fund_prices_daily') }} fp using (fund_key)
 ),
 
--- Cumulative units held per account/fund as of each price date
+-- Cumulative units held per account/fund as of each price date.
+-- Only trade transactions (BUY, SELL, SWITCH_IN, SWITCH_OUT) affect unit balances.
+-- Direction is determined by transaction type: buys/switch-ins add units, sells/switch-outs subtract.
 cumulative_units as (
     select
         ps.date_key,
         ps.account_key,
         ps.fund_key,
-        ps.fund_price_gbp,
-        coalesce(sum(ft.quantity), 0) as units_held
+        coalesce(sum(
+            case dtt.transaction_type
+                when 'BUY'        then  ft.quantity
+                when 'SWITCH_IN'  then  ft.quantity
+                when 'SELL'       then -ft.quantity
+                when 'SWITCH_OUT' then -ft.quantity
+            end
+        ), 0) as units_held
     from price_spine ps
-    left join {{ ref('fct_transactions') }} ft
-        on  ft.account_key     = ps.account_key
-        and ft.fund_key        = ps.fund_key
-        and ft.trade_date_key <= ps.date_key
-    group by ps.date_key, ps.account_key, ps.fund_key, ps.fund_price_gbp
+    left join {{ ref('fct_transactions') }}     ft  on  ft.account_key           = ps.account_key
+                                                    and ft.fund_key              = ps.fund_key
+                                                    and ft.trade_date_key       <= ps.date_key
+    left join {{ ref('dim_transaction_type') }} dtt on  dtt.transaction_type_key = ft.transaction_type_key
+    where dtt.trade_indicator = 'Trade'
+       or ft.transaction_type_key is null
+    group by ps.date_key, ps.account_key, ps.fund_key
 ),
 
 fund_holdings as (
     select
-        date_key,
-        account_key,
-        fund_key,
-        'Fund'                          as holding_type,
-        units_held,
-        fund_price_gbp,
-        units_held * fund_price_gbp     as value_gbp
-    from cumulative_units
-    where units_held > 0
+        cu.date_key,
+        cu.account_key,
+        cu.fund_key,
+        'Fund'                              as holding_type,
+        cu.units_held,
+        fp.fund_price_gbp,
+        cu.units_held * fp.fund_price_gbp   as value_gbp
+    from cumulative_units cu
+    inner join {{ ref('fct_fund_prices_daily') }} fp on  fp.fund_key = cu.fund_key
+                                                     and fp.date_key = cu.date_key
+    where cu.units_held > 0
 ),
 
 cash_holdings as (
