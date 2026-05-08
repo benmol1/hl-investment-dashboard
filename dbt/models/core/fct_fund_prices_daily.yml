@@ -29,7 +29,7 @@ models:
               arguments:
                 to: ref('dim_fund')
                 field: fund_key
-      - name: price_gbp
-        description: "End-of-day NAV in GBP."
+      - name: fund_price_gbp
+        description: "End-of-day Net Asset Value in GBP."
         tests:
           - not_null

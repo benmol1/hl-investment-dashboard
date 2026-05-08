@@ -11,7 +11,7 @@ select
     -- Degenerate attributes
     t.transaction_id,
     t.reference as transaction_reference,
-    t.raw_description,
+    t.raw_description as transaction_full_description,
 
     -- Numeric facts
     t.quantity,

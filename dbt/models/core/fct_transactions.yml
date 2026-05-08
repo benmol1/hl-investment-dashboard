@@ -58,7 +58,7 @@ models:
                 where: "settle_date_key is not null"
       - name: transaction_reference
         description: "HL transaction reference string."
-      - name: raw_description
+      - name: transaction_full_description
         description: "Raw description from the HL transaction export."
       - name: quantity
         description: "Number of units traded. Null for non-trade rows."
