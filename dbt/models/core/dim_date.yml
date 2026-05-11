@@ -1,8 +1,13 @@
 version: 2
 
-seeds:
+models:
   - name: dim_date
-    description: "Date dimension table covering 2016 onwards, with UK financial year grouping."
+    description: >
+      Date dimension covering 2016 onwards, with UK financial year grouping.
+
+      **Grain**: One row per calendar date
+      **Update Frequency**: Static — regenerate seed CSV to extend coverage
+      **Source**: seed_date
     columns:
       - name: date_key
         description: "Integer surrogate key in YYYYMMDD format (e.g. 20240101). Kimball standard for date dimensions."
@@ -40,11 +45,15 @@ seeds:
         description: "Set to 'Month End' on the last calendar day of each month, otherwise empty."
         tests:
           - dbt_utils.expression_is_true:
-              expression: "= 'Month End'"
-              where: "date = '2019-02-28'"
+              arguments:
+                expression: "= 'Month End'"
+              config:
+                where: "date = '2019-02-28'"
       - name: financial_year_end_indicator
         description: "Set to 'Financial Year End' on 31 March each year (the last day of the UK tax year), otherwise empty."
         tests:
           - dbt_utils.expression_is_true:
-              expression: "= 'Financial Year End'"
-              where: "date = '2025-03-31'"
+              arguments:
+                expression: "= 'Financial Year End'"
+              config:
+                where: "date = '2025-03-31'"

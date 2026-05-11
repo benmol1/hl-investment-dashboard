@@ -4,9 +4,25 @@ models:
   - name: mart_monthly_snapshot
     description: >
       One row per (account, calendar month) from account opening through the
-      current month, driven by int_account_month_spine. Months before the first
-      fund price will have null month_end_value_gbp and cumulative_contributions_gbp.
-      year_month and financial_year are sourced from the spine.
+      current month. Spine is driven by dim_account.account_open_date joined to
+      dim_date.
+
+      month_end_value_gbp reflects total portfolio value including cash holdings
+      (funds + cash), sourced from fct_daily_holdings on dates where
+      dim_date.month_end_indicator = 'Month End'. The current (incomplete) month
+      will show null for month_end_date and month_end_value_gbp until its last
+      calendar day passes.
+
+      Contributions and fund purchases are sourced from fct_transactions,
+      classified via dim_transaction_type.
+
+      **Grain**: One row per (account_id, year_month)
+      **Update Frequency**: Daily
+      **Sources**: fct_daily_holdings, fct_transactions, dim_account, dim_date, dim_transaction_type
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [account_id, year_month]
     columns:
       - name: account_id
         description: "ISA or SIPP."
@@ -21,20 +37,19 @@ models:
         tests:
           - not_null
       - name: month_end_date
-        description: "Actual last trading day with data in the month. Null for months before first portfolio value."
+        description: >
+          Last calendar day of the month, sourced from dim_date where
+          month_end_indicator = 'Month End'. Null for the current incomplete
+          month and for months before the first holding.
       - name: month_end_value_gbp
-        description: "Total market value of the portfolio on the month-end date. Null for months before first portfolio value."
+        description: "Total market value of all holdings (funds + cash) on the month-end date. Null for the current incomplete month and for months before the first holding."
       - name: cumulative_contributions_gbp
-        description: "Running total of all contributions up to and including the month-end date. Null for months before first portfolio value."
+        description: "Running total of all contributions up to and including the given year_month. Zero for months before any contributions have been made."
       - name: month_total_contributions_gbp
-        description: "Total contributions made within the calendar month. Null for months with no contributions."
+        description: "Total contributions made within the calendar month. Zero for months with no contributions."
       - name: net_fund_purchases_gbp
         description: >
           Gross fund buys minus gross fund sells within the calendar month.
-          Positive = net buyer, negative = net seller. Zero for months with no trades.
-          Differs from month_total_contributions_gbp because cash can sit uninvested
-          between contribution and deployment.
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          arguments:
-            combination_of_columns: [account_id, year_month]
+          Positive = net buyer, negative = net seller. Zero for months with no
+          trades. Differs from month_total_contributions_gbp because cash can
+          sit uninvested between contribution and deployment.

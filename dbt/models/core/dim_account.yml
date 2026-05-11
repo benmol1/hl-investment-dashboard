@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: dim_account
+    description: >
+      Account dimension. One row per account (ISA, SIPP).
+
+      **Grain**: One row per account_name
+      **Update Frequency**: Static — only two accounts exist
+      **Source**: hl_dashboard.accounts
+    columns:
+      - name: account_key
+        description: "Hash surrogate key generated via dbt_utils.generate_surrogate_key(['account_id']). Use this for all joins between fact tables and dim_account."
+        tests:
+          - not_null
+          - unique
+      - name: account_name
+        description: "Account identifier (ISA or SIPP). Natural/business key — stored as an attribute, not used for joins."
+        tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values: [ISA, SIPP]
+      - name: account_open_date
+        description: "Date of the account's first transaction, derived from base__hl_transactions. Null if no transactions have been recorded for the account."
+        tests:
+          - not_null

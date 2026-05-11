@@ -1,57 +1,86 @@
-with month_end_dates as (
+with account_month_spine as (
     select
-        account_id,
+        da.account_key,
+        da.account_name,
         dd.year_month,
-        max(pv.valuation_date) as month_end_date
-    from {{ ref('mart_portfolio_contributions') }} pv
-    inner join {{ ref('dim_date') }} dd on dd.date = pv.valuation_date
-    group by account_id, dd.year_month
+        max(dd.financial_year) as financial_year
+    from {{ ref('dim_account') }} da
+    inner join {{ ref('dim_date') }} dd
+        on  dd.date >= da.account_open_date
+        and dd.date <= current_date
+    group by da.account_key, da.account_name, dd.year_month
+),
+
+month_end_values as (
+    select
+        fdh.account_key,
+        dd.year_month,
+        dd.date                as month_end_date,
+        sum(fdh.value_gbp)     as month_end_value_gbp
+    from {{ ref('fct_daily_holdings') }} fdh
+    inner join {{ ref('dim_date') }} dd on dd.date_key = fdh.date_key
+    where dd.month_end_indicator = 'Month End'
+    group by fdh.account_key, dd.year_month, dd.date
 ),
 
 monthly_contributions as (
     select
-        dc.account_id,
+        ft.account_key,
         dd.year_month,
-        sum(dc.contributed_today) as month_total_contributions_gbp
-    from {{ ref('int_daily_contributions') }} dc
-    inner join {{ ref('dim_date') }} dd on dd.date = dc.contribution_date
-    group by dc.account_id, dd.year_month
+        sum(ft.value_gbp) as month_total_contributions_gbp
+    from {{ ref('fct_transactions') }} ft
+    inner join {{ ref('dim_transaction_type') }} dtt on dtt.transaction_type_key = ft.transaction_type_key
+    inner join {{ ref('dim_date') }} dd on dd.date_key = ft.trade_date_key
+    where dtt.contribution_indicator = 'Contribution'
+    group by ft.account_key, dd.year_month
+),
+
+cumulative_contributions as (
+    select
+        ams.account_key,
+        ams.year_month,
+        coalesce(sum(mc.month_total_contributions_gbp), 0) as cumulative_contributions_gbp
+    from account_month_spine ams
+    left join monthly_contributions mc
+        on  mc.account_key  = ams.account_key
+        and mc.year_month  <= ams.year_month
+    group by ams.account_key, ams.year_month
 ),
 
 monthly_fund_purchases as (
     select
-        account_id,
+        ft.account_key,
         dd.year_month,
-        sum(case when transaction_type in ('BUY', 'SWITCH_IN')
-                 then abs(value_gbp) else 0 end)
-        - sum(case when transaction_type in ('SELL', 'SWITCH_OUT')
-                   then abs(value_gbp) else 0 end) as net_fund_purchases_gbp
-    from {{ ref('stg_transactions') }}
-    inner join {{ ref('dim_date') }} dd on dd.date = trade_date
-    where is_trade
-    group by account_id, dd.year_month
+        sum(case when dtt.transaction_type in ('BUY', 'SWITCH_IN')
+                 then abs(ft.value_gbp) else 0 end)
+        - sum(case when dtt.transaction_type in ('SELL', 'SWITCH_OUT')
+                   then abs(ft.value_gbp) else 0 end) as net_fund_purchases_gbp
+    from {{ ref('fct_transactions') }} ft
+    inner join {{ ref('dim_transaction_type') }} dtt on dtt.transaction_type_key = ft.transaction_type_key
+    inner join {{ ref('dim_date') }} dd on dd.date_key = ft.trade_date_key
+    where dtt.trade_indicator = 'Trade'
+    group by ft.account_key, dd.year_month
 )
 
 select
-    ams.account_id,
+    ams.account_name                                      as account_id,
     ams.year_month,
     ams.financial_year,
-    med.month_end_date,
-    pv.portfolio_value_gbp as month_end_value_gbp,
-    pv.cumulative_contributions_gbp,
-    coalesce(mc.month_total_contributions_gbp, 0) as month_total_contributions_gbp,
-    coalesce(mfp.net_fund_purchases_gbp, 0)       as net_fund_purchases_gbp
-
-from {{ ref('int_account_month_spine') }} ams
-left join month_end_dates med
-    on  med.account_id = ams.account_id
-    and med.year_month = ams.year_month
-left join {{ ref('mart_portfolio_contributions') }} pv
-    on  pv.account_id = med.account_id
-    and pv.valuation_date = med.month_end_date
+    mev.month_end_date,
+    mev.month_end_value_gbp,
+    cc.cumulative_contributions_gbp,
+    coalesce(mc.month_total_contributions_gbp, 0)        as month_total_contributions_gbp,
+    coalesce(mfp.net_fund_purchases_gbp, 0)              as net_fund_purchases_gbp
+from account_month_spine ams
+left join month_end_values mev
+    on  mev.account_key = ams.account_key
+    and mev.year_month  = ams.year_month
+left join cumulative_contributions cc
+    on  cc.account_key  = ams.account_key
+    and cc.year_month   = ams.year_month
 left join monthly_contributions mc
-    on  mc.account_id = ams.account_id
-    and mc.year_month = ams.year_month
+    on  mc.account_key  = ams.account_key
+    and mc.year_month   = ams.year_month
 left join monthly_fund_purchases mfp
-    on  mfp.account_id = ams.account_id
-    and mfp.year_month = ams.year_month
+    on  mfp.account_key = ams.account_key
+    and mfp.year_month  = ams.year_month

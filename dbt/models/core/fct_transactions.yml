@@ -1,0 +1,72 @@
+version: 2
+
+models:
+  - name: fct_transactions
+    description: >
+      Atomic event fact table recording every HL investment transaction.
+
+      **Grain**: One row per transaction_id
+      **Update Frequency**: Daily (after HL export ingest)
+      **Source**: base__hl_transactions joined to dim_account and dim_fund
+    columns:
+      - name: transaction_id
+        description: "MD5 of (account_id | trade_date | reference | value_gbp). Natural deduplication key — not a sequential integer surrogate."
+        tests:
+          - not_null
+          - unique
+      - name: account_key
+        description: "Foreign key to dim_account.account_key."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_account')
+                field: account_key
+      - name: fund_key
+        description: "Foreign key to dim_fund.fund_key. Null for non-trade rows (contributions, fees)."
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_fund')
+                field: fund_key
+              config:
+                where: "fund_key is not null"
+      - name: transaction_type_key
+        description: "Foreign key to dim_transaction_type.transaction_type_key."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_transaction_type')
+                field: transaction_type_key
+      - name: trade_date_key
+        description: "Foreign key to dim_date.date_key for the trade execution date."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: settle_date_key
+        description: "Foreign key to dim_date.date_key for the settlement date. Null when settlement date is unknown."
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+              config:
+                where: "settle_date_key is not null"
+      - name: transaction_reference
+        description: "HL transaction reference string."
+      - name: transaction_full_description
+        description: "Raw description from the HL transaction export."
+      - name: quantity
+        description: "Number of units traded. Null for non-trade rows."
+      - name: value_gbp
+        description: "Transaction value in GBP. Negative = debit (purchase/fee); positive = credit."
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [transaction_id]

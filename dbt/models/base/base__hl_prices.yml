@@ -1,10 +1,13 @@
 version: 2
 
 models:
-  - name: stg_prices
+  - name: base__hl_prices
     description: >
-      Cleaned fund price data from Morningstar. Adds price_gbp (price_pence / 100)
+      Base view on raw fund price data from Morningstar. Adds price_gbp (price_pence / 100)
       so downstream models never repeat the unit conversion arithmetic.
+
+      **Grain**: One row per (fund_id, price_date)
+      **Source**: hl_dashboard.prices (raw ingest)
     columns:
       - name: fund_id
         description: "ISIN of the fund."

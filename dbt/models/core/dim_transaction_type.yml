@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: dim_transaction_type
+    description: >
+      Junk dimension of distinct transaction classification combinations.
+
+      **Grain**: One row per (transaction_type, transaction_subtype) combination
+      **Update Frequency**: Static in practice — only changes if new transaction types are introduced
+      **Source**: Derived from distinct values in base__hl_transactions
+    columns:
+      - name: transaction_type_key
+        description: "Surrogate primary key, generated from (transaction_type, transaction_subtype)."
+        tests:
+          - not_null
+          - unique
+      - name: transaction_type
+        description: "Classified transaction type (e.g. BUY, SELL, CONTRIBUTION)."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [BUY, SELL, SWITCH_IN, SWITCH_OUT, CONTRIBUTION, FEE,
+                         INTEREST, REBATE, TRANSFER, REJECTED, OTHER]
+      - name: transaction_subtype
+        description: "Optional subtype for further classification. Null when no subtype applies."
+      - name: trade_indicator
+        description: "Human-readable trade flag: 'Trade' for BUY, SELL, SWITCH_IN, SWITCH_OUT; 'Non-Trade' otherwise."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Trade', 'Non-Trade']
+      - name: contribution_indicator
+        description: "Human-readable contribution flag: 'Contribution' for CONTRIBUTION and TRANSFER; 'Non-Contribution' otherwise."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Contribution', 'Non-Contribution']
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [transaction_type, transaction_subtype]

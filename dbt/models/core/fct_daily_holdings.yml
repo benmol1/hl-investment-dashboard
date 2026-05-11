@@ -1,0 +1,80 @@
+version: 2
+
+models:
+  - name: fct_daily_holdings
+    description: >
+      Periodic snapshot fact table recording daily portfolio holdings per account.
+      Each row represents one holding — either a fund position or a cash balance — for
+      a given account on a given day.
+
+      **Grain**: One row per (account_key, fund_key, date_key) for fund holdings;
+      one row per (account_key, date_key) for cash holdings
+      **Update Frequency**: Daily (after price ingest)
+      **Source**: fct_transactions (cumulative units) × fct_fund_prices_daily (fund spine
+      and price); fct_daily_cash_position (cash rows)
+
+      holding_type distinguishes the two subtypes: 'Fund' rows have fund_key, units_held,
+      and fund_price_gbp populated; 'Cash' rows have these set to NULL. value_gbp is the
+      common additive fact across both subtypes — sum(value_gbp) grouped by account_key
+      and date_key gives total portfolio value.
+
+      Fund rows only exist for dates where a price is available and the account holds a
+      positive unit balance.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [account_key, fund_key, date_key, holding_type]
+    columns:
+      - name: date_key
+        description: "Foreign key to dim_date.date_key (YYYYMMDD integer)."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: account_key
+        description: "Foreign key to dim_account.account_key."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_account')
+                field: account_key
+      - name: fund_key
+        description: >
+          Foreign key to dim_fund.fund_key. Populated for holding_type = 'Fund';
+          NULL for holding_type = 'Cash'.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_fund')
+                field: fund_key
+              config:
+                where: "holding_type = 'Fund'"
+      - name: holding_type
+        description: "Subtype indicator: 'Fund' for fund positions, 'Cash' for cash balances."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Fund', 'Cash']
+      - name: units_held
+        description: >
+          Cumulative units held in this fund as of this date. NULL for Cash rows.
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+              config:
+                where: "holding_type = 'Fund'"
+      - name: fund_price_gbp
+        description: >
+          End-of-day Net Asset Value per unit in GBP. NULL for Cash rows.
+      - name: value_gbp
+        description: >
+          Value of this holding in GBP. For Fund rows: units_held × fund_price_gbp.
+          For Cash rows: end-of-day cash balance. Additive across all holding_type values
+          — sum(value_gbp) grouped by account_key and date_key gives total portfolio value.
+        tests:
+          - not_null

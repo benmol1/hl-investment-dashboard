@@ -4,7 +4,7 @@ select
     trade_date,
     sum(quantity * unit_direction) as unit_delta
 
-from {{ ref('stg_transactions') }}
+from {{ ref('base__hl_transactions') }}
 where is_trade
   and fund_id is not null
   and quantity is not null

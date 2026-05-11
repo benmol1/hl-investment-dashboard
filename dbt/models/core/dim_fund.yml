@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: dim_fund
+    description: >
+      Fund dimension. One row per fund.
+
+      **Grain**: One row per fund_id (ISIN)
+      **Update Frequency**: Updated when new funds are added to the portfolio
+      **Source**: hl_dashboard.funds
+    columns:
+      - name: fund_key
+        description: "Hash surrogate key generated via dbt_utils.generate_surrogate_key(['fund_id']). Use this for all joins between fact tables and dim_fund."
+        tests:
+          - not_null
+          - unique
+      - name: fund_id
+        description: "ISIN (or CASH for the cash position). Natural/business key — stored as an attribute, not used for joins."
+        tests:
+          - not_null
+          - unique
+      - name: fund_name
+        description: "Human-readable fund name."
+        tests:
+          - not_null
+      - name: morningstar_code
+        description: "Morningstar identifier used to fetch price data."
+      - name: first_investment_date
+        description: "Date of the first BUY or SWITCH_IN transaction into this fund. Null for the CASH pseudo-fund, which has no trade transactions."
+      - name: last_position_date
+        description: "Last date on which units were held in this fund, derived from cumulative unit balances on base transactions. Null if the fund is currently held (position still open)."
+      - name: investment_status_indicator
+        description: "'Holding' if the position is currently open (last_position_date is null); 'Exited' if the position has been fully closed."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Holding', 'Exited']

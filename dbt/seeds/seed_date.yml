@@ -1,0 +1,5 @@
+version: 2
+
+seeds:
+  - name: seed_date
+    description: "Raw date dimension CSV covering 2016 onwards. Loaded via dbt seed; consumed by core/dim_date."

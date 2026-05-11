@@ -5,7 +5,7 @@ with monthly_levels as (
         strftime(market_date, '%Y-%m')                          as year_month,
         max(market_date)                                         as month_end_date,
         last(index_level order by market_date)                   as month_end_level
-    from {{ ref('stg_benchmarks') }}
+    from {{ ref('base__hl_benchmarks') }}
     group by index_id, ticker, strftime(market_date, '%Y-%m')
 ),
 

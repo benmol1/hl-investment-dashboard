@@ -16,20 +16,18 @@ clean-targets:
 
 models:
   hl_dashboard:
-    staging:
+    base:
       +materialized: view
     intermediate:
       +materialized: table
-    dimensions:
-      +materialized: table
-    facts:
+    core:
       +materialized: table
     marts:
       +materialized: table
 
 seeds:
   hl_dashboard:
-    dim_date:
+    seed_date:
       +column_types:
         date_key: integer
         date: date

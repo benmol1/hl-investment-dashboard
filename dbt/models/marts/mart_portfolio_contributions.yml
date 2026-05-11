@@ -4,10 +4,15 @@ models:
   - name: mart_portfolio_contributions
     description: >
       Daily portfolio value alongside cumulative contributions per account.
-      The difference (growth_gbp) is the return attributable to investment
-      performance rather than fresh capital. Non-contribution dates carry
-      forward the cumulative contribution total via LEFT JOIN + COALESCE.
-      Replaces the multi-CTE inline SQL in GET /portfolio/contributions.
+
+      **Grain**: One row per (account_id, valuation_date)
+      **Update Frequency**: Daily (after price ingest)
+      **Source**: mart_daily_portfolio_value joined to int_daily_contributions
+
+      The difference between portfolio_value_gbp and cumulative_contributions_gbp
+      is the return attributable to investment performance rather than fresh capital.
+      Non-contribution dates carry forward the cumulative contribution total via
+      LEFT JOIN + COALESCE.
     columns:
       - name: account_id
         description: "ISA or SIPP."

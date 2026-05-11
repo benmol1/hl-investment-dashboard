@@ -1,11 +1,14 @@
 version: 2
 
 models:
-  - name: stg_transactions
+  - name: base__hl_transactions
     description: >
-      Cleaned view of the raw transactions table. Adds three derived columns
+      Base view on the raw HL transactions table. Adds three derived columns
       (is_trade, is_contribution, unit_direction) that encode HL-specific business
-      rules in one place, removing the repeated CASE expressions from the Python routers.
+      rules in one place, removing the repeated CASE expressions from downstream models.
+
+      **Grain**: One row per transaction_id
+      **Source**: hl_dashboard.transactions (raw ingest)
     columns:
       - name: transaction_id
         description: "MD5 of (account_id | trade_date | reference | value_gbp). Natural deduplication key — not a sequential integer surrogate."
