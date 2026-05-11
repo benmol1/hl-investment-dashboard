@@ -25,3 +25,14 @@ models:
           - not_null
       - name: morningstar_code
         description: "Morningstar identifier used to fetch price data."
+      - name: first_investment_date
+        description: "Date of the first BUY or SWITCH_IN transaction into this fund. Null for the CASH pseudo-fund, which has no trade transactions."
+      - name: last_position_date
+        description: "Last date on which units were held in this fund, derived from cumulative unit balances on base transactions. Null if the fund is currently held (position still open)."
+      - name: investment_status_indicator
+        description: "'Holding' if the position is currently open (last_position_date is null); 'Exited' if the position has been fully closed."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Holding', 'Exited']

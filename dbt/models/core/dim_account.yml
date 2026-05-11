@@ -22,3 +22,7 @@ models:
           - accepted_values:
               arguments:
                 values: [ISA, SIPP]
+      - name: account_open_date
+        description: "Date of the account's first transaction, derived from base__hl_transactions. Null if no transactions have been recorded for the account."
+        tests:
+          - not_null
