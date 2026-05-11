@@ -11,11 +11,17 @@ Morningstar note:
     the current token.
 
 Usage:
-    # Fetch only missing prices (normal daily run)
+    # Fetch missing prices for currently held funds (normal daily run)
     python backend/scripts/fetch_prices.py
 
-    # Force full backfill from a given date (first-time setup)
+    # Fetch missing prices for all funds, including exited ones
+    python backend/scripts/fetch_prices.py --all
+
+    # Force full backfill from a given date for held funds only
     python backend/scripts/fetch_prices.py --backfill 2017-01-01
+
+    # Force full backfill from a given date for all funds
+    python backend/scripts/fetch_prices.py --all --backfill 2017-01-01
 """
 
 import argparse
