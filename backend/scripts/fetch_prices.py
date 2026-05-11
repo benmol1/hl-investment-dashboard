@@ -204,6 +204,11 @@ def main() -> None:
         metavar="YYYY-MM-DD",
         help="Force full fetch from this date (ignores existing data)",
     )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Fetch prices for all funds in dim_fund, not just currently held ones",
+    )
     args = parser.parse_args()
 
     backfill_from: Optional[date] = None
@@ -218,11 +223,18 @@ def main() -> None:
     today = date.today()
 
     # --- Fund prices via Morningstar ---
+    status_filter = "" if args.all else "AND investment_status_indicator = 'Holding'"
     funds = con.execute(
-        "SELECT id, name, morningstar_code FROM funds WHERE morningstar_code IS NOT NULL AND id != 'CASH'"
+        f"""
+        SELECT fund_id, fund_name, morningstar_code
+        FROM main.dim_fund
+        WHERE morningstar_code IS NOT NULL
+        {status_filter}
+        """
     ).fetchall()
 
-    print(f"Fetching prices for {len(funds)} fund(s) with Morningstar codes...")
+    scope = "all" if args.all else "active"
+    print(f"Fetching prices for {len(funds)} {scope} fund(s) with Morningstar codes...")
     for fund_id, fund_name, ms_code in funds:
         start = get_fetch_start(con, fund_id, backfill_from)
         if start >= today:
@@ -247,11 +259,12 @@ def main() -> None:
         print(f"    Inserted {n:,} rows")
         time.sleep(REQUEST_DELAY_SECONDS)
 
-    # Warn about funds without Morningstar codes
+    # Warn about funds without Morningstar codes (same scope as the fetch above)
     missing = con.execute(
-        """
-        SELECT id, name FROM funds
-        WHERE morningstar_code IS NULL AND id != 'CASH' AND is_active = TRUE
+        f"""
+        SELECT fund_id, fund_name FROM main.dim_fund
+        WHERE morningstar_code IS NULL
+        {status_filter}
         """
     ).fetchall()
 
