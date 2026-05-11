@@ -1,4 +1,6 @@
-with monthly_inputs as (
+with
+-- Pulls EMV, BMV (prior month-end value), and contribution cash flows from the monthly snapshot.
+monthly_inputs as (
     select
         account_name,
         year_month,
@@ -10,6 +12,7 @@ with monthly_inputs as (
     from {{ ref('mart_monthly_snapshot') }}
 ),
 
+-- Calculates Modified Dietz return for each month; nulls out the first month per account (no prior BMV).
 monthly_returns as (
     select
         account_name,
@@ -28,6 +31,7 @@ monthly_returns as (
     where bmv is not null  -- first month per account has no prior period
 ),
 
+-- Compounds monthly returns into 12m and 36m trailing windows; adds annualised Sharpe ratios.
 trailing_returns as (
     select
         account_name,

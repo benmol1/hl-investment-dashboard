@@ -1,9 +1,12 @@
-with latest_date_key as (
+with
+-- Most recent date for which fund price data exists.
+latest_date_key as (
     select max(date_key) as date_key
     from {{ ref('fct_daily_holdings') }}
     where holding_type = 'Fund'
 ),
 
+-- Fund positions on the latest price date, excluding near-zero balances.
 current_holdings as (
     select
         fdh.account_key,
@@ -19,6 +22,7 @@ current_holdings as (
       and fdh.units_held   >= 0.01
 ),
 
+-- Total amount invested per (account, fund) across all BUY and SWITCH_IN trades.
 buy_cost as (
     select
         ft.account_key,
@@ -32,6 +36,7 @@ buy_cost as (
     group by ft.account_key, ft.fund_key
 ),
 
+-- Total proceeds received per (account, fund) across all SELL and SWITCH_OUT trades.
 sell_proceeds as (
     select
         ft.account_key,
@@ -45,6 +50,7 @@ sell_proceeds as (
     group by ft.account_key, ft.fund_key
 ),
 
+-- Joins holdings to dims and cost basis; nets buys against sells, floored at zero.
 valued as (
     select
         da.account_name,

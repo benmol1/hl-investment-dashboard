@@ -1,4 +1,6 @@
-with monthly_returns as (
+with
+-- Derives each month's return from consecutive month-end index levels.
+monthly_returns as (
     select
         fb.index_id,
         fb.ticker,
@@ -15,6 +17,7 @@ with monthly_returns as (
     from {{ ref('fct_benchmarks_monthly') }} fb
 ),
 
+-- Compounds monthly returns into 12m and 36m trailing windows; adds Sharpe ratios; resolves calendar date from dim_date.
 trailing_returns as (
     select
         mr.index_id,

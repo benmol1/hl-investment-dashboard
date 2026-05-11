@@ -1,4 +1,6 @@
-with daily_contributions as (
+with
+-- Contribution cash flows aggregated by account and trade date.
+daily_contributions as (
     select
         da.account_name,
         dd.date               as contribution_date,
@@ -11,6 +13,7 @@ with daily_contributions as (
     group by da.account_name, dd.date
 ),
 
+-- Running total of contributions per account over time.
 cumulative_contribs as (
     select
         account_name,

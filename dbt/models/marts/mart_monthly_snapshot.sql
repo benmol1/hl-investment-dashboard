@@ -1,4 +1,6 @@
-with account_month_spine as (
+with
+-- All (account, month) combinations since account open, up to but not including the current month.
+account_month_spine as (
     select
         da.account_key,
         da.account_name,
@@ -11,6 +13,7 @@ with account_month_spine as (
     group by da.account_key, da.account_name, dd.year_month
 ),
 
+-- Total portfolio value on the last trading day of each month.
 month_end_values as (
     select
         fdh.account_key,
@@ -23,6 +26,7 @@ month_end_values as (
     group by fdh.account_key, dd.year_month, dd.date
 ),
 
+-- Cash contributions received within each month.
 monthly_contributions as (
     select
         ft.account_key,
@@ -35,6 +39,7 @@ monthly_contributions as (
     group by ft.account_key, dd.year_month
 ),
 
+-- Net fund trades (buy value minus sell proceeds) within each month.
 monthly_fund_purchases as (
     select
         ft.account_key,
