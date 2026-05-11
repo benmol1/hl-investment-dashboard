@@ -1,3 +1,4 @@
+-- Net unit change per fund per trade date (buys positive, sells negative).
 with daily_unit_deltas as (
     select
         fund_id,
@@ -12,6 +13,7 @@ with daily_unit_deltas as (
     group by fund_id, trade_date
 ),
 
+-- Running total of units held per fund on each trade date.
 cumulative_units as (
     select
         fund_id,
@@ -23,6 +25,7 @@ cumulative_units as (
     from daily_unit_deltas
 ),
 
+-- Date of the first purchase or switch-in for each fund.
 first_investment_dates as (
     select
         fund_id,
@@ -33,14 +36,19 @@ first_investment_dates as (
     group by fund_id
 ),
 
+-- Most recent cumulative unit balance per fund; used to determine if a position is still open.
+latest_position as (
+    select fund_id, cumulative_units as latest_units
+    from cumulative_units
+    qualify row_number() over (partition by fund_id order by trade_date desc) = 1
+),
+
+-- First and last dates on which units were held, per fund.
 fund_position_dates as (
     select
         cu.fund_id,
         fid.first_investment_date,
-        case
-            when max(cu.cumulative_units) > 0.0001 then null
-            else max(case when cu.cumulative_units > 0.0001 then cu.trade_date end)
-        end as last_position_date
+        max(case when cu.cumulative_units > 0.0001 then cu.trade_date end) as last_held_date
     from cumulative_units cu
     left join first_investment_dates fid on fid.fund_id = cu.fund_id
     group by cu.fund_id, fid.first_investment_date
@@ -52,8 +60,9 @@ select
     f.name                                           as fund_name,
     f.morningstar_code,
     fpd.first_investment_date,
-    fpd.last_position_date,
-    case when fpd.last_position_date is null then 'Holding' else 'Exited' end as investment_status_indicator
+    case when lp.latest_units > 0.0001 then null else fpd.last_held_date end as last_position_date,
+    case when lp.latest_units > 0.0001 then 'Holding' else 'Exited' end      as investment_status_indicator
 
 from {{ source('hl_dashboard', 'funds') }} f
 left join fund_position_dates fpd on fpd.fund_id = f.id
+left join latest_position lp on lp.fund_id = f.id

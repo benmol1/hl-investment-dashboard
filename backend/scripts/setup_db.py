@@ -73,11 +73,7 @@ def seed_funds(con: duckdb.DuckDBPyConnection) -> None:
             )
             inserted += 1
 
-    # Cash pseudo-fund
-    con.execute(
-        "INSERT OR IGNORE INTO funds (id, name, currency) VALUES ('CASH', 'Cash', 'GBP')"
-    )
-    print(f"  Seeded {inserted} funds + CASH")
+    print(f"  Seeded {inserted} funds")
 
 
 def seed_transaction_type_mapping(con: duckdb.DuckDBPyConnection) -> None:
