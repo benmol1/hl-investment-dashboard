@@ -13,6 +13,7 @@ from app.routers import portfolio, funds, transactions
 logger = logging.getLogger(__name__)
 
 _FETCH_PRICES_SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "fetch_prices.py"
+_DBT_PROJECT_DIR = Path(__file__).resolve().parents[2] / "dbt"
 
 
 def _run_fetch_prices() -> None:
@@ -27,12 +28,29 @@ def _run_fetch_prices() -> None:
         logger.info("fetch_prices.py completed OK")
 
 
+def _run_dbt() -> None:
+    logger.info("dbt run starting")
+    result = subprocess.run(
+        ["dbt", "run", "--profiles-dir", "."],
+        capture_output=True, text=True, cwd=str(_DBT_PROJECT_DIR),
+    )
+    if result.returncode != 0:
+        logger.error("dbt run failed:\n%s", result.stderr)
+    else:
+        logger.info("dbt run completed OK")
+
+
+def _run_daily_refresh() -> None:
+    _run_fetch_prices()
+    _run_dbt()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(_run_fetch_prices, "cron", hour=18, minute=0, id="daily_price_fetch")
+    scheduler.add_job(_run_daily_refresh, "cron", hour=18, minute=0, id="daily_refresh")
     scheduler.start()
-    logger.info("APScheduler started — daily price fetch scheduled at 18:00")
+    logger.info("APScheduler started — daily refresh (prices + dbt) scheduled at 18:00")
     yield
     scheduler.shutdown(wait=False)
 

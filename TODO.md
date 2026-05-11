@@ -97,19 +97,19 @@ dbt test --profiles-dir .   # run all 112 tests
 
 ---
 
-## Phase 5 — Wire API to dbt Core and Marts
+## Phase 5 — Wire API to dbt Core and Marts ✅ COMPLETE
 
-- [ ] Update `GET /portfolio/value` → query `mart_daily_portfolio_value`
-- [ ] Update `GET /portfolio/contributions` → query `mart_portfolio_contributions`
-- [ ] Update `GET /portfolio/performance` → query `mart_daily_portfolio_value` + `mart_benchmarks`
-- [ ] Update `GET /portfolio/allocation` → query `fct_daily_holdings` joined to dims (point-in-time filter)
+- [x] Update `GET /portfolio/value` → query `mart_daily_portfolio_value`
+- [x] Update `GET /portfolio/contributions` → query `mart_portfolio_contributions`
+- [x] Update `GET /portfolio/performance` → query `mart_monthly_snapshot` + `mart_benchmarks` (monthly series)
+- [x] Update `GET /portfolio/allocation` → query `fct_daily_holdings` joined to dims (point-in-time filter)
 - [x] Build `mart_current_holdings` (cost basis in dbt — buy cost minus sell proceeds, per account+fund, floored at zero) ✅
-- [ ] Update `GET /portfolio/holdings` → query `mart_current_holdings`
-- [ ] Update `GET /funds/{id}/performance` → query `int_daily_fund_values` + `mart_benchmarks`
-- [ ] Update `GET /funds` → query `dim_fund` (column names changed from raw source: `fund_id`, `fund_name`, `investment_status_indicator`)
-- [ ] Update `GET /transactions` → query `fct_transactions` joined to `dim_account`, `dim_fund`, `dim_transaction_type`, `dim_date`
-- [ ] Add `dbt run` to the APScheduler daily job (after `fetch_prices.py`)
-- [ ] Delete legacy migration file `backend/migrations/002_fix_holdings_view.sql` (v_holdings / v_portfolio_value — no longer referenced)
+- [x] Update `GET /portfolio/holdings` → query `mart_current_holdings`
+- [x] Update `GET /funds/{id}/performance` → query `int_daily_fund_values` (monthly filter) + `mart_benchmarks`
+- [x] Update `GET /funds` → query `dim_fund` (`investment_status_indicator = 'Holding'` → `is_active`; `isin` → `None`)
+- [x] Update `GET /transactions` → query `fct_transactions` joined to `dim_account`, `dim_fund`, `dim_transaction_type`, `dim_date`
+- [x] Add `dbt run` to the APScheduler daily job (after `fetch_prices.py`)
+- [x] Delete legacy migration file `backend/migrations/002_fix_holdings_view.sql`
 
 ---
 

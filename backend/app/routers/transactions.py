@@ -14,6 +14,15 @@ VALID_TYPES = {
     "CONTRIBUTION", "FEE", "INTEREST", "REBATE", "TRANSFER", "REJECTED", "OTHER",
 }
 
+_BASE_JOINS = """
+FROM fct_transactions ft
+INNER JOIN dim_account          da  ON da.account_key           = ft.account_key
+LEFT JOIN  dim_fund             df  ON df.fund_key              = ft.fund_key
+INNER JOIN dim_transaction_type dtt ON dtt.transaction_type_key = ft.transaction_type_key
+INNER JOIN dim_date             tdd ON tdd.date_key             = ft.trade_date_key
+LEFT JOIN  dim_date             sdd ON sdd.date_key             = ft.settle_date_key
+"""
+
 
 @router.get("", response_model=TransactionPage)
 def list_transactions(
@@ -26,45 +35,49 @@ def list_transactions(
     to_date: Optional[date] = Query(None, alias="to"),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
-    """
-    Paginated transaction log with optional filters.
-    Results are ordered most-recent first.
-    """
+    """Paginated transaction log with optional filters. Results are ordered most-recent first."""
     filters = []
     params: list = []
 
     if account:
-        filters.append("t.account_id = ?")
+        filters.append("da.account_name = ?")
         params.append(account)
     if fund_id:
-        filters.append("t.fund_id = ?")
+        filters.append("df.fund_id = ?")
         params.append(fund_id)
     if tx_type and tx_type.upper() in VALID_TYPES:
-        filters.append("t.transaction_type = ?")
+        filters.append("dtt.transaction_type = ?")
         params.append(tx_type.upper())
     if from_date:
-        filters.append("t.trade_date >= ?")
+        filters.append("tdd.date >= ?")
         params.append(from_date)
     if to_date:
-        filters.append("t.trade_date <= ?")
+        filters.append("tdd.date <= ?")
         params.append(to_date)
 
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
 
-    count_sql = f"SELECT COUNT(*) FROM transactions t {where}"
+    count_sql = f"SELECT COUNT(*) {_BASE_JOINS} {where}"
     total = con.execute(count_sql, params).fetchone()[0]
 
     offset = (page - 1) * per_page
     rows_sql = f"""
     SELECT
-        t.id, t.account_id, t.fund_id, f.name AS fund_name,
-        t.trade_date, t.settle_date, t.reference,
-        t.transaction_type, t.transaction_subtype,
-        t.unit_cost_pence, t.quantity, t.value_gbp
-    FROM transactions t
-    LEFT JOIN funds f ON f.id = t.fund_id
+        ft.transaction_id          AS id,
+        da.account_name            AS account_id,
+        df.fund_id,
+        df.fund_name,
+        tdd.date                   AS trade_date,
+        sdd.date                   AS settle_date,
+        ft.transaction_reference   AS reference,
+        dtt.transaction_type,
+        dtt.transaction_subtype,
+        NULL                       AS unit_cost_pence,
+        ft.quantity,
+        ft.value_gbp
+    {_BASE_JOINS}
     {where}
-    ORDER BY t.trade_date DESC, t.id
+    ORDER BY tdd.date DESC, ft.transaction_id
     LIMIT ? OFFSET ?
     """
     rows = con.execute(rows_sql, params + [per_page, offset]).fetchall()
