@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: mart_current_holdings
+    description: >
+      Current holdings snapshot per account — fund positions as of the most recent
+      price date, with cost basis and unrealised gain.
+
+      **Grain**: One row per (account_name, fund_name)
+      **Update Frequency**: Daily (after price ingest and dbt run)
+      **Source**: fct_daily_holdings, fct_transactions, dim_account, dim_fund, dim_transaction_type
+
+      Cost basis is calculated as total buy cost (BUY + SWITCH_IN) minus total sell
+      proceeds (SELL + SWITCH_OUT), floored at zero.  Unrealised gain is market value
+      minus cost basis.  weight_pct is each fund's share of the account total.
+    columns:
+      - name: account_name
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: fund_name
+        description: "Full fund name from dim_fund."
+        tests:
+          - not_null
+      - name: valuation_date
+        description: "Most recent date for which price data exists."
+        tests:
+          - not_null
+      - name: units_held
+        description: "Number of units held as of valuation_date."
+        tests:
+          - not_null
+      - name: fund_price_gbp
+        description: "NAV price per unit in GBP as of valuation_date."
+      - name: value_gbp
+        description: "Market value of the holding (units_held × fund_price_gbp) in GBP."
+        tests:
+          - not_null
+      - name: cost_basis_gbp
+        description: "Total amount invested minus proceeds from any sales, in GBP. Floored at zero."
+      - name: unrealised_gain_gbp
+        description: "value_gbp minus cost_basis_gbp."
+      - name: unrealised_gain_pct
+        description: "Unrealised gain as a percentage of cost basis. Zero when cost basis is zero."
+      - name: weight_pct
+        description: "Holding value as a percentage of the account's total portfolio value."
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [account_name, fund_name]

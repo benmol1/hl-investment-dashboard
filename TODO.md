@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-04-30 | 14:00 UK time*
+*Last updated: 2026-05-11*
 
 ---
 
@@ -97,25 +97,19 @@ dbt test --profiles-dir .   # run all 112 tests
 
 ---
 
-## Phase 5 — Wire API to dbt Marts
+## Phase 5 — Wire API to dbt Core and Marts
 
-- [ ] Update `GET /portfolio/value` to query `mart_daily_portfolio_value` instead of inline CTEs
-- [ ] Update `GET /portfolio/contributions` to query `mart_portfolio_contributions`
-- [ ] Update `GET /portfolio/holdings` to query `mart_current_holdings`
-- [ ] Update `GET /portfolio/performance` to query `mart_daily_portfolio_value` + `mart_benchmark_levels`
-- [ ] Update `GET /portfolio/allocation` to query `int_daily_fund_values` (point-in-time filter)
-- [ ] Update `GET /funds/{id}/performance` to query `int_daily_fund_values` + `mart_benchmark_levels`
-- [ ] Add `dbt run` to the APScheduler daily job (runs after `fetch_prices.py`)
-- [ ] Remove old `v_holdings` / `v_portfolio_value` references from any remaining Python code
-
----
-
-## Cash Balance Tracking (Low Priority)
-
-- [ ] Build a `int_daily_cash_balance` intermediate model — a running ledger derived from contributions, sell proceeds, buy costs, fees, and interest using `stg_transactions`
-- [ ] Join cash balance into `int_daily_fund_values` (or a new `int_daily_account_values`) so uninvested cash is included in the portfolio total
-- [ ] Update `mart_daily_portfolio_value` to sum fund values + cash balance
-- **Why:** On days where a sell is executed but the replacement buy hasn't been placed yet (e.g. a switch taking 2 days), the proceeds sit as uninvested cash and are currently excluded from the portfolio total, causing a false one-day drop followed by an immediate recovery
+- [ ] Update `GET /portfolio/value` → query `mart_daily_portfolio_value`
+- [ ] Update `GET /portfolio/contributions` → query `mart_portfolio_contributions`
+- [ ] Update `GET /portfolio/performance` → query `mart_daily_portfolio_value` + `mart_benchmarks`
+- [ ] Update `GET /portfolio/allocation` → query `fct_daily_holdings` joined to dims (point-in-time filter)
+- [x] Build `mart_current_holdings` (cost basis in dbt — buy cost minus sell proceeds, per account+fund, floored at zero) ✅
+- [ ] Update `GET /portfolio/holdings` → query `mart_current_holdings`
+- [ ] Update `GET /funds/{id}/performance` → query `int_daily_fund_values` + `mart_benchmarks`
+- [ ] Update `GET /funds` → query `dim_fund` (column names changed from raw source: `fund_id`, `fund_name`, `investment_status_indicator`)
+- [ ] Update `GET /transactions` → query `fct_transactions` joined to `dim_account`, `dim_fund`, `dim_transaction_type`, `dim_date`
+- [ ] Add `dbt run` to the APScheduler daily job (after `fetch_prices.py`)
+- [ ] Delete legacy migration file `backend/migrations/002_fix_holdings_view.sql` (v_holdings / v_portfolio_value — no longer referenced)
 
 ---
 
