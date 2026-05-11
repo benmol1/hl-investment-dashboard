@@ -1,5 +1,5 @@
 select
-    da.account_name                as account_id,
+    da.account_name,
     dd.date                        as valuation_date,
     round(sum(fdh.value_gbp), 2)   as portfolio_value_gbp
 
