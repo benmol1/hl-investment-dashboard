@@ -1,6 +1,6 @@
 with daily_contributions as (
     select
-        da.account_name       as account_id,
+        da.account_name,
         dd.date               as contribution_date,
         sum(ft.value_gbp)     as contributed_today
     from {{ ref('fct_transactions') }}      ft
@@ -13,11 +13,11 @@ with daily_contributions as (
 
 cumulative_contribs as (
     select
-        account_id,
+        account_name,
         contribution_date,
         contributed_today,
         sum(contributed_today) over (
-            partition by account_id
+            partition by account_name
             order by contribution_date
             rows between unbounded preceding and current row
         ) as cumulative_contributions_gbp
@@ -25,7 +25,7 @@ cumulative_contribs as (
 )
 
 select
-    pv.account_id,
+    pv.account_name,
     pv.valuation_date,
     pv.portfolio_value_gbp,
     coalesce(dc.contributed_today, 0)            as contributions_gbp,
@@ -33,8 +33,8 @@ select
 
 from {{ ref('mart_daily_portfolio_value') }} pv
 left join daily_contributions dc
-    on  dc.account_id        = pv.account_id
+    on  dc.account_name      = pv.account_name
     and dc.contribution_date = pv.valuation_date
 asof left join cumulative_contribs cc
-    on  pv.account_id         = cc.account_id
+    on  pv.account_name         = cc.account_name
     and pv.valuation_date     >= cc.contribution_date

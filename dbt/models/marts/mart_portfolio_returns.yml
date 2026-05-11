@@ -13,7 +13,7 @@ models:
       Trailing 12- and 36-month annualised Sharpe ratios are also included, calculated as
       (mean monthly return / stddev_samp of monthly returns) * sqrt(12), with risk-free rate = 0.
     columns:
-      - name: account_id
+      - name: account_name
         description: "ISA or SIPP."
         tests:
           - not_null
@@ -61,4 +61,4 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [account_id, year_month]
+            combination_of_columns: [account_name, year_month]

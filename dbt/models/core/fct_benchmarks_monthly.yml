@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: fct_benchmarks_monthly
+    description: >
+      Periodic snapshot fact table recording the month-end index level for each benchmark.
+      One row per (index_id, year_month), aggregated from daily closes in base__hl_benchmarks.
+
+      **Grain**: One row per (index_id, year_month)
+      **Update Frequency**: Daily (after benchmark price ingest)
+      **Source**: base__hl_benchmarks joined to dim_date
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [index_id, year_month]
+    columns:
+      - name: date_key
+        description: "Foreign key to dim_date.date_key for the last trading day of the month."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: index_id
+        description: "Benchmark identifier: FTSE100, SP500, or NASDAQ. Degenerate dimension — no separate dim_benchmark exists."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [FTSE100, SP500, NASDAQ]
+      - name: ticker
+        description: "Yahoo Finance ticker used to source this series."
+        tests:
+          - not_null
+      - name: year_month
+        description: "YYYY-MM grouping key for the calendar month."
+        tests:
+          - not_null
+      - name: month_end_level
+        description: "Index closing level on the last trading day of the month (points)."
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"

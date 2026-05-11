@@ -51,7 +51,7 @@ monthly_fund_purchases as (
 )
 
 select
-    ams.account_name                                      as account_id,
+    ams.account_name,
     ams.year_month,
     ams.financial_year,
     mev.month_end_date,

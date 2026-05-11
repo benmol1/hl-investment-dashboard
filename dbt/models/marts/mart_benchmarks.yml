@@ -3,9 +3,14 @@ version: 2
 models:
   - name: mart_benchmarks
     description: >
-      One row per (index, calendar month), starting from the second month of
-      data per index (the first month has no prior period and cannot produce a
-      return). Monthly return is simple price return: (level_t - level_t-1) / level_t-1.
+      One row per (index_id, year_month), starting from the second month of data per
+      index (the first month has no prior period and cannot produce a return).
+
+      **Grain**: One row per (index_id, year_month)
+      **Update Frequency**: Daily (after benchmark price ingest)
+      **Source**: fct_benchmarks_monthly joined to dim_date
+
+      Monthly return is simple price return: (level_t - level_t-1) / level_t-1.
       Trailing 12-month return geometrically links the 12 most recent monthly returns.
       Trailing 36-month return geometrically links 36 monthly returns and is then
       annualised to a per-year figure. Trailing 12- and 36-month annualised Sharpe

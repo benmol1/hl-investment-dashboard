@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: int_daily_fund_values
+    description: >
+      Private intermediate model. One row per (account_key, fund_key, date_key) for
+      every calendar date on which a positive unit balance is held.
+
+      Builds the (account, fund) date spine from fct_transactions, forward-fills
+      cumulative units via ASOF join, then joins fct_fund_prices_daily for the
+      most-recent-available price. Rows where units_held <= 0.0001 are excluded
+      to filter rounding errors from recently-closed positions.
+
+      **Grain**: One row per (account_key, fund_key, date_key)
+      **Source**: fct_transactions, dim_date, dim_transaction_type, fct_fund_prices_daily
+    columns:
+      - name: date_key
+        description: "Foreign key to dim_date.date_key."
+        tests:
+          - not_null
+      - name: account_key
+        description: "Foreign key to dim_account.account_key."
+        tests:
+          - not_null
+      - name: fund_key
+        description: "Foreign key to dim_fund.fund_key."
+        tests:
+          - not_null
+      - name: units_held
+        description: "Cumulative units held as of this date."
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+      - name: fund_price_gbp
+        description: "Most recent available end-of-day NAV per unit in GBP."
+        tests:
+          - not_null
+      - name: value_gbp
+        description: "units_held × fund_price_gbp."
+        tests:
+          - not_null

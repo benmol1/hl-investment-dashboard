@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: int_daily_cash_values
+    description: >
+      Private intermediate model. One row per (account_key, date_key) for every
+      calendar date from the account's first transaction to today.
+
+      Builds the account date spine from fct_transactions and forward-fills the
+      cash balance from fct_daily_cash_position via ASOF join. Dates before the
+      first cash movement carry a balance of zero.
+
+      **Grain**: One row per (account_key, date_key)
+      **Source**: dim_account, dim_date, fct_daily_cash_position
+    columns:
+      - name: date_key
+        description: "Foreign key to dim_date.date_key."
+        tests:
+          - not_null
+      - name: account_key
+        description: "Foreign key to dim_account.account_key."
+        tests:
+          - not_null
+      - name: value_gbp
+        description: "Forward-filled cash balance in GBP. Zero before the first recorded cash movement."
+        tests:
+          - not_null

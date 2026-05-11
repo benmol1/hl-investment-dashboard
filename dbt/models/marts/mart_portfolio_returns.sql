@@ -1,18 +1,18 @@
 with monthly_inputs as (
     select
-        account_id,
+        account_name,
         year_month,
         financial_year,
         month_end_date,
         month_end_value_gbp                                                         as emv,
-        lag(month_end_value_gbp) over (partition by account_id order by year_month) as bmv,
+        lag(month_end_value_gbp) over (partition by account_name order by year_month) as bmv,
         monthly_contributions_gbp                                                    as cf
     from {{ ref('mart_monthly_snapshot') }}
 ),
 
 monthly_returns as (
     select
-        account_id,
+        account_name,
         year_month,
         financial_year,
         month_end_date,
@@ -30,7 +30,7 @@ monthly_returns as (
 
 trailing_returns as (
     select
-        account_id,
+        account_name,
         year_month,
         financial_year,
         month_end_date,
@@ -40,12 +40,12 @@ trailing_returns as (
         monthly_return,
         case
             when count(*) over (
-                partition by account_id
+                partition by account_name
                 order by year_month
                 rows between 11 preceding and current row
             ) < 12 then null
             else exp(sum(ln(1 + monthly_return)) over (
-                partition by account_id
+                partition by account_name
                 order by year_month
                 rows between 11 preceding and current row
             )) - 1
@@ -53,12 +53,12 @@ trailing_returns as (
         -- Annualised: (1 + r_36m)^(1/3) - 1
         case
             when count(*) over (
-                partition by account_id
+                partition by account_name
                 order by year_month
                 rows between 35 preceding and current row
             ) < 36 then null
             else power(exp(sum(ln(1 + monthly_return)) over (
-                partition by account_id
+                partition by account_name
                 order by year_month
                 rows between 35 preceding and current row
             )), 1.0 / 3.0) - 1
@@ -68,23 +68,23 @@ trailing_returns as (
         -- Risk-free rate assumed zero. Null when stddev is zero (flat returns) or insufficient history.
         case
             when count(*) over (
-                partition by account_id
+                partition by account_name
                 order by year_month
                 rows between 11 preceding and current row
             ) < 12 then null
             when stddev_samp(monthly_return) over (
-                partition by account_id
+                partition by account_name
                 order by year_month
                 rows between 11 preceding and current row
             ) = 0 then null
             else (
                 avg(monthly_return) over (
-                    partition by account_id
+                    partition by account_name
                     order by year_month
                     rows between 11 preceding and current row
                 )
                 / stddev_samp(monthly_return) over (
-                    partition by account_id
+                    partition by account_name
                     order by year_month
                     rows between 11 preceding and current row
                 )
@@ -93,23 +93,23 @@ trailing_returns as (
 
         case
             when count(*) over (
-                partition by account_id
+                partition by account_name
                 order by year_month
                 rows between 35 preceding and current row
             ) < 36 then null
             when stddev_samp(monthly_return) over (
-                partition by account_id
+                partition by account_name
                 order by year_month
                 rows between 35 preceding and current row
             ) = 0 then null
             else (
                 avg(monthly_return) over (
-                    partition by account_id
+                    partition by account_name
                     order by year_month
                     rows between 35 preceding and current row
                 )
                 / stddev_samp(monthly_return) over (
-                    partition by account_id
+                    partition by account_name
                     order by year_month
                     rows between 35 preceding and current row
                 )
@@ -120,7 +120,7 @@ trailing_returns as (
 )
 
 select
-    account_id,
+    account_name,
     year_month,
     financial_year,
     month_end_date,
@@ -133,4 +133,3 @@ select
     trailing_12m_sharpe,
     trailing_36m_sharpe
 from trailing_returns
-order by account_id, year_month

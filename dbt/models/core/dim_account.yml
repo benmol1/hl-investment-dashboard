@@ -10,7 +10,7 @@ models:
       **Source**: hl_dashboard.accounts
     columns:
       - name: account_key
-        description: "Hash surrogate key generated via dbt_utils.generate_surrogate_key(['account_id']). Use this for all joins between fact tables and dim_account."
+        description: "Hash surrogate key generated via dbt_utils.generate_surrogate_key(['a.id']), where a.id is the raw account identifier from the accounts source table. Use this for all joins between fact tables and dim_account."
         tests:
           - not_null
           - unique

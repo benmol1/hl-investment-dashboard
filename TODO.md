@@ -83,7 +83,7 @@ cd frontend && npm run dev
 - [x] Mart layer (tables): `mart_daily_portfolio_value`, `mart_current_holdings` (daily snapshot), `mart_portfolio_contributions`, `mart_benchmark_levels`
 - [x] 112/112 data tests pass; all 13 models build successfully
 - [x] Drop old `v_holdings` and `v_portfolio_value` views from DuckDB and `001_init.sql`
-- [ ] Review data model end-to-end. Polish, make improvements and align it with Kimball style (primary keys being integers; more explicit column names)
+- [x] Review data model end-to-end. Polish, make improvements and align it with Kimball style (surrogate keeys used for joins; more explicit column names)
 - [x] Understand and calculate Sharpe ratios for each account + benchmarks
 
 

@@ -7,11 +7,11 @@ models:
       Each row represents one holding — either a fund position or a cash balance — for
       a given account on a given day.
 
-      **Grain**: One row per (account_key, fund_key, date_key) for fund holdings;
-      one row per (account_key, date_key) for cash holdings
+      **Grain**: One row per (account_key, fund_key, date_key, holding_type).
+      fund_key is NULL for Cash rows; dbt_utils hashes NULL as an empty string so
+      the uniqueness test handles both subtypes correctly without special filtering.
       **Update Frequency**: Daily (after price ingest)
-      **Source**: fct_transactions (cumulative units) × fct_fund_prices_daily (fund spine
-      and price); fct_daily_cash_position (cash rows)
+      **Source**: int_daily_fund_values (fund rows); int_daily_cash_values (cash rows)
 
       holding_type distinguishes the two subtypes: 'Fund' rows have fund_key, units_held,
       and fund_price_gbp populated; 'Cash' rows have these set to NULL. value_gbp is the

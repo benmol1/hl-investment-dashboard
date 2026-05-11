@@ -5,16 +5,16 @@ models:
     description: >
       Daily portfolio value alongside cumulative contributions per account.
 
-      **Grain**: One row per (account_id, valuation_date)
+      **Grain**: One row per (account_name, valuation_date)
       **Update Frequency**: Daily (after price ingest)
-      **Source**: mart_daily_portfolio_value joined to int_daily_contributions
+      **Source**: mart_daily_portfolio_value; contributions derived inline from fct_transactions
 
       The difference between portfolio_value_gbp and cumulative_contributions_gbp
       is the return attributable to investment performance rather than fresh capital.
       Non-contribution dates carry forward the cumulative contribution total via
       LEFT JOIN + COALESCE.
     columns:
-      - name: account_id
+      - name: account_name
         description: "ISA or SIPP."
         tests:
           - not_null
@@ -39,4 +39,4 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [account_id, valuation_date]
+            combination_of_columns: [account_name, valuation_date]
