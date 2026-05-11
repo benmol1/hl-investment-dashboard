@@ -99,6 +99,3 @@ sources:
             tests:
               - not_null
               - unique
-
-      - name: transaction_type_mapping
-        description: "Named HL reference strings mapped to transaction types."

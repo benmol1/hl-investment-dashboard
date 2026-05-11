@@ -25,13 +25,6 @@ CREATE TABLE IF NOT EXISTS dim_date (
     financial_year  TEXT NOT NULL     -- 'FY17', 'FY18', etc.
 );
 
--- Lookup: named HL reference strings → transaction type
--- Patterned references (B..., BX..., X..., URIB...) are classified in Python code
-CREATE TABLE IF NOT EXISTS transaction_type_mapping (
-    reference_pattern   TEXT PRIMARY KEY,
-    transaction_type    TEXT NOT NULL,
-    transaction_subtype TEXT
-);
 
 CREATE TABLE IF NOT EXISTS transactions (
     id                  TEXT PRIMARY KEY,  -- MD5 of (account_id|trade_date|reference|value_gbp)
@@ -64,6 +57,4 @@ CREATE TABLE IF NOT EXISTS benchmarks (
     PRIMARY KEY (index_id, date)
 );
 
--- Analytical views were removed — they are now managed as dbt models:
---   v_holdings       → dbt/models/intermediate/int_daily_unit_balances.sql
---   v_portfolio_value → dbt/models/intermediate/int_daily_fund_values.sql
+-- Analytical views were removed — they are now managed as dbt models.

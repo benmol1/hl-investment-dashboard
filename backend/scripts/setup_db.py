@@ -76,31 +76,6 @@ def seed_funds(con: duckdb.DuckDBPyConnection) -> None:
     print(f"  Seeded {inserted} funds")
 
 
-def seed_transaction_type_mapping(con: duckdb.DuckDBPyConnection) -> None:
-    mapping_csv = IMPORTS_DIR / "mapping_transaction_type.csv"
-    if not mapping_csv.exists():
-        print("  WARNING: mapping_transaction_type.csv not found — skipping")
-        return
-
-    inserted = 0
-    with open(mapping_csv, newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            con.execute(
-                """
-                INSERT OR IGNORE INTO transaction_type_mapping
-                VALUES (?, ?, ?)
-                """,
-                (
-                    row["Reference"].strip(),
-                    row["Transaction_type"].strip(),
-                    row["Transaction_subtype"].strip() or None,
-                ),
-            )
-            inserted += 1
-
-    print(f"  Seeded {inserted} transaction type mappings")
-
 
 def seed_dim_date(con: duckdb.DuckDBPyConnection) -> None:
     date_csv = IMPORTS_DIR / "dim_date.csv"
@@ -142,7 +117,6 @@ def main() -> None:
     print("Seeding reference data...")
     seed_accounts(con)
     seed_funds(con)
-    seed_transaction_type_mapping(con)
     seed_dim_date(con)
 
     con.close()
