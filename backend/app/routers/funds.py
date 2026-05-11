@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional, Literal
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 import duckdb
@@ -17,7 +17,7 @@ def list_funds(
 ):
     """List all funds, optionally filtered to currently active (held) ones."""
     sql = """
-    SELECT fund_id, fund_name, NULL AS isin, morningstar_code,
+    SELECT fund_id, fund_name, fund_id AS isin, morningstar_code,
            (investment_status_indicator = 'Holding') AS is_active
     FROM dim_fund
     WHERE fund_id != 'CASH'
@@ -37,7 +37,6 @@ def fund_performance(
     fund_id: str,
     from_date: Optional[date] = Query(None, alias="from", description="Defaults to first purchase date"),
     to_date: date = Query(default_factory=date.today, alias="to"),
-    benchmark: Literal["FTSE100", "SP500", "NASDAQ"] = Query("FTSE100"),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
     """
@@ -56,7 +55,7 @@ def fund_performance(
     if from_date is None:
         from_date = fund_row[2] if fund_row[2] else date(2017, 1, 1)
 
-    # Monthly fund price at each month-end date
+    # Monthly fund price at each calendar month-end date
     fund_sql = """
     SELECT dd.date, idv.fund_price_gbp
     FROM int_daily_fund_values idv
@@ -83,25 +82,31 @@ def fund_performance(
     ]
 
     bench_rows = con.execute(
-        """SELECT month_end_date, month_end_level
+        """SELECT index_id, month_end_date, month_end_level
            FROM mart_benchmarks
-           WHERE index_id = ? AND month_end_date BETWEEN ? AND ?
-           ORDER BY month_end_date""",
-        [benchmark, from_date, to_date],
+           WHERE index_id IN ('FTSE100', 'SP500', 'NASDAQ')
+             AND month_end_date BETWEEN ? AND ?
+           ORDER BY index_id, month_end_date""",
+        [from_date, to_date],
     ).fetchall()
 
-    benchmark_series: list[PerformancePoint] = []
-    if bench_rows:
-        base_level = bench_rows[0][1]
-        benchmark_series = [
-            PerformancePoint(date=r[0], indexed=round(r[1] / base_level * 100, 4))
-            for r in bench_rows
-        ]
+    benchmarks: dict[str, list[PerformancePoint]] = {'FTSE100': [], 'SP500': [], 'NASDAQ': []}
+    from itertools import groupby
+    for index_id, rows in groupby(bench_rows, key=lambda r: r[0]):
+        row_list = list(rows)
+        if row_list:
+            base_level = row_list[0][2]
+            benchmarks[index_id] = [
+                PerformancePoint(date=r[1], indexed=round(r[2] / base_level * 100, 4))
+                for r in row_list
+            ]
 
     return FundPerformanceResponse(
         fund_id=fund_id,
         fund_name=fund_name,
         start_date=fund_series[0].date if fund_series else from_date,
         fund=fund_series,
-        benchmark=benchmark_series,
+        FTSE100=benchmarks['FTSE100'],
+        SP500=benchmarks['SP500'],
+        NASDAQ=benchmarks['NASDAQ'],
     )

@@ -85,6 +85,7 @@ cd frontend && npm run dev
 - [x] Drop old `v_holdings` and `v_portfolio_value` views from DuckDB and `001_init.sql`
 - [x] Review data model end-to-end. Polish, make improvements and align it with Kimball style (surrogate keeys used for joins; more explicit column names)
 - [x] Understand and calculate Sharpe ratios for each account + benchmarks
+- [ ] Add a short_name to dim_fund
 
 
 **To run dbt:**

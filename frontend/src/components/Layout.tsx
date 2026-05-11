@@ -5,7 +5,7 @@ const navItems = [
   { to: '/contributions', label: 'Contributions' },
   { to: '/funds', label: 'Fund Performance' },
   { to: '/benchmarks', label: 'Benchmarks' },
-  { to: '/holdings', label: 'Holdings' },
+  { to: '/holdings', label: 'Current Holdings' },
   { to: '/transactions', label: 'Transactions' },
 ]
 

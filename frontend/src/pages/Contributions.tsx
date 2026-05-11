@@ -7,6 +7,8 @@ import { fetchContributions } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
 import AccountFilter from '../components/AccountFilter'
+import DateRangeFilter, { dateRangeToFrom } from '../components/DateRangeFilter'
+import type { DateRange } from '../components/DateRangeFilter'
 import type { Account } from '../types'
 
 const fmt = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 })
@@ -14,24 +16,34 @@ const fmtDate = (d: string) => d.slice(0, 7)
 
 export default function Contributions() {
   const [account, setAccount] = useState<Account | undefined>()
-  const { data, loading, error } = useApi(() => fetchContributions(undefined, undefined, account), [account])
+  const [dateRange, setDateRange] = useState<DateRange>('All')
 
+  const from = dateRangeToFrom(dateRange)
+  const { data, loading, error } = useApi(() => fetchContributions(from, undefined, account), [from, account])
+
+  const first = data?.[0]
   const latest = data?.at(-1)
-  const totalGrowth = latest ? latest.portfolio_value - latest.cumulative_contributions : null
+  const periodContributions = (first && latest) ? latest.cumulative_contributions - first.cumulative_contributions : null
+  const portfolioGrowth = (first && latest) ? (latest.portfolio_value - first.portfolio_value) - periodContributions! : null
+  const periodLabel = dateRange === 'All' ? '' : ` (${dateRange})`
+
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Contributions vs Growth</h1>
-        <AccountFilter value={account} onChange={setAccount} />
+        <div className="flex flex-col items-end gap-2">
+          <AccountFilter value={account} onChange={setAccount} />
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+        </div>
       </div>
 
       {latest && (
         <div className="grid grid-cols-3 gap-4">
           {[
             { label: 'Portfolio Value', value: latest.portfolio_value, colour: 'text-indigo-400' },
-            { label: 'Total Contributed', value: latest.cumulative_contributions, colour: 'text-cyan-400' },
-            { label: 'Investment Growth', value: totalGrowth!, colour: totalGrowth! >= 0 ? 'text-emerald-400' : 'text-red-400' },
+            { label: `Contributions${periodLabel}`, value: periodContributions!, colour: 'text-cyan-400' },
+            { label: `Portfolio Growth${periodLabel}`, value: portfolioGrowth!, colour: portfolioGrowth! >= 0 ? 'text-emerald-400' : 'text-red-400' },
           ].map(({ label, value, colour }) => (
             <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{label}</p>
@@ -70,8 +82,8 @@ export default function Contributions() {
                 const map: Record<string, string> = { portfolio_value: 'Portfolio Value', cumulative_contributions: 'Contributions', growth: 'Growth' }
                 return <span style={{ color: '#9ca3af', fontSize: 12 }}>{map[v] ?? v}</span>
               }} />
-              <Area type="monotone" dataKey="cumulative_contributions" stroke="#22d3ee" fill="url(#contrib)" strokeWidth={2} />
-              <Area type="monotone" dataKey="portfolio_value" stroke="#6366f1" fill="url(#portfolio)" strokeWidth={2} />
+              <Area type="linear" dataKey="cumulative_contributions" stroke="#22d3ee" fill="url(#contrib)" strokeWidth={2} />
+              <Area type="linear" dataKey="portfolio_value" stroke="#6366f1" fill="url(#portfolio)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         )}

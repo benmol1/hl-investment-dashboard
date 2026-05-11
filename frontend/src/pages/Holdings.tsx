@@ -22,7 +22,7 @@ export default function Holdings() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Holdings</h1>
+        <h1 className="text-2xl font-bold text-white">Current Holdings</h1>
         <AccountFilter value={account} onChange={setAccount} />
       </div>
 

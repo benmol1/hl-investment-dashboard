@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ReferenceLine,
 } from 'recharts'
 import { useApi } from '../hooks/useApi'
 import { fetchPortfolioPerformance } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
 import AccountFilter from '../components/AccountFilter'
-import type { Account, PortfolioPerformanceResponse } from '../types'
+import type { Account, PortfolioPerformanceResponse, SharpeRatios } from '../types'
 
 type Key = 'portfolio' | 'FTSE100' | 'SP500' | 'NASDAQ'
 
@@ -39,9 +39,24 @@ function mergeData(data: PortfolioPerformanceResponse) {
 
 export default function Benchmarks() {
   const [account, setAccount] = useState<Account | undefined>()
-  const { data, loading, error } = useApi(() => fetchPortfolioPerformance(undefined, undefined, account), [account])
+  const [startDate, setStartDate] = useState('2017-01-01')
+
+  const { data, loading, error } = useApi(
+    () => fetchPortfolioPerformance(startDate, undefined, account),
+    [startDate, account],
+  )
 
   const merged = data ? mergeData(data) : []
+
+  const yTicks = (() => {
+    if (!merged.length) return [50, 100, 150]
+    const vals = merged.flatMap((d) => [d.portfolio, d.FTSE100, d.SP500, d.NASDAQ].filter((v): v is number => v != null))
+    const min = Math.floor(Math.min(...vals) / 50) * 50
+    const max = Math.ceil(Math.max(...vals) / 50) * 50
+    const ticks: number[] = []
+    for (let t = min; t <= max; t += 50) ticks.push(t)
+    return ticks
+  })()
 
   const getReturn = (key: Key) => {
     const series = data?.[key]
@@ -53,7 +68,18 @@ export default function Benchmarks() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Benchmark Comparison</h1>
-        <AccountFilter value={account} onChange={setAccount} />
+        <div className="flex flex-col items-end gap-2">
+          <AccountFilter value={account} onChange={setAccount} />
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-500">Start date:</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-gray-900 border border-gray-700 text-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
       </div>
 
       {data && (
@@ -75,6 +101,47 @@ export default function Benchmarks() {
         </div>
       )}
 
+      {data && (
+        <Card title="Sharpe Ratios (annualised, risk-free rate = 0)">
+          <p className="text-xs text-gray-500 mb-4">Trailing windows ending today — fixed, not affected by the start date picker.</p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-500 text-xs uppercase">
+                <th className="text-left pb-3 w-28"></th>
+                {SERIES.map(({ key, label, colour }) => (
+                  <th key={key} className="text-right pb-3">
+                    <span className="flex items-center justify-end gap-1.5">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: colour }} />
+                      {label}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {(['trailing_12m', 'trailing_36m'] as const).map((field) => (
+                <tr key={field}>
+                  <td className="py-3 text-gray-500 text-xs uppercase tracking-wider">
+                    {field === 'trailing_12m' ? '12-month' : '36-month'}
+                  </td>
+                  {SERIES.map(({ key }) => {
+                    const v = (data.sharpe[key] as SharpeRatios | undefined)?.[field]
+                    return (
+                      <td key={key} className="py-3 text-right font-semibold">
+                        {v == null
+                          ? <span className="text-gray-600">—</span>
+                          : <span className={v >= 0 ? 'text-emerald-400' : 'text-red-400'}>{v.toFixed(2)}</span>
+                        }
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
       <Card title={`Performance indexed to 100 at ${data?.start_date ?? '…'}`}>
         {loading || error || !merged.length ? (
           <StatusMessage loading={loading} error={error} empty={!merged.length} />
@@ -83,7 +150,7 @@ export default function Benchmarks() {
             <LineChart data={merged}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
               <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: '#6b7280', fontSize: 11 }} minTickGap={60} />
-              <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} />
+              <YAxis ticks={yTicks} domain={[yTicks[0], yTicks[yTicks.length - 1]]} tick={{ fill: '#6b7280', fontSize: 11 }} />
               <Tooltip
                 formatter={(v, name) => {
                   const s = SERIES.find((x) => x.key === String(name))
@@ -97,10 +164,11 @@ export default function Benchmarks() {
                 const s = SERIES.find((x) => x.key === v)
                 return <span style={{ color: '#9ca3af', fontSize: 12 }}>{s?.label ?? v}</span>
               }} />
+              <ReferenceLine y={100} stroke="#4b5563" strokeDasharray="4 2" />
               {SERIES.map(({ key, colour, dash }) => (
                 <Line
                   key={key}
-                  type="monotone"
+                  type="linear"
                   dataKey={key}
                   stroke={colour}
                   dot={false}

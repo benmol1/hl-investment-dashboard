@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
@@ -7,31 +6,45 @@ import { useApi } from '../hooks/useApi'
 import { fetchFundPerformance } from '../api/funds'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
-import type { Benchmark } from '../types'
 
-const BENCHMARKS: Benchmark[] = ['FTSE100', 'SP500', 'NASDAQ']
 const fmtDate = (d: string) => d.slice(0, 7)
+
+const BENCH_LINES = [
+  { key: 'FTSE100', stroke: '#f59e0b', dash: '4 2' },
+  { key: 'SP500',   stroke: '#22d3ee', dash: '4 2' },
+  { key: 'NASDAQ',  stroke: '#f43f5e', dash: '4 2' },
+] as const
 
 export default function FundPerformance() {
   const { id } = useParams<{ id: string }>()
-  const [benchmark, setBenchmark] = useState<Benchmark>('FTSE100')
 
   const { data, loading, error } = useApi(
-    () => fetchFundPerformance(id!, undefined, undefined, benchmark),
-    [id, benchmark],
+    () => fetchFundPerformance(id!),
+    [id],
   )
 
-  // Merge fund + benchmark series onto a shared date axis
   const merged = (() => {
     if (!data) return []
-    const fundMap = new Map(data.fund.map((p) => [p.date, p.indexed]))
-    const benchMap = new Map(data.benchmark.map((p) => [p.date, p.indexed]))
-    const dates = [...new Set([...fundMap.keys(), ...benchMap.keys()])].sort()
-    return dates.map((date) => ({ date, fund: fundMap.get(date), bench: benchMap.get(date) }))
+    const fundMap    = new Map(data.fund.map((p) => [p.date, p.indexed]))
+    const ftse100Map = new Map(data.FTSE100.map((p) => [p.date, p.indexed]))
+    const sp500Map   = new Map(data.SP500.map((p) => [p.date, p.indexed]))
+    const nasdaqMap  = new Map(data.NASDAQ.map((p) => [p.date, p.indexed]))
+    const dates = [...new Set([
+      ...fundMap.keys(), ...ftse100Map.keys(), ...sp500Map.keys(), ...nasdaqMap.keys(),
+    ])].sort()
+    return dates.map((date) => ({
+      date,
+      fund:    fundMap.get(date),
+      FTSE100: ftse100Map.get(date),
+      SP500:   sp500Map.get(date),
+      NASDAQ:  nasdaqMap.get(date),
+    }))
   })()
 
   const latest = data?.fund.at(-1)
   const gainPct = latest ? (latest.indexed - 100).toFixed(1) : null
+
+  const labelMap: Record<string, string> = { fund: data?.fund_name ?? 'Fund', FTSE100: 'FTSE 100', SP500: 'S&P 500', NASDAQ: 'Nasdaq' }
 
   return (
     <div className="space-y-6">
@@ -49,23 +62,6 @@ export default function FundPerformance() {
         </p>
       )}
 
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-500">Benchmark:</span>
-        {BENCHMARKS.map((b) => (
-          <button
-            key={b}
-            onClick={() => setBenchmark(b)}
-            className={`px-3 py-1 rounded-full text-sm border transition-colors ${
-              benchmark === b
-                ? 'bg-indigo-600 border-indigo-600 text-white'
-                : 'border-gray-700 text-gray-400 hover:border-gray-500'
-            }`}
-          >
-            {b}
-          </button>
-        ))}
-      </div>
-
       <Card title="Performance (indexed to 100 at first purchase)">
         {loading || error || !merged.length ? (
           <StatusMessage loading={loading} error={error} empty={!merged.length} />
@@ -76,14 +72,16 @@ export default function FundPerformance() {
               <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: '#6b7280', fontSize: 11 }} minTickGap={60} />
               <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} />
               <Tooltip
-                formatter={(v, name) => [`${Number(v).toFixed(2)}`, String(name) === 'fund' ? data!.fund_name : benchmark]}
+                formatter={(v, name) => [`${Number(v).toFixed(2)}`, labelMap[String(name)] ?? String(name)]}
                 labelFormatter={(l) => `Date: ${l}`}
                 contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
                 labelStyle={{ color: '#d1d5db' }}
               />
-              <Legend formatter={(v) => <span style={{ color: '#9ca3af', fontSize: 12 }}>{v === 'fund' ? (data?.fund_name ?? 'Fund') : benchmark}</span>} />
-              <Line type="monotone" dataKey="fund" stroke="#6366f1" dot={false} strokeWidth={2} />
-              <Line type="monotone" dataKey="bench" stroke="#f59e0b" dot={false} strokeWidth={1.5} strokeDasharray="4 2" />
+              <Legend formatter={(v) => <span style={{ color: '#9ca3af', fontSize: 12 }}>{labelMap[v] ?? v}</span>} />
+              <Line type="linear" dataKey="fund" stroke="#6366f1" dot={false} strokeWidth={2} />
+              {BENCH_LINES.map(({ key, stroke, dash }) => (
+                <Line key={key} type="linear" dataKey={key} stroke={stroke} dot={false} strokeWidth={1.5} strokeDasharray={dash} />
+              ))}
             </LineChart>
           </ResponsiveContainer>
         )}

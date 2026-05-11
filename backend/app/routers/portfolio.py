@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 import duckdb
 
 from app.db import get_db
-from app.models import TimeSeriesPoint, AllocationItem, ContributionPoint, PerformancePoint, PortfolioPerformanceResponse, HoldingItem
+from app.models import TimeSeriesPoint, AllocationItem, ContributionPoint, PerformancePoint, PortfolioPerformanceResponse, SharpeRatios, HoldingItem
 
 router = APIRouter()
 
@@ -127,33 +127,43 @@ def portfolio_performance(
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
     """
-    Monthly portfolio value indexed to 100 at from_date, plus all three benchmark indices
-    indexed to 100 at the same start date. Both series use month-end data.
+    Portfolio investment return (Modified Dietz, contribution-adjusted) indexed to 100
+    at from_date, plus all three benchmark indices indexed to 100 at the same start date.
+    Both series use calendar month-end dates.
     """
     account_filter = "AND account_name = ?" if account else ""
     params: list = [from_date, to_date]
     if account:
         params.append(account)
 
-    value_sql = f"""
-    SELECT month_end_date AS date, SUM(month_end_value_gbp) AS value_gbp
-    FROM mart_monthly_snapshot
+    # Compound monthly Modified Dietz returns from mart_portfolio_returns.
+    # Aggregate across accounts (sum weighted by BMV) when no account filter is applied.
+    returns_sql = f"""
+    SELECT
+        month_end_date,
+        CASE
+            WHEN SUM(prev_month_end_value_gbp + 0.5 * month_contributions_gbp) = 0 THEN 0
+            ELSE SUM(monthly_return * (prev_month_end_value_gbp + 0.5 * month_contributions_gbp))
+                 / SUM(prev_month_end_value_gbp + 0.5 * month_contributions_gbp)
+        END AS monthly_return
+    FROM mart_portfolio_returns
     WHERE month_end_date BETWEEN ? AND ?
     {account_filter}
     GROUP BY month_end_date
     ORDER BY month_end_date
     """
-    value_rows = con.execute(value_sql, params).fetchall()
+    return_rows = con.execute(returns_sql, params).fetchall()
 
     portfolio_series: list[PerformancePoint] = []
     start_date = from_date
-    if value_rows:
-        base = value_rows[0][1]
-        start_date = value_rows[0][0]
-        portfolio_series = [
-            PerformancePoint(date=r[0], indexed=round(r[1] / base * 100, 4))
-            for r in value_rows if r[1] and r[1] > 0
-        ]
+    if return_rows:
+        start_date = return_rows[0][0]
+        index = 100.0
+        portfolio_series = []
+        for r in return_rows:
+            if r[1] is not None:
+                index = round(index * (1 + r[1]), 4)
+            portfolio_series.append(PerformancePoint(date=r[0], indexed=index))
 
     def bench_series(index_id: str) -> list[PerformancePoint]:
         rows = con.execute(
@@ -168,12 +178,41 @@ def portfolio_performance(
         base = rows[0][1]
         return [PerformancePoint(date=r[0], indexed=round(r[1] / base * 100, 4)) for r in rows]
 
+    # Latest Sharpe ratios — trailing windows are independent of the chart start date,
+    # so we take the most recent row up to to_date.
+    portfolio_sharpe_sql = f"""
+    SELECT
+        SUM(trailing_12m_sharpe * prev_month_end_value_gbp)
+            / NULLIF(SUM(CASE WHEN trailing_12m_sharpe IS NOT NULL THEN prev_month_end_value_gbp END), 0),
+        SUM(trailing_36m_sharpe * prev_month_end_value_gbp)
+            / NULLIF(SUM(CASE WHEN trailing_36m_sharpe IS NOT NULL THEN prev_month_end_value_gbp END), 0)
+    FROM mart_portfolio_returns
+    WHERE month_end_date = (SELECT MAX(month_end_date) FROM mart_portfolio_returns WHERE month_end_date <= ?)
+    {account_filter}
+    """
+    sharpe_params = [to_date] + ([account] if account else [])
+    ps = con.execute(portfolio_sharpe_sql, sharpe_params).fetchone()
+
+    bench_sharpe_rows = con.execute(
+        """SELECT index_id, trailing_12m_sharpe, trailing_36m_sharpe
+           FROM mart_benchmarks
+           WHERE year_month = (SELECT MAX(year_month) FROM mart_benchmarks WHERE month_end_date <= ?)""",
+        [to_date],
+    ).fetchall()
+    bench_sharpe = {r[0]: SharpeRatios(trailing_12m=r[1], trailing_36m=r[2]) for r in bench_sharpe_rows}
+
+    sharpe = {
+        'portfolio': SharpeRatios(trailing_12m=ps[0] if ps else None, trailing_36m=ps[1] if ps else None),
+        **bench_sharpe,
+    }
+
     return PortfolioPerformanceResponse(
         start_date=start_date,
         portfolio=portfolio_series,
         FTSE100=bench_series("FTSE100"),
         SP500=bench_series("SP500"),
         NASDAQ=bench_series("NASDAQ"),
+        sharpe=sharpe,
     )
 
 

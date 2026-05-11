@@ -34,7 +34,9 @@ class FundPerformanceResponse(BaseModel):
     fund_name: str
     start_date: date
     fund: list[PerformancePoint]
-    benchmark: list[PerformancePoint]
+    FTSE100: list[PerformancePoint]
+    SP500: list[PerformancePoint]
+    NASDAQ: list[PerformancePoint]
 
 
 class Fund(BaseModel):
@@ -79,8 +81,9 @@ class HoldingItem(BaseModel):
     percentage: float
 
 
-class BenchmarkSeries(BaseModel):
-    series: list[PerformancePoint]
+class SharpeRatios(BaseModel):
+    trailing_12m: Optional[float]
+    trailing_36m: Optional[float]
 
 
 class PortfolioPerformanceResponse(BaseModel):
@@ -89,3 +92,4 @@ class PortfolioPerformanceResponse(BaseModel):
     FTSE100: list[PerformancePoint]
     SP500: list[PerformancePoint]
     NASDAQ: list[PerformancePoint]
+    sharpe: dict[str, SharpeRatios]

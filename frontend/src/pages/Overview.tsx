@@ -8,6 +8,8 @@ import { fetchPortfolioValue, fetchAllocation } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
 import AccountFilter from '../components/AccountFilter'
+import DateRangeFilter, { dateRangeToFrom } from '../components/DateRangeFilter'
+import type { DateRange } from '../components/DateRangeFilter'
 import type { Account } from '../types'
 
 const COLOURS = ['#6366f1', '#22d3ee', '#f59e0b', '#10b981', '#f43f5e', '#a78bfa', '#fb923c']
@@ -17,8 +19,10 @@ const fmtDate = (d: string) => d.slice(0, 7) // YYYY-MM
 
 export default function Overview() {
   const [account, setAccount] = useState<Account | undefined>()
+  const [dateRange, setDateRange] = useState<DateRange>('All')
 
-  const value = useApi(() => fetchPortfolioValue(undefined, undefined, account), [account])
+  const from = dateRangeToFrom(dateRange)
+  const value = useApi(() => fetchPortfolioValue(from, undefined, account), [from, account])
   const allocation = useApi(() => fetchAllocation(undefined, account), [account])
 
   const latestValue = value.data?.at(-1)?.value_gbp
@@ -32,7 +36,10 @@ export default function Overview() {
             <p className="text-3xl font-semibold text-indigo-400 mt-1">{fmt.format(latestValue)}</p>
           )}
         </div>
-        <AccountFilter value={account} onChange={setAccount} />
+        <div className="flex flex-col items-end gap-2">
+          <AccountFilter value={account} onChange={setAccount} />
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+        </div>
       </div>
 
       <Card title="Portfolio Value">
@@ -50,7 +57,7 @@ export default function Overview() {
                 contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
                 labelStyle={{ color: '#d1d5db' }}
               />
-              <Line type="monotone" dataKey="value_gbp" stroke="#6366f1" dot={false} strokeWidth={2} />
+              <Line type="linear" dataKey="value_gbp" stroke="#6366f1" dot={false} strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         )}

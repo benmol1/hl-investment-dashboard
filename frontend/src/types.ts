@@ -29,7 +29,9 @@ export interface FundPerformanceResponse {
   fund_name: string
   start_date: string
   fund: PerformancePoint[]
-  benchmark: PerformancePoint[]
+  FTSE100: PerformancePoint[]
+  SP500: PerformancePoint[]
+  NASDAQ: PerformancePoint[]
 }
 
 export interface Fund {
@@ -74,12 +76,18 @@ export interface HoldingItem {
   percentage: number
 }
 
+export interface SharpeRatios {
+  trailing_12m: number | null
+  trailing_36m: number | null
+}
+
 export interface PortfolioPerformanceResponse {
   start_date: string
   portfolio: PerformancePoint[]
   FTSE100: PerformancePoint[]
   SP500: PerformancePoint[]
   NASDAQ: PerformancePoint[]
+  sharpe: Record<string, SharpeRatios>
 }
 
 export type Account = 'ISA' | 'SIPP'
