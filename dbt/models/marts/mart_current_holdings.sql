@@ -1,12 +1,12 @@
 with
--- Most recent date for which fund price data exists.
+-- Most recent date for which fund we have at least 1 fund holding.
 latest_date_key as (
     select max(date_key) as date_key
     from {{ ref('fct_daily_holdings') }}
     where holding_type = 'Fund'
 ),
 
--- Fund positions on the latest price date, excluding near-zero balances.
+-- Fund positions on the latest date, excluding near-zero balances.
 current_holdings as (
     select
         fdh.account_key,
