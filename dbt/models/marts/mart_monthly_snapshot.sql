@@ -7,7 +7,7 @@ with account_month_spine as (
     from {{ ref('dim_account') }} da
     inner join {{ ref('dim_date') }} dd
         on  dd.date >= da.account_open_date
-        and dd.date <= current_date
+        and dd.date < date_trunc('month', current_date)
     group by da.account_key, da.account_name, dd.year_month
 ),
 
@@ -35,18 +35,6 @@ monthly_contributions as (
     group by ft.account_key, dd.year_month
 ),
 
-cumulative_contributions as (
-    select
-        ams.account_key,
-        ams.year_month,
-        coalesce(sum(mc.month_total_contributions_gbp), 0) as cumulative_contributions_gbp
-    from account_month_spine ams
-    left join monthly_contributions mc
-        on  mc.account_key  = ams.account_key
-        and mc.year_month  <= ams.year_month
-    group by ams.account_key, ams.year_month
-),
-
 monthly_fund_purchases as (
     select
         ft.account_key,
@@ -68,16 +56,12 @@ select
     ams.financial_year,
     mev.month_end_date,
     mev.month_end_value_gbp,
-    cc.cumulative_contributions_gbp,
-    coalesce(mc.month_total_contributions_gbp, 0)        as month_total_contributions_gbp,
-    coalesce(mfp.net_fund_purchases_gbp, 0)              as net_fund_purchases_gbp
+    coalesce(mc.month_total_contributions_gbp, 0)        as monthly_contributions_gbp,
+    coalesce(mfp.net_fund_purchases_gbp, 0)              as monthly_net_fund_purchases_gbp
 from account_month_spine ams
 left join month_end_values mev
     on  mev.account_key = ams.account_key
     and mev.year_month  = ams.year_month
-left join cumulative_contributions cc
-    on  cc.account_key  = ams.account_key
-    and cc.year_month   = ams.year_month
 left join monthly_contributions mc
     on  mc.account_key  = ams.account_key
     and mc.year_month   = ams.year_month

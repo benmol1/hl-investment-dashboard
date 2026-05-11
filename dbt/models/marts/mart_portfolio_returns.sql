@@ -6,7 +6,7 @@ with monthly_inputs as (
         month_end_date,
         month_end_value_gbp                                                         as emv,
         lag(month_end_value_gbp) over (partition by account_id order by year_month) as bmv,
-        month_total_contributions_gbp                                                as cf
+        monthly_contributions_gbp                                                    as cf
     from {{ ref('mart_monthly_snapshot') }}
 ),
 
