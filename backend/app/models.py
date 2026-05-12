@@ -74,11 +74,12 @@ class TransactionPage(BaseModel):
 
 
 class HoldingItem(BaseModel):
-    fund_id: str
+    holding_type: str = 'fund'  # 'fund' or 'cash'
+    fund_id: Optional[str] = None
     fund_name: str
     fund_short_name: str
-    units_held: float
-    price_gbp: float
+    units_held: Optional[float] = None
+    price_gbp: Optional[float] = None
     value_gbp: float
     cost_basis_gbp: float
     unrealised_gain_gbp: float

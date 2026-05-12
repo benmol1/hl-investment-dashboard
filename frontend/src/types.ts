@@ -69,11 +69,12 @@ export interface TransactionPage {
 }
 
 export interface HoldingItem {
-  fund_id: string
+  holding_type: string  // 'fund' | 'cash'
+  fund_id: string | null
   fund_name: string
   fund_short_name: string
-  units_held: number
-  price_gbp: number
+  units_held: number | null
+  price_gbp: number | null
   value_gbp: number
   cost_basis_gbp: number
   unrealised_gain_gbp: number
