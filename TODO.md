@@ -160,8 +160,34 @@ Three Docker services, one shared bind mount:
 
 ---
 
-## Phase 7 — Alerting
+## Phase 7 — Notifications
 
-- [ ] Add failure notifications to `backend/cron.py` using [ntfy.sh](https://ntfy.sh) — a free push notification service requiring no account or API key. When `fetch_prices.py` or `dbt build` fails, POST to a private ntfy topic; the ntfy app on your phone receives the alert instantly. Optionally send a daily success notification too.
+- [ ] Add failure notifications to `backend/cron.py` using [ntfy.sh](https://ntfy.sh) — a free push notification service requiring no account or API key. When any step of the daily refresh fails, POST to a private ntfy topic; the ntfy app on your phone receives the alert instantly.
+- [ ] Add a daily success notification confirming the refresh ran cleanly (prices updated, dbt build passed).
+- [ ] Add a monthly summary notification: total portfolio value, change vs last month, and a brief breakdown by account.
+
+---
+
+## Phase 8 — Dashboard UI Improvements
+
+- [ ] Make the sidebar collapsible so the dashboard is usable on a mobile screen
+- [ ] Round all monetary values in the Holdings table to the nearest pound (no pennies)
+- [ ] Make all columns in the Holdings table sortable (name, value, cost basis, unrealised gain, weight, etc.)
+- [ ] Include cash balances alongside fund holdings in the Holdings table
+
+---
+
+## Phase 9 — Refresh Automation
+
+### Basic — shared drop folder
+
+- [ ] Set up a shared network folder on the Pi (e.g. via Samba) so HL CSV exports can be dropped directly from any device on the home network without using `scp`
+- [ ] The existing daily cron job already picks up files from the drop folders automatically — no further changes needed once the share is in place
+
+### Advanced — automated HL download (research spike)
+
+- [ ] Research using [BrowserUse](https://github.com/browser-use/browser-use) to automate logging in to the HL website and downloading transaction CSVs on a schedule
+- [ ] Investigate credential security options — e.g. storing the HL password in a secrets manager or using a read-only HL API key if one exists, to avoid hardcoding credentials in config
+- [ ] If viable, wire the downloader into `backend/cron.py` as the first step before `ingest_transactions.py`
 
 ---

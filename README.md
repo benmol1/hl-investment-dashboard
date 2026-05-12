@@ -15,41 +15,48 @@ Designed to run on a Raspberry Pi on the home network, accessible to family memb
 - **Holdings Table** — current units, price, market value, cost basis, and unrealised gain/loss per fund
 - **Transaction Log** — paginated, filterable table of all transactions across both accounts
 - **ISA / SIPP filter** — every analytical view can be scoped to a single account or viewed combined
-- **Daily price updates** — APScheduler runs `fetch_prices.py` automatically at 18:00 inside the FastAPI process
+- **Daily price updates** — a dedicated cron container runs `ingest_transactions.py`, `fetch_prices.py`, and `dbt build` automatically at 18:00 every day
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                  Raspberry Pi (Docker)               │
-│                                                      │
-│  ┌──────────────┐    ┌──────────────┐               │
-│  │  Ingestion   │    │   FastAPI    │               │
-│  │  Scripts     │───▶│   Backend   │◀── React App  │
-│  │  (Python)    │    │  :8000       │    (browser)  │
-│  └──────┬───────┘    └──────┬───────┘               │
-│         │                   │                        │
-│         └──────────┬────────┘                        │
-│                    ▼                                  │
-│         ┌─────────────────────┐                      │
-│         │       DuckDB        │                      │
-│         │  data/hl_dashboard  │                      │
-│         │      .duckdb        │                      │
-│         └─────────────────────┘                      │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                    Raspberry Pi (Docker Compose)              │
+│                                                               │
+│  ┌─────────────────┐   ┌──────────────┐   ┌───────────────┐ │
+│  │   cron          │   │   backend    │   │   frontend    │ │
+│  │  (Python)       │   │  (FastAPI)   │   │   (Nginx)     │ │
+│  │                 │   │   :8000      │◀──│   :2048       │◀┼── browser
+│  │ ingest_txns.py  │   └──────┬───────┘   └───────────────┘ │
+│  │ fetch_prices.py │          │                               │
+│  │ dbt build       │          │                               │
+│  │ (daily @ 18:00) │          │                               │
+│  └────────┬────────┘          │                               │
+│           │                   │                               │
+│           └──────────┬────────┘                               │
+│                      ▼                                        │
+│           ┌─────────────────────┐                             │
+│           │       DuckDB        │                             │
+│           │  (bind-mounted from │                             │
+│           │  /srv/hl-dashboard/ │                             │
+│           │       data/)        │                             │
+│           └─────────────────────┘                             │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 | Layer | Technology | Why |
 |---|---|---|
 | Database | **DuckDB** | Columnar, zero-server, single file — perfect for time-series aggregations |
-| Backend | **Python + FastAPI** | Lightweight, async, easy APScheduler integration |
+| Data layer | **dbt-duckdb** | Staging → intermediate → mart models; 112 data tests |
+| Backend | **Python + FastAPI** | Lightweight, async, read-only API server |
+| Scheduler | **APScheduler** in a dedicated cron container | Decoupled from the API; runs ingest + prices + dbt daily |
 | Fund prices | **Morningstar** (unofficial JSON API) | Only source with full historical OEIC/unit trust NAV data |
 | Benchmark prices | **yfinance** | `^FTSE`, `^GSPC`, `^IXIC` — exchange-listed, well-covered |
 | Frontend | **React + TypeScript + Vite** | Fast build tooling, strong typing |
 | Charts | **Recharts** | Flexible, composable financial charts |
-| Deployment | **Docker Compose** | Clean isolation, easy to manage on a Pi |
+| Deployment | **Docker Compose on Raspberry Pi 4** | Clean isolation, easy to manage; accessible via Tailscale |
 
 ---
 
@@ -125,9 +132,13 @@ This creates `data/hl_dashboard.duckdb` and seeds:
 
 ### 3. Ingest your transactions
 
-Download your transaction history from HL (History tab → Export) and drop the CSV into `data/imports/`. Then run:
+Download your transaction history from HL (History tab → Export) and drop the CSV into `data/imports/raw_transactions/ISA/` or `data/imports/raw_transactions/SIPP/`. Then run:
 
-[TO BE UPDATED]
+```bash
+uv run python backend/scripts/ingest_transactions.py
+```
+
+The script auto-discovers both folders and upserts all transactions — re-running is safe and never duplicates rows.
 
 ### 4. Backfill historical prices
 
@@ -175,24 +186,29 @@ The dashboard will be at [http://localhost:5173](http://localhost:5173). All `/a
 
 ---
 
-## Weekly Data Update
+## Updating Transaction Data
 
-HL doesn't offer a live API, so data is updated manually:
+HL doesn't offer a live API, so transaction data is updated manually:
 
 1. Log in to HL and download the transaction history CSV for each account (History → Export)
-2. Drop the file(s) into `data/imports/`
-3. Run the ingest script for each file:
-   ```bash
-   cd backend
-   uv run python scripts/ingest_transactions.py --file ../data/imports/<filename>.csv --account ISA
+2. Copy the file to the Pi's drop folder via `scp`:
+   ```powershell
+   scp "export.csv" pi@<PI-IP>:/srv/hl-dashboard/data/imports/raw_transactions/ISA/
+   # or SIPP/ for the SIPP account
    ```
+3. The daily cron job (18:00) will automatically pick up the file, ingest it, fetch the latest prices, and rebuild the dbt models.
 
-Fund prices and benchmark levels update automatically at 18:00 daily via the APScheduler job inside the FastAPI process. You can also trigger a manual update:
+To trigger a manual refresh immediately without waiting for 18:00:
 
 ```bash
-cd backend
-uv run python scripts/fetch_prices.py
+# On the Pi
+cd /srv/hl-dashboard/app
+DATA_DIR=/srv/hl-dashboard/data docker compose exec cron /app/.venv/bin/python backend/scripts/ingest_transactions.py
+DATA_DIR=/srv/hl-dashboard/data docker compose exec cron /app/.venv/bin/python backend/scripts/fetch_prices.py
+DATA_DIR=/srv/hl-dashboard/data docker compose exec cron sh -c "cd dbt && /app/.venv/bin/dbt build --profiles-dir ."
 ```
+
+The auto-renamer in `ingest_transactions.py` handles any filename — files are renamed to `{ACCOUNT}_{YYYY-MM-DD}.csv` on ingestion, and re-running never duplicates rows.
 
 ---
 
@@ -270,16 +286,25 @@ If price fetching starts returning 401/403 errors, open [morningstar.co.uk](http
 
 ---
 
-## Deployment (Phase 4 — in progress)
+## Deployment
 
-Deployment to a Raspberry Pi via Docker Compose is planned. The target setup is:
+The dashboard runs on a Raspberry Pi 4 via Docker Compose. Three services share a bind-mounted data directory (`/srv/hl-dashboard/data/` on the Pi):
 
-- **FastAPI** container serving the backend API on port 8000
-- **Nginx** container serving the pre-built React frontend and proxying `/api` to FastAPI
-- Home network DNS for a friendly local URL (e.g. `http://dashboard.local`)
-- Optional: Tailscale for access outside the home network
+| Service | Role | Port |
+|---|---|---|
+| `backend` | FastAPI read-only API server | 8000 (internal only) |
+| `cron` | Daily refresh: ingest → prices → dbt build at 18:00 | — |
+| `frontend` | Nginx serving the Vite build; proxies `/api/` to backend | 2048 (host) |
 
-Docker configuration will be added when Phase 4 is implemented.
+**Access:**
+- Home network: `http://<PI-LAN-IP>:2048`
+- Remote (via Tailscale): `http://<PI-TAILSCALE-IP>:2048`
+
+**To start the stack on the Pi:**
+```bash
+cd /srv/hl-dashboard/app
+DATA_DIR=/srv/hl-dashboard/data docker compose up -d
+```
 
 ---
 
