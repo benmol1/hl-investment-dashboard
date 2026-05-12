@@ -15,6 +15,10 @@ RUN uv sync --frozen
 COPY backend/ ./backend/
 COPY dbt/ ./dbt/
 
+# Download dbt packages (dbt_packages/ is excluded from the build context
+# via .dockerignore since it's gitignored and may be stale locally)
+RUN cd dbt && /app/.venv/bin/dbt deps --profiles-dir .
+
 # Make backend/ importable as a package root (so 'from app.xxx import' works)
 ENV PYTHONPATH=/app/backend
 

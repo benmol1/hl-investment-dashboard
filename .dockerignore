@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+*.py[oc]
+
+# dbt — compiled output and downloaded packages (packages are fetched via
+# dbt deps during the Docker build; target/ is regenerated at runtime)
+dbt/dbt_packages/
+dbt/target/
+dbt/logs/
+dbt/.user.yml
+
+# Frontend build artefacts and dependencies
+frontend/node_modules/
+frontend/dist/
+
+# Data — never baked into the image, bind-mounted at runtime
+data/
+
+# Logs
+logs/
+
+# Git
+.git/
+
+# OS
+.DS_Store
+Thumbs.db
