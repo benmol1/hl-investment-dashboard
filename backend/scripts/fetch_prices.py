@@ -31,6 +31,8 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
+import os
+
 import duckdb
 import requests
 import yfinance as yf
@@ -39,7 +41,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = ROOT / "data" / "hl_dashboard.duckdb"
 
 # Morningstar's unofficial history API — see module docstring if this stops working
-MORNINGSTAR_API_TOKEN = "9vehuxllxs"
+MORNINGSTAR_API_TOKEN = os.getenv("MORNINGSTAR_API_TOKEN", "9vehuxllxs")
 MORNINGSTAR_BASE = (
     f"https://tools.morningstar.co.uk/api/rest.svc/timeseries_price/{MORNINGSTAR_API_TOKEN}"
 )
