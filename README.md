@@ -49,7 +49,7 @@ Designed to run on a Raspberry Pi on the home network, accessible to family memb
 | Layer | Technology | Why |
 |---|---|---|
 | Database | **DuckDB** | Columnar, zero-server, single file — perfect for time-series aggregations |
-| Data layer | **dbt-duckdb** | Base → core → mart models; 112 data tests |
+| Data layer | **dbt-duckdb** | Base → core → mart models |
 | Backend | **Python + FastAPI** | Lightweight, async, read-only API server |
 | Scheduler | **APScheduler** in a dedicated cron container | Decoupled from the API; runs ingest + prices + dbt daily |
 | Fund prices | **Morningstar** (unofficial JSON API) | Only source with full historical OEIC/unit trust NAV data |
@@ -108,7 +108,7 @@ hl-investment-dashboard/
 │   │   ├── core/                # dims + fcts (dim_fund, fct_transactions, fct_daily_holdings, …)
 │   │   ├── intermediate/        # int_daily_fund_values, int_daily_cash_values
 │   │   └── marts/               # mart_daily_portfolio_value, mart_current_holdings, …
-│   ├── seeds/                   # dim_date.csv
+│   ├── seeds/                   # seed_dates.csv
 │   ├── dbt_project.yml
 │   └── profiles.yml
 ├── data/

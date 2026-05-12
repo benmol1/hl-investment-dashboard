@@ -18,8 +18,12 @@ data/imports/*.csv
 data/imports/**/*.csv
 
 # Node / frontend (added when frontend is built)
-frontend/node_modules/
+node_modules/
 frontend/dist/
+
+# Logs
+logs/
+*.log
 
 # Environment files
 .env
