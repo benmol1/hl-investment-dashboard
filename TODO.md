@@ -149,14 +149,14 @@ Three Docker services, one shared bind mount:
 
 #### Raspberry Pi setup
 
-- [ ] Install Docker + Docker Compose on the Pi
-- [ ] Create bind mount directory: `sudo mkdir -p /srv/hl-dashboard/data/imports/raw_transactions/{ISA,SIPP}`
-- [ ] Copy initial `hl_dashboard.duckdb` to `/srv/hl-dashboard/data/` (one-time seed from dev machine)
-- [ ] Clone repo to Pi and run `docker compose up -d`
-- [ ] Install Tailscale on the Pi (`curl -fsSL https://tailscale.com/install.sh | sh`) and authenticate
+- [x] Install Docker + Docker Compose on the Pi
+- [x] Create bind mount directory: `sudo mkdir -p /srv/hl-dashboard/data/imports/raw_transactions/{ISA,SIPP}`
+- [x] Copy initial `hl_dashboard.duckdb` to `/srv/hl-dashboard/data/` (one-time seed from dev machine)
+- [x] Clone repo to Pi and run `docker compose up -d`
+- [x] Install Tailscale on the Pi (`curl -fsSL https://tailscale.com/install.sh | sh`) and authenticate
 - [ ] Add Local DNS record in Pi-Hole admin: `hl-dashboard` → Pi's LAN IP (Settings → Local DNS → DNS Records)
-- [ ] Verify end-to-end: open `http://hl-dashboard:8080` from another device on the home network
-- [ ] Verify Tailscale access: open the dashboard from a device off the home network
+- [x] Verify end-to-end: open `http://192.168.1.220:2048` from another device on the home network
+- [x] Verify Tailscale access: open the dashboard from a device off the home network
 
 ---
 
