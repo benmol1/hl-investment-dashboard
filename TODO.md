@@ -116,19 +116,50 @@ dbt test --profiles-dir .   # run all 112 tests
 
 ## Phase 6 — Deployment
 
-- [ ] Write `docker-compose.yml` — FastAPI service + Nginx serving React build
-- [ ] Write `Dockerfile` for the backend
-- [ ] Write `Dockerfile` for the frontend build + Nginx
-- [ ] Test Docker build locally
-- [ ] Deploy to Raspberry Pi
-- [ ] Configure home network DNS so it's accessible at a friendly local address
-- [ ] (Optional) Set up Tailscale for access outside the home network
+### Architecture
+
+Three Docker services, one shared bind mount:
+
+| Service | Image | Role |
+|---------|-------|------|
+| `backend` | Python slim + uv | FastAPI/uvicorn — read-only API server |
+| `cron` | same as backend | Runs `fetch_prices.py` + `dbt build` daily at 18:00 |
+| `frontend` | Nginx alpine | Serves Vite build; proxies `/api/*` → backend |
+
+- **DuckDB + data**: bind-mounted from `/srv/hl-dashboard/data/` on the Pi into both `backend` and `cron` containers. New HL CSV exports are dropped into `/srv/hl-dashboard/data/imports/raw_transactions/{ISA,SIPP}/` directly on the Pi filesystem.
+- **Tailscale**: installed natively on the Pi (not in Docker) so the whole Pi is reachable over the tailnet, not just the dashboard port.
+- **Local DNS**: Pi-Hole's Local DNS (Settings → Local DNS → DNS Records) — add an A record pointing `hl-dashboard` → Pi's LAN IP. Since Pi-Hole is already the network DNS resolver, this works for every device on the network instantly, no mDNS/Avahi needed.
+- **Port conflict**: Pi-Hole's web interface uses lighttpd on port 80. The frontend container must expose on a different host port (e.g. `8080`) to avoid the clash. Access the dashboard at `http://hl-dashboard:8080`.
+
+### Tasks
+
+#### Docker
+
+- [ ] Write `backend/Dockerfile` — Python slim base, install deps via `uv sync --no-dev`, copy `backend/`, `dbt/`, `data/` structure; entrypoint: `uvicorn app.main:app`
+- [ ] Write `cron/Dockerfile` (or reuse backend image) — same deps; entrypoint: `python cron.py`
+- [x] Write `backend/cron.py` — standalone APScheduler script that runs `fetch_prices.py` then `dbt build` daily at 18:00; no FastAPI dependency
+- [x] Remove APScheduler and `_run_daily_refresh` from `backend/app/main.py` — API becomes a pure read-only server
+- [ ] Write `frontend/Dockerfile` — multi-stage: Node build stage (`npm run build`) → Nginx alpine serving `dist/`; Nginx config proxies `/api/` → `http://backend:8000/`
+- [ ] Write `docker-compose.yml` — three services (`backend`, `cron`, `frontend`); shared bind mount for `data/`; `backend` and `cron` depend on the same volume; `frontend` exposes host port 8080 (Pi-Hole owns port 80)
+- [ ] Strip dev-only deps (jupyter, matplotlib, ipykernel) from the backend/cron image — add a `[tool.uv]` dev group or use `--no-dev` flag
+- [ ] Test full Docker build locally (`docker compose up --build`)
+- [ ] Verify daily refresh fires correctly in the cron container (check logs)
+
+#### Raspberry Pi setup
+
+- [ ] Install Docker + Docker Compose on the Pi
+- [ ] Create bind mount directory: `sudo mkdir -p /srv/hl-dashboard/data/imports/raw_transactions/{ISA,SIPP}`
+- [ ] Copy initial `hl_dashboard.duckdb` to `/srv/hl-dashboard/data/` (one-time seed from dev machine)
+- [ ] Clone repo to Pi and run `docker compose up -d`
+- [ ] Install Tailscale on the Pi (`curl -fsSL https://tailscale.com/install.sh | sh`) and authenticate
+- [ ] Add Local DNS record in Pi-Hole admin: `hl-dashboard` → Pi's LAN IP (Settings → Local DNS → DNS Records)
+- [ ] Verify end-to-end: open `http://hl-dashboard:8080` from another device on the home network
+- [ ] Verify Tailscale access: open the dashboard from a device off the home network
 
 ---
 
-## Open Questions
+## Phase 7 — Alerting
 
-| # | Question |
-|---|----------|
-| 1 | Remote access outside the home network needed? If yes, add Tailscale to Phase 6 |
-| 2 | Should the daily price-fetch cron run inside the backend container or as a separate Docker service? |
+- [ ] Add failure notifications to `backend/cron.py` using [ntfy.sh](https://ntfy.sh) — a free push notification service requiring no account or API key. When `fetch_prices.py` or `dbt build` fails, POST to a private ntfy topic; the ntfy app on your phone receives the alert instantly. Optionally send a daily success notification too.
+
+---
