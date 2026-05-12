@@ -72,7 +72,7 @@ cd frontend && npm run dev
 
 ---
 
-## Phase 4 — dbt Data Layer [In progress]
+## Phase 4 — dbt Data Layer ✅ COMPLETE
 
 - [x] Add `dbt-duckdb` dependency; install `dbt-utils` package
 - [x] Bootstrap dbt project (`dbt/dbt_project.yml`, `profiles.yml`, `packages.yml`)
@@ -114,7 +114,7 @@ dbt test --profiles-dir .   # run all 112 tests
 
 ---
 
-## Phase 6 — Deployment
+## Phase 6 — Deployment ✅ COMPLETE
 
 ### Architecture
 
