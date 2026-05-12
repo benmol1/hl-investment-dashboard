@@ -290,19 +290,6 @@ The API runs on port 8000. All endpoints are read-only (GET). Interactive docs: 
 | `intermediate` | `int_daily_fund_values`, `int_daily_cash_values` | Pre-aggregated inputs for marts |
 | `marts` | `mart_daily_portfolio_value`, `mart_current_holdings`, `mart_portfolio_contributions`, `mart_portfolio_returns`, `mart_benchmarks`, `mart_monthly_snapshot` | API-ready aggregates |
 
-### Transaction types
-
-| Type | Trigger |
-|---|---|
-| `BUY` | Reference matches `B[digits]` |
-| `SELL` | Reference matches `S[digits]` |
-| `SWITCH_IN` | Reference matches `BX[digits]` |
-| `SWITCH_OUT` | Reference matches `X[digits]` |
-| `CONTRIBUTION` | `REG. SAVER`, `Card Web`, `FPC` references |
-| `REBATE` | Reference matches `URIB...` |
-| `FEE` | `MANAGE FEE` reference |
-| `INTEREST` | `INTEREST` reference |
-| `REJECTED` | `REG. SAVER` with negative value |
 
 ---
 
@@ -317,7 +304,7 @@ The dashboard runs on a Raspberry Pi via Docker Compose. Three services share a 
 | `frontend` | Nginx serving the Vite build; proxies `/api/` to backend | 2048 (host) |
 
 **Access:**
-- Home network: `http://192.168.1.220:2048`
+- Home network: `http://<PI-LOCAL-IP>:2048`
 - Remote (via Tailscale): `http://<PI-TAILSCALE-IP>:2048`
 
 **Tailscale** is installed natively on the Pi (not in Docker), so the entire Pi is reachable over the tailnet.
