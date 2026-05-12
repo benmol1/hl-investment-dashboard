@@ -142,9 +142,9 @@ Three Docker services, one shared bind mount:
 - [x] Write `frontend/Dockerfile` — multi-stage: Node build stage (`npm run build`) → Nginx alpine serving `dist/`; `nginx.conf` proxies `/api/` → `http://backend:8000/` and handles SPA routing
 - [x] Write `docker-compose.yml` — three services (`backend`, `cron`, `frontend`); shared bind mount via `DATA_DIR` env var (defaults to `/srv/hl-dashboard/data`); frontend exposes host port 8080
 - [x] Add `.dockerignore` — excludes `.venv`, `dbt/dbt_packages`, `dbt/target`, `data/`, `frontend/node_modules`
-- [ ] Strip dev-only deps (jupyter, matplotlib, ipykernel) from the backend/cron image — add a `[tool.uv]` dev group or use `--no-dev` flag
-- [ ] Install Docker Desktop on Windows dev machine
-- [ ] Test full Docker build locally (`docker compose up --build`)
+- [x] Strip dev-only deps (jupyter, matplotlib, ipykernel) from the backend/cron image — add a `[tool.uv]` dev group or use `--no-dev` flag
+- [x] Install Docker Desktop on Windows dev machine
+- [x] Test full Docker build locally (`docker compose up --build`)
 - [ ] Verify daily refresh fires correctly in the cron container (check logs)
 
 #### Raspberry Pi setup

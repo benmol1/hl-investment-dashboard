@@ -9,7 +9,7 @@ WORKDIR /app
 # If only source code changes (not dependencies), this expensive install step
 # is skipped on the next build.
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen
+RUN uv sync --frozen --no-dev
 
 # Copy application source
 COPY backend/ ./backend/
