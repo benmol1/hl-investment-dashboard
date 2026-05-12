@@ -16,6 +16,8 @@ data/hl_dashboard.duckdb.wal
 # All data imports — contain personal financial data, never commit
 data/imports/*.csv
 data/imports/**/*.csv
+# Exception: dates.csv contains no personal data
+!data/imports/dates.csv
 
 # Node / frontend (added when frontend is built)
 node_modules/
