@@ -1,0 +1,28 @@
+services:
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ${DATA_DIR:-/srv/hl-dashboard/data}:/app/data
+
+  cron:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ${DATA_DIR:-/srv/hl-dashboard/data}:/app/data
+    command: ["/app/.venv/bin/python", "backend/cron.py"]
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
