@@ -22,41 +22,41 @@ Designed to run on a Raspberry Pi on the home network, accessible to family memb
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                    Raspberry Pi (Docker Compose)              │
-│                                                               │
-│  ┌─────────────────┐   ┌──────────────┐   ┌───────────────┐ │
-│  │   cron          │   │   backend    │   │   frontend    │ │
-│  │  (Python)       │   │  (FastAPI)   │   │   (Nginx)     │ │
-│  │                 │   │   :8000      │◀──│   :2048       │◀┼── browser
-│  │ ingest_txns.py  │   └──────┬───────┘   └───────────────┘ │
-│  │ fetch_prices.py │          │                               │
-│  │ dbt build       │          │                               │
-│  │ (daily @ 18:00) │          │                               │
-│  └────────┬────────┘          │                               │
-│           │                   │                               │
-│           └──────────┬────────┘                               │
-│                      ▼                                        │
-│           ┌─────────────────────┐                             │
-│           │       DuckDB        │                             │
-│           │  (bind-mounted from │                             │
-│           │  /srv/hl-dashboard/ │                             │
-│           │       data/)        │                             │
-│           └─────────────────────┘                             │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                 Raspberry Pi (Docker Compose)               │
+│                                                             │
+│  ┌─────────────────┐   ┌──────────────┐   ┌──────────────┐  │
+│  │   cron          │   │   backend    │   │   frontend   │  │
+│  │  (Python)       │   │  (FastAPI)   │   │   (Nginx)    │  │
+│  │                 │   │   :8000      │◀──│   :2048      │◀─┼── browser
+│  │ ingest_txns.py  │   └──────┬───────┘   └──────────────┘  │
+│  │ fetch_prices.py │          │                             │
+│  │ dbt build       │          │                             │
+│  │ (daily @ 18:00) │          │                             │
+│  └────────┬────────┘          │                             │
+│           │                   │                             │
+│           └──────────┬────────┘                             │
+│                      ▼                                      │
+│           ┌─────────────────────┐                           │
+│           │       DuckDB        │                           │
+│           │  (bind-mounted from │                           │
+│           │  /srv/hl-dashboard/ │                           │
+│           │       data/)        │                           │
+│           └─────────────────────┘                           │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 | Layer | Technology | Why |
 |---|---|---|
 | Database | **DuckDB** | Columnar, zero-server, single file — perfect for time-series aggregations |
-| Data layer | **dbt-duckdb** | Staging → intermediate → mart models; 112 data tests |
+| Data layer | **dbt-duckdb** | Base → core → mart models; 112 data tests |
 | Backend | **Python + FastAPI** | Lightweight, async, read-only API server |
 | Scheduler | **APScheduler** in a dedicated cron container | Decoupled from the API; runs ingest + prices + dbt daily |
 | Fund prices | **Morningstar** (unofficial JSON API) | Only source with full historical OEIC/unit trust NAV data |
 | Benchmark prices | **yfinance** | `^FTSE`, `^GSPC`, `^IXIC` — exchange-listed, well-covered |
 | Frontend | **React + TypeScript + Vite** | Fast build tooling, strong typing |
 | Charts | **Recharts** | Flexible, composable financial charts |
-| Deployment | **Docker Compose on Raspberry Pi 4** | Clean isolation, easy to manage; accessible via Tailscale |
+| Deployment | **Docker Compose on Raspberry Pi** | Clean isolation, easy to manage; accessible via Tailscale |
 
 ---
 
@@ -68,6 +68,7 @@ Designed to run on a Raspberry Pi on the home network, accessible to family memb
 | uv | latest | `pip install uv` or [docs.astral.sh/uv](https://docs.astral.sh/uv) |
 | Node.js | 18+ | [nodejs.org](https://nodejs.org) |
 | npm | 9+ | bundled with Node |
+| Docker | latest | [docs.docker.com](https://docs.docker.com/get-docker/) — only needed for deployment |
 
 ---
 
@@ -77,20 +78,19 @@ Designed to run on a Raspberry Pi on the home network, accessible to family memb
 hl-investment-dashboard/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py              # FastAPI app + APScheduler lifespan
+│   │   ├── main.py              # FastAPI app — read-only API server
 │   │   ├── db.py                # DuckDB connection dependency
 │   │   ├── models.py            # Pydantic response schemas
 │   │   └── routers/
 │   │       ├── portfolio.py     # /portfolio/* endpoints
 │   │       ├── funds.py         # /funds/* endpoints
 │   │       └── transactions.py  # /transactions endpoint
-│   ├── migrations/
-│   │   └── 001_init.sql         # Full DuckDB schema
 │   ├── scripts/
 │   │   ├── setup_db.py          # Create schema + seed reference data
 │   │   ├── ingest_transactions.py  # Parse HL CSVs and upsert transactions
 │   │   └── fetch_prices.py      # Morningstar NAV + yfinance benchmarks
-│   └── requirements.txt
+│   ├── cron.py                  # Standalone APScheduler: ingest + prices + dbt daily at 18:00
+│   └── Dockerfile               # Python slim + uv; runs dbt deps during build
 ├── frontend/
 │   ├── src/
 │   │   ├── api/                 # Typed fetch wrappers for each endpoint group
@@ -98,11 +98,24 @@ hl-investment-dashboard/
 │   │   ├── hooks/useApi.ts      # Generic data-fetching hook
 │   │   ├── pages/               # One file per route
 │   │   └── types.ts             # TypeScript interfaces mirroring API responses
-│   ├── vite.config.ts           # Tailwind plugin + /api proxy to :8000
+│   ├── nginx.conf               # Proxies /api/ to backend:8000; SPA fallback routing
+│   ├── vite.config.ts           # Tailwind plugin + /api proxy to :8000 (dev only)
+│   ├── Dockerfile               # Multi-stage: Node build → Nginx alpine
 │   └── package.json
+├── dbt/
+│   ├── models/
+│   │   ├── base/                # Raw source views (transactions, prices, benchmarks)
+│   │   ├── core/                # dims + fcts (dim_fund, fct_transactions, fct_daily_holdings, …)
+│   │   ├── intermediate/        # int_daily_fund_values, int_daily_cash_values
+│   │   └── marts/               # mart_daily_portfolio_value, mart_current_holdings, …
+│   ├── seeds/                   # dim_date.csv
+│   ├── dbt_project.yml
+│   └── profiles.yml
 ├── data/
 │   ├── imports/                 # Drop HL CSV exports here
 │   └── hl_dashboard.duckdb      # The database (created by setup_db.py)
+├── docker-compose.yml           # Three-service stack; DATA_DIR env var for bind mount
+├── .dockerignore
 ├── pyproject.toml               # Python dependencies (managed by uv)
 └── TODO.md                      # Phase-by-phase progress tracker
 ```
@@ -120,8 +133,7 @@ uv sync
 ### 2. Create the database and seed reference data
 
 ```bash
-cd backend
-uv run python scripts/setup_db.py
+uv run python backend/scripts/setup_db.py
 ```
 
 This creates `data/hl_dashboard.duckdb` and seeds:
@@ -143,11 +155,19 @@ The script auto-discovers both folders and upserts all transactions — re-runni
 ### 4. Backfill historical prices
 
 ```bash
-cd backend
-uv run python scripts/fetch_prices.py --backfill 2017-01-01
+uv run python backend/scripts/fetch_prices.py --backfill 2017-01-01
 ```
 
 This fetches NAV history for all funds with a `morningstar_code` and closes/index levels for all three benchmarks, from the given date to today. Expect it to take a few minutes on first run.
+
+### 5. Build the dbt models
+
+```bash
+cd dbt
+dbt seed --profiles-dir .   # load dim_date (first time only)
+dbt run  --profiles-dir .   # build all models
+dbt test --profiles-dir .   # run all tests
+```
 
 ### 6. Validate unit totals
 
@@ -169,8 +189,7 @@ Open two terminals from the project root.
 **Terminal 1 — backend API**
 
 ```bash
-cd backend
-uv run uvicorn app.main:app --reload --port 8000
+PYTHONPATH=backend uv run uvicorn app.main:app --reload --port 8000
 ```
 
 The API will be at [http://localhost:8000](http://localhost:8000). Interactive docs are at [http://localhost:8000/docs](http://localhost:8000/docs).
@@ -251,7 +270,7 @@ The API runs on port 8000. All endpoints are read-only (GET). Interactive docs: 
 
 ## Data Model
 
-### Core tables
+### Raw / source tables
 
 | Table | Key columns | Notes |
 |---|---|---|
@@ -260,7 +279,16 @@ The API runs on port 8000. All endpoints are read-only (GET). Interactive docs: 
 | `transactions` | `account_id`, `fund_id`, `trade_date`, `transaction_type`, `quantity`, `value_gbp` | `value_gbp` negative = debit; `quantity` always positive |
 | `prices` | `fund_id`, `date`, `price_pence` | NAV in pence to match HL's raw format |
 | `benchmarks` | `index_id` (`FTSE100`/`SP500`/`NASDAQ`), `date`, `level` | Index closing level |
-| `dim_date` | `date`, `financial_year` | Pre-populated; enables UK tax year grouping |
+| `date` | `date`, `financial_year` | Pre-populated; enables UK tax year grouping |
+
+### dbt model layers
+
+| Layer | Models | Notes |
+|---|---|---|
+| `base` | `base__hl_transactions`, `base__hl_prices`, `base__hl_benchmarks` | Typed, renamed views over raw tables |
+| `core` | `dim_fund`, `dim_account`, `dim_date`, `dim_transaction_type`, `fct_transactions`, `fct_daily_holdings`, `fct_daily_cash_position`, `fct_fund_prices_daily`, `fct_benchmarks_monthly` | Kimball-style dims and fcts |
+| `intermediate` | `int_daily_fund_values`, `int_daily_cash_values` | Pre-aggregated inputs for marts |
+| `marts` | `mart_daily_portfolio_value`, `mart_current_holdings`, `mart_portfolio_contributions`, `mart_portfolio_returns`, `mart_benchmarks`, `mart_monthly_snapshot` | API-ready aggregates |
 
 ### Transaction types
 
@@ -278,17 +306,9 @@ The API runs on port 8000. All endpoints are read-only (GET). Interactive docs: 
 
 ---
 
-## Morningstar API Note
-
-Fund prices are fetched from Morningstar's **unofficial** JSON API. The API token embedded in requests (`9vehuxllxs` as of writing) is extracted from Morningstar's own web pages and has been stable for years — but it can change.
-
-If price fetching starts returning 401/403 errors, open [morningstar.co.uk](https://www.morningstar.co.uk), find a fund, open your browser's Network tab, and look for requests to `lt.morningstar.com/api/rest.svc/...` to find the current token. Update the `MORNINGSTAR_API_TOKEN` constant in [backend/scripts/fetch_prices.py](backend/scripts/fetch_prices.py).
-
----
-
 ## Deployment
 
-The dashboard runs on a Raspberry Pi 4 via Docker Compose. Three services share a bind-mounted data directory (`/srv/hl-dashboard/data/` on the Pi):
+The dashboard runs on a Raspberry Pi via Docker Compose. Three services share a bind-mounted data directory (`/srv/hl-dashboard/data/` on the Pi):
 
 | Service | Role | Port |
 |---|---|---|
@@ -297,8 +317,10 @@ The dashboard runs on a Raspberry Pi 4 via Docker Compose. Three services share 
 | `frontend` | Nginx serving the Vite build; proxies `/api/` to backend | 2048 (host) |
 
 **Access:**
-- Home network: `http://<PI-LAN-IP>:2048`
+- Home network: `http://192.168.1.220:2048`
 - Remote (via Tailscale): `http://<PI-TAILSCALE-IP>:2048`
+
+**Tailscale** is installed natively on the Pi (not in Docker), so the entire Pi is reachable over the tailnet.
 
 **To start the stack on the Pi:**
 ```bash
@@ -307,11 +329,3 @@ DATA_DIR=/srv/hl-dashboard/data docker compose up -d
 ```
 
 ---
-
-## Known Issues / Caveats
-
-- **SIPP CSV format** — assumed to match the ISA export format; confirm before ingesting
-- **Ranmore Global Equity** — missing `morningstar_code`; prices will not be fetched until this is added (see setup step 4)
-- **Morningstar token** — unofficial and subject to change (see note above)
-- **Cost basis approximation** — the Holdings page uses a simplified cost basis calculation (total purchase cost minus proceeds from sales). It does not account for switching events; use it as a guide, not a tax record
-- **No authentication** — the app is designed for trusted home network use; do not expose it to the public internet without adding authentication
