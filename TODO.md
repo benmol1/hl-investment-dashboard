@@ -129,7 +129,7 @@ Three Docker services, one shared bind mount:
 - **DuckDB + data**: bind-mounted from `/srv/hl-dashboard/data/` on the Pi into both `backend` and `cron` containers. New HL CSV exports are dropped into `/srv/hl-dashboard/data/imports/raw_transactions/{ISA,SIPP}/` directly on the Pi filesystem.
 - **Tailscale**: installed natively on the Pi (not in Docker) so the whole Pi is reachable over the tailnet, not just the dashboard port.
 - **Local DNS**: Pi-Hole's Local DNS (Settings → Local DNS → DNS Records) — add an A record pointing `hl-dashboard` → Pi's LAN IP. Since Pi-Hole is already the network DNS resolver, this works for every device on the network instantly, no mDNS/Avahi needed.
-- **Port conflict**: Pi-Hole's web interface uses lighttpd on port 80. The frontend container must expose on a different host port (e.g. `8080`) to avoid the clash. Access the dashboard at `http://hl-dashboard:8080`.
+- **Port conflict**: Pi-Hole's web interface uses lighttpd on port 80, and Unifi Network Controller uses port 8080. The frontend container exposes on host port `2048`. Access the dashboard at `http://hl-dashboard:2048`.
 
 ### Tasks
 
