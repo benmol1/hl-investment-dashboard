@@ -70,6 +70,46 @@ export default function Benchmarks() {
     return (series.at(-1)!.indexed - 100).toFixed(1)
   }
 
+  const getAnnualisedReturn = (key: Key) => {
+    const series = data?.[key]
+    if (!series?.length) return null
+    const years = (new Date(series.at(-1)!.date).getTime() - new Date(series[0].date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+    if (years < 1) return null
+    return ((Math.pow(series.at(-1)!.indexed / 100, 1 / years) - 1) * 100).toFixed(1)
+  }
+
+  const annualReturns = (() => {
+    if (!data) return []
+    const currentYear = new Date().getFullYear()
+
+    // Build map: year -> last indexed value in that year, per series
+    const yearEndMap = (key: Key): Map<number, number> => {
+      const map = new Map<number, number>()
+      for (const pt of data[key]) {
+        map.set(new Date(pt.date).getFullYear(), pt.indexed)
+      }
+      return map
+    }
+    const maps = Object.fromEntries(SERIES.map(({ key }) => [key, yearEndMap(key)])) as Record<Key, Map<number, number>>
+
+    const allYears = [...new Set(SERIES.flatMap(({ key }) => [...maps[key].keys()]))].sort().reverse()
+
+    return allYears.flatMap(year => {
+      const isYTD = year === currentYear
+      const returns = Object.fromEntries(
+        SERIES.map(({ key }) => {
+          const end = maps[key].get(year)
+          const start = maps[key].get(year - 1)
+          if (end == null || start == null) return [key, null]
+          return [key, (end / start - 1) * 100]
+        })
+      ) as Record<Key, number | null>
+      // Skip rows where every series is null (no prior year-end reference)
+      if (SERIES.every(({ key }) => returns[key] == null)) return []
+      return [{ year, isYTD, returns }]
+    })
+  })()
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -92,60 +132,32 @@ export default function Benchmarks() {
         <div className="grid grid-cols-4 gap-4">
           {SERIES.map(({ key, label, colour }) => {
             const ret = getReturn(key)
+            const ann = getAnnualisedReturn(key)
+            const retColour = (v: string | null) => v == null ? 'text-gray-600' : parseFloat(v) >= 0 ? 'text-emerald-400' : 'text-red-400'
             return (
               <div key={key} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-3">
                   <span className="w-2 h-2 rounded-full" style={{ background: colour }} />
                   <p className="text-xs text-gray-500 uppercase tracking-wider">{label}</p>
                 </div>
-                <p className={`text-xl font-semibold ${ret == null ? 'text-gray-600' : parseFloat(ret ?? '0') >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {ret == null ? '—' : `${ret}%`}
-                </p>
+                <div className="flex gap-6">
+                  <div>
+                    <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5">Total</p>
+                    <p className={`text-xl font-semibold ${retColour(ret)}`}>
+                      {ret == null ? '—' : `${ret}%`}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-0.5">Annual</p>
+                    <p className={`text-xl font-semibold ${retColour(ann)}`}>
+                      {ann == null ? '—' : `${ann}%`}
+                    </p>
+                  </div>
+                </div>
               </div>
             )
           })}
         </div>
-      )}
-
-      {data && (
-        <Card title="Sharpe Ratios (annualised, risk-free rate = 0)">
-          <p className="text-xs text-gray-500 mb-4">Trailing windows ending today — fixed, not affected by the start date picker.</p>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-gray-500 text-xs uppercase">
-                <th className="text-left pb-3 w-28"></th>
-                {SERIES.map(({ key, label, colour }) => (
-                  <th key={key} className="text-right pb-3">
-                    <span className="flex items-center justify-end gap-1.5">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: colour }} />
-                      {label}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {(['trailing_12m', 'trailing_36m'] as const).map((field) => (
-                <tr key={field}>
-                  <td className="py-3 text-gray-500 text-xs uppercase tracking-wider">
-                    {field === 'trailing_12m' ? '12-month' : '36-month'}
-                  </td>
-                  {SERIES.map(({ key }) => {
-                    const v = (data.sharpe[key] as SharpeRatios | undefined)?.[field]
-                    return (
-                      <td key={key} className="py-3 text-right font-semibold">
-                        {v == null
-                          ? <span className="text-gray-600">—</span>
-                          : <span className={v >= 0 ? 'text-emerald-400' : 'text-red-400'}>{v.toFixed(2)}</span>
-                        }
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
       )}
 
       <Card title={`Performance indexed to 100 at ${data?.start_date ? fmtXTick(data.start_date) : '…'}`}>
@@ -193,6 +205,87 @@ export default function Benchmarks() {
           </ResponsiveContainer>
         )}
       </Card>
+
+      {annualReturns.length > 0 && (
+        <Card title="Annual Returns">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-500 text-xs uppercase">
+                <th className="text-left pb-3 w-20"></th>
+                {SERIES.map(({ key, label, colour }) => (
+                  <th key={key} className="text-right pb-3">
+                    <span className="flex items-center justify-end gap-1.5">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: colour }} />
+                      {label}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {annualReturns.map(({ year, isYTD, returns }) => (
+                <tr key={year}>
+                  <td className="py-3 text-gray-500 text-xs uppercase tracking-wider">
+                    {year}{isYTD ? ' YTD' : ''}
+                  </td>
+                  {SERIES.map(({ key }) => {
+                    const v = returns[key]
+                    return (
+                      <td key={key} className="py-3 text-right font-semibold">
+                        {v == null
+                          ? <span className="text-gray-600">—</span>
+                          : <span className={v >= 0 ? 'text-emerald-400' : 'text-red-400'}>{v.toFixed(1)}%</span>
+                        }
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      {data && (
+        <Card title="Sharpe Ratios (annualised, risk-free rate = 0)">
+          <p className="text-xs text-gray-500 mb-4">Trailing windows ending today — fixed, not affected by the start date picker.</p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-500 text-xs uppercase">
+                <th className="text-left pb-3 w-28"></th>
+                {SERIES.map(({ key, label, colour }) => (
+                  <th key={key} className="text-right pb-3">
+                    <span className="flex items-center justify-end gap-1.5">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: colour }} />
+                      {label}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {(['trailing_12m', 'trailing_36m'] as const).map((field) => (
+                <tr key={field}>
+                  <td className="py-3 text-gray-500 text-xs uppercase tracking-wider">
+                    {field === 'trailing_12m' ? '12-month' : '36-month'}
+                  </td>
+                  {SERIES.map(({ key }) => {
+                    const v = (data.sharpe[key] as SharpeRatios | undefined)?.[field]
+                    return (
+                      <td key={key} className="py-3 text-right font-semibold">
+                        {v == null
+                          ? <span className="text-gray-600">—</span>
+                          : <span className={v >= 0 ? 'text-emerald-400' : 'text-red-400'}>{v.toFixed(2)}</span>
+                        }
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
     </div>
   )
 }
