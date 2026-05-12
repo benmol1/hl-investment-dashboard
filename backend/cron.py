@@ -23,6 +23,7 @@ def _run(label: str, cmd: list[str], cwd: Path | None = None) -> None:
 
 
 def daily_refresh() -> None:
+    _run("ingest_transactions.py", [sys.executable, str(_SCRIPTS_DIR / "ingest_transactions.py")])
     _run("fetch_prices.py", [sys.executable, str(_SCRIPTS_DIR / "fetch_prices.py")])
     _run("dbt build", ["dbt", "build", "--profiles-dir", "."], cwd=_DBT_PROJECT_DIR)
 
