@@ -135,13 +135,15 @@ Three Docker services, one shared bind mount:
 
 #### Docker
 
-- [ ] Write `backend/Dockerfile` — Python slim base, install deps via `uv sync --no-dev`, copy `backend/`, `dbt/`, `data/` structure; entrypoint: `uvicorn app.main:app`
-- [ ] Write `cron/Dockerfile` (or reuse backend image) — same deps; entrypoint: `python cron.py`
+- [x] Write `backend/Dockerfile` — Python slim + uv, runs `dbt deps` during build; entrypoint: `uvicorn app.main:app`
+- [x] Write `cron/Dockerfile` — reuses backend image with overridden command: `python backend/cron.py`
 - [x] Write `backend/cron.py` — standalone APScheduler script that runs `fetch_prices.py` then `dbt build` daily at 18:00; no FastAPI dependency
 - [x] Remove APScheduler and `_run_daily_refresh` from `backend/app/main.py` — API becomes a pure read-only server
-- [ ] Write `frontend/Dockerfile` — multi-stage: Node build stage (`npm run build`) → Nginx alpine serving `dist/`; Nginx config proxies `/api/` → `http://backend:8000/`
-- [ ] Write `docker-compose.yml` — three services (`backend`, `cron`, `frontend`); shared bind mount for `data/`; `backend` and `cron` depend on the same volume; `frontend` exposes host port 8080 (Pi-Hole owns port 80)
+- [x] Write `frontend/Dockerfile` — multi-stage: Node build stage (`npm run build`) → Nginx alpine serving `dist/`; `nginx.conf` proxies `/api/` → `http://backend:8000/` and handles SPA routing
+- [x] Write `docker-compose.yml` — three services (`backend`, `cron`, `frontend`); shared bind mount via `DATA_DIR` env var (defaults to `/srv/hl-dashboard/data`); frontend exposes host port 8080
+- [x] Add `.dockerignore` — excludes `.venv`, `dbt/dbt_packages`, `dbt/target`, `data/`, `frontend/node_modules`
 - [ ] Strip dev-only deps (jupyter, matplotlib, ipykernel) from the backend/cron image — add a `[tool.uv]` dev group or use `--no-dev` flag
+- [ ] Install Docker Desktop on Windows dev machine
 - [ ] Test full Docker build locally (`docker compose up --build`)
 - [ ] Verify daily refresh fires correctly in the cron container (check logs)
 
