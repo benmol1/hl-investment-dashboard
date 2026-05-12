@@ -67,6 +67,7 @@ def list_transactions(
         da.account_name            AS account_id,
         df.fund_id,
         df.fund_name,
+        df.fund_short_name,
         tdd.date                   AS trade_date,
         sdd.date                   AS settle_date,
         ft.transaction_reference   AS reference,
@@ -84,10 +85,10 @@ def list_transactions(
 
     items = [
         Transaction(
-            id=r[0], account_id=r[1], fund_id=r[2], fund_name=r[3],
-            trade_date=r[4], settle_date=r[5], reference=r[6],
-            transaction_type=r[7], transaction_subtype=r[8],
-            unit_cost_pence=r[9], quantity=r[10], value_gbp=r[11],
+            id=r[0], account_id=r[1], fund_id=r[2], fund_name=r[3], fund_short_name=r[4],
+            trade_date=r[5], settle_date=r[6], reference=r[7],
+            transaction_type=r[8], transaction_subtype=r[9],
+            unit_cost_pence=r[10], quantity=r[11], value_gbp=r[12],
         )
         for r in rows
     ]

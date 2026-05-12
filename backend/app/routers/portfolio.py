@@ -59,6 +59,7 @@ def portfolio_allocation(
     SELECT
         df.fund_id,
         df.fund_name,
+        df.fund_short_name,
         SUM(fdh.units_held)        AS units_held,
         MAX(fdh.fund_price_gbp)    AS price_gbp,
         SUM(fdh.value_gbp)         AS value_gbp,
@@ -70,7 +71,7 @@ def portfolio_allocation(
     WHERE fdh.holding_type = 'Fund'
       AND fdh.units_held >= 0.01
       {account_filter}
-    GROUP BY df.fund_id, df.fund_name
+    GROUP BY df.fund_id, df.fund_name, df.fund_short_name
     ORDER BY value_gbp DESC
     """
     params = [as_of] + ([account] if account else [])
@@ -78,8 +79,8 @@ def portfolio_allocation(
     rows = con.execute(sql, params).fetchall()
     return [
         AllocationItem(
-            fund_id=r[0], fund_name=r[1], units_held=r[2],
-            price_gbp=r[3], value_gbp=r[4], percentage=r[5],
+            fund_id=r[0], fund_name=r[1], fund_short_name=r[2] or r[1], units_held=r[3],
+            price_gbp=r[4], value_gbp=r[5], percentage=r[6],
         )
         for r in rows
     ]
@@ -160,8 +161,8 @@ def portfolio_performance(
         start_date = return_rows[0][0]
         index = 100.0
         portfolio_series = []
-        for r in return_rows:
-            if r[1] is not None:
+        for i, r in enumerate(return_rows):
+            if i > 0 and r[1] is not None:
                 index = round(index * (1 + r[1]), 4)
             portfolio_series.append(PerformancePoint(date=r[0], indexed=index))
 
@@ -228,6 +229,7 @@ def portfolio_holdings(
     SELECT
         df.fund_id,
         mch.fund_name,
+        df.fund_short_name,
         SUM(mch.units_held)                                                                AS units_held,
         MAX(mch.fund_price_gbp)                                                            AS price_gbp,
         SUM(mch.value_gbp)                                                                 AS value_gbp,
@@ -241,16 +243,16 @@ def portfolio_holdings(
     FROM mart_current_holdings mch
     INNER JOIN dim_fund df ON df.fund_name = mch.fund_name
     {account_filter}
-    GROUP BY df.fund_id, mch.fund_name
+    GROUP BY df.fund_id, mch.fund_name, df.fund_short_name
     ORDER BY SUM(mch.value_gbp) DESC
     """
     rows = con.execute(sql, params).fetchall()
     return [
         HoldingItem(
-            fund_id=r[0], fund_name=r[1], units_held=round(r[2], 4),
-            price_gbp=round(r[3], 4), value_gbp=round(r[4], 2),
-            cost_basis_gbp=round(r[5], 2), unrealised_gain_gbp=round(r[6], 2),
-            unrealised_gain_pct=r[7], percentage=r[8],
+            fund_id=r[0], fund_name=r[1], fund_short_name=r[2] or r[1], units_held=round(r[3], 4),
+            price_gbp=round(r[4], 4), value_gbp=round(r[5], 2),
+            cost_basis_gbp=round(r[6], 2), unrealised_gain_gbp=round(r[7], 2),
+            unrealised_gain_pct=r[8], percentage=r[9],
         )
         for r in rows
     ]

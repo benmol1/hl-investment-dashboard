@@ -23,6 +23,8 @@ models:
         description: "Human-readable fund name."
         tests:
           - not_null
+      - name: fund_short_name
+        description: "Abbreviated display name for use in charts and reports (e.g. 'Vanguard LS 100')."
       - name: morningstar_code
         description: "Morningstar identifier used to fetch price data."
       - name: first_investment_date

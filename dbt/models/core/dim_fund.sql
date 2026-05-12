@@ -58,6 +58,7 @@ select
     {{ dbt_utils.generate_surrogate_key(['f.id']) }} as fund_key,
     f.id                                             as fund_id,
     f.name                                           as fund_name,
+    f.short_name                                     as fund_short_name,
     f.morningstar_code,
     fpd.first_investment_date,
     case when lp.latest_units > 0.0001 then null else fpd.last_held_date end as last_position_date,

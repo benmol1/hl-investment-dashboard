@@ -44,7 +44,7 @@ export default function FundPerformance() {
   const latest = data?.fund.at(-1)
   const gainPct = latest ? (latest.indexed - 100).toFixed(1) : null
 
-  const labelMap: Record<string, string> = { fund: data?.fund_name ?? 'Fund', FTSE100: 'FTSE 100', SP500: 'S&P 500', NASDAQ: 'Nasdaq' }
+  const labelMap: Record<string, string> = { fund: data?.fund_short_name ?? data?.fund_name ?? 'Fund', FTSE100: 'FTSE 100', SP500: 'S&P 500', NASDAQ: 'Nasdaq' }
 
   return (
     <div className="space-y-6">

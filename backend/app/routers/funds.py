@@ -17,7 +17,7 @@ def list_funds(
 ):
     """List all funds, optionally filtered to currently active (held) ones."""
     sql = """
-    SELECT fund_id, fund_name, fund_id AS isin, morningstar_code,
+    SELECT fund_id, fund_name, fund_short_name, fund_id AS isin, morningstar_code,
            (investment_status_indicator = 'Holding') AS is_active
     FROM dim_fund
     WHERE fund_id != 'CASH'
@@ -27,7 +27,7 @@ def list_funds(
     sql += " ORDER BY fund_name"
     rows = con.execute(sql).fetchall()
     return [
-        Fund(id=r[0], name=r[1], isin=r[2], morningstar_code=r[3], is_active=bool(r[4]))
+        Fund(id=r[0], name=r[1], fund_short_name=r[2], isin=r[3], morningstar_code=r[4], is_active=bool(r[5]))
         for r in rows
     ]
 
@@ -45,15 +45,16 @@ def fund_performance(
     independent of when units were bought.
     """
     fund_row = con.execute(
-        "SELECT fund_id, fund_name, first_investment_date FROM dim_fund WHERE fund_id = ?", (fund_id,)
+        "SELECT fund_id, fund_name, fund_short_name, first_investment_date FROM dim_fund WHERE fund_id = ?", (fund_id,)
     ).fetchone()
     if not fund_row:
         raise HTTPException(status_code=404, detail=f"Fund '{fund_id}' not found")
 
     fund_name = fund_row[1]
+    fund_short_name = fund_row[2] or fund_name
 
     if from_date is None:
-        from_date = fund_row[2] if fund_row[2] else date(2017, 1, 1)
+        from_date = fund_row[3] if fund_row[3] else date(2017, 1, 1)
 
     # Monthly fund price at each calendar month-end date
     fund_sql = """
@@ -71,7 +72,7 @@ def fund_performance(
 
     if not fund_rows:
         return FundPerformanceResponse(
-            fund_id=fund_id, fund_name=fund_name,
+            fund_id=fund_id, fund_name=fund_name, fund_short_name=fund_short_name,
             start_date=from_date, fund=[], benchmark=[],
         )
 
@@ -104,6 +105,7 @@ def fund_performance(
     return FundPerformanceResponse(
         fund_id=fund_id,
         fund_name=fund_name,
+        fund_short_name=fund_short_name,
         start_date=fund_series[0].date if fund_series else from_date,
         fund=fund_series,
         FTSE100=benchmarks['FTSE100'],

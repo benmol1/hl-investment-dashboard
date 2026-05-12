@@ -18,7 +18,6 @@ const SERIES: { key: Key; label: string; colour: string; dash?: string }[] = [
   { key: 'NASDAQ', label: 'Nasdaq', colour: '#f43f5e', dash: '4 2' },
 ]
 
-const fmtDate = (d: string) => d.slice(0, 7)
 
 function mergeData(data: PortfolioPerformanceResponse) {
   const maps: Record<Key, Map<string, number>> = {
@@ -39,7 +38,7 @@ function mergeData(data: PortfolioPerformanceResponse) {
 
 export default function Benchmarks() {
   const [account, setAccount] = useState<Account | undefined>()
-  const [startDate, setStartDate] = useState('2017-01-01')
+  const [startDate, setStartDate] = useState('2017-12-31')
 
   const { data, loading, error } = useApi(
     () => fetchPortfolioPerformance(startDate, undefined, account),
@@ -47,6 +46,13 @@ export default function Benchmarks() {
   )
 
   const merged = data ? mergeData(data) : []
+
+  const xTicks = merged
+    .filter(d => ['03','06','09','12'].includes(d.date.slice(5,7)))
+    .map(d => d.date)
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const fmtXTick = (d: string) => `${MONTHS[parseInt(d.slice(5,7)) - 1]}-${d.slice(2,4)}`
 
   const yTicks = (() => {
     if (!merged.length) return [50, 100, 150]
@@ -142,14 +148,14 @@ export default function Benchmarks() {
         </Card>
       )}
 
-      <Card title={`Performance indexed to 100 at ${data?.start_date ?? '…'}`}>
+      <Card title={`Performance indexed to 100 at ${data?.start_date ? fmtXTick(data.start_date) : '…'}`}>
         {loading || error || !merged.length ? (
           <StatusMessage loading={loading} error={error} empty={!merged.length} />
         ) : (
           <ResponsiveContainer width="100%" height={400}>
             <LineChart data={merged}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-              <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: '#6b7280', fontSize: 11 }} minTickGap={60} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+              <XAxis dataKey="date" ticks={xTicks} tickFormatter={fmtXTick} tick={{ fill: '#6b7280', fontSize: 11 }} />
               <YAxis ticks={yTicks} domain={[yTicks[0], yTicks[yTicks.length - 1]]} tick={{ fill: '#6b7280', fontSize: 11 }} />
               <Tooltip
                 formatter={(v, name) => {
@@ -165,6 +171,12 @@ export default function Benchmarks() {
                 return <span style={{ color: '#9ca3af', fontSize: 12 }}>{s?.label ?? v}</span>
               }} />
               <ReferenceLine y={100} stroke="#4b5563" strokeDasharray="4 2" />
+              {merged.filter(d => ['03','06','09'].includes(d.date.slice(5,7))).map(d => (
+                <ReferenceLine key={d.date} x={d.date} stroke="#1f2937" strokeWidth={1} strokeDasharray="3 3" />
+              ))}
+              {merged.filter(d => d.date.slice(5,7) === '12').map(d => (
+                <ReferenceLine key={d.date} x={d.date} stroke="#374151" strokeWidth={1} />
+              ))}
               {SERIES.map(({ key, colour, dash }) => (
                 <Line
                   key={key}

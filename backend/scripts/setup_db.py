@@ -39,9 +39,9 @@ def seed_accounts(con: duckdb.DuckDBPyConnection) -> None:
 
 
 def seed_funds(con: duckdb.DuckDBPyConnection) -> None:
-    funds_csv = IMPORTS_DIR / "dim_funds.csv"
+    funds_csv = IMPORTS_DIR / "funds.csv"
     if not funds_csv.exists():
-        print("  WARNING: dim_funds.csv not found — skipping fund seed")
+        print("  WARNING: funds.csv not found — skipping fund seed")
         return
 
     inserted = 0
@@ -51,6 +51,7 @@ def seed_funds(con: duckdb.DuckDBPyConnection) -> None:
             isin = row["fund_ISIN"].strip()
             code = row["fund_code"].strip() or None
             name = row["fund_name"].strip()
+            short_name = row["short_name"].strip() or None
 
             # Skip true placeholder rows only
             if not name or isin in ("??",) or name == "Not a fund":
@@ -66,10 +67,10 @@ def seed_funds(con: duckdb.DuckDBPyConnection) -> None:
 
             con.execute(
                 """
-                INSERT OR REPLACE INTO funds (id, name, isin, morningstar_code)
-                VALUES (?, ?, ?, ?)
+                INSERT OR REPLACE INTO funds (id, name, isin, morningstar_code, short_name)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (fund_id, name, isin_value, code),
+                (fund_id, name, isin_value, code, short_name),
             )
             inserted += 1
 
@@ -78,9 +79,9 @@ def seed_funds(con: duckdb.DuckDBPyConnection) -> None:
 
 
 def seed_dim_date(con: duckdb.DuckDBPyConnection) -> None:
-    date_csv = IMPORTS_DIR / "dim_date.csv"
+    date_csv = IMPORTS_DIR / "dates.csv"
     if not date_csv.exists():
-        print("  WARNING: dim_date.csv not found — skipping dim_date seed")
+        print("  WARNING: dates.csv not found — skipping dim_date seed")
         return
 
     print("  Loading dim_date from CSV (this may take a moment for large files)...")

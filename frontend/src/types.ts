@@ -6,6 +6,7 @@ export interface TimeSeriesPoint {
 export interface AllocationItem {
   fund_id: string
   fund_name: string
+  fund_short_name: string
   units_held: number
   price_gbp: number
   value_gbp: number
@@ -27,6 +28,7 @@ export interface PerformancePoint {
 export interface FundPerformanceResponse {
   fund_id: string
   fund_name: string
+  fund_short_name: string
   start_date: string
   fund: PerformancePoint[]
   FTSE100: PerformancePoint[]
@@ -37,6 +39,7 @@ export interface FundPerformanceResponse {
 export interface Fund {
   id: string
   name: string
+  fund_short_name: string | null
   isin: string | null
   morningstar_code: string | null
   is_active: boolean
@@ -47,6 +50,7 @@ export interface Transaction {
   account_id: string
   fund_id: string | null
   fund_name: string | null
+  fund_short_name: string | null
   trade_date: string
   settle_date: string | null
   reference: string
@@ -67,6 +71,7 @@ export interface TransactionPage {
 export interface HoldingItem {
   fund_id: string
   fund_name: string
+  fund_short_name: string
   units_held: number
   price_gbp: number
   value_gbp: number

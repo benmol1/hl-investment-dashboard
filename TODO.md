@@ -85,7 +85,7 @@ cd frontend && npm run dev
 - [x] Drop old `v_holdings` and `v_portfolio_value` views from DuckDB and `001_init.sql`
 - [x] Review data model end-to-end. Polish, make improvements and align it with Kimball style (surrogate keeys used for joins; more explicit column names)
 - [x] Understand and calculate Sharpe ratios for each account + benchmarks
-- [ ] Add a short_name to dim_fund
+- [x] Add a short_name to dim_fund
 
 
 **To run dbt:**
@@ -130,9 +130,5 @@ dbt test --profiles-dir .   # run all 112 tests
 
 | # | Question |
 |---|----------|
-| 1 | ~~Does the SIPP export use the same CSV column format as the ISA?~~ — Confirmed: same column structure, same 5-line metadata header. ✅ |
-| 2 | Morningstar API token (`9vehuxllxs`) is unofficial — if price fetches start failing, inspect the Network tab on morningstar.co.uk to find the current token |
-| 3 | Remote access outside the home network needed? If yes, add Tailscale to Phase 6 |
-| 4 | Should the daily price-fetch cron run inside the backend container or as a separate Docker service? |
-| 5 | L&G Global 100 (`0P000102M0`) returns no price data from Morningstar API — has this fund been renamed or merged? |
-| 6 | Rathbone Global Opportunities Inclusive R Acc (`0P00000HST`) — is this share class still actively priced, or should we proxy it with I or S class NAV? |
+| 1 | Remote access outside the home network needed? If yes, add Tailscale to Phase 6 |
+| 2 | Should the daily price-fetch cron run inside the backend container or as a separate Docker service? |

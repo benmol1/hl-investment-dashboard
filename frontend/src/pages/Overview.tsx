@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell,
 } from 'recharts'
 import { useApi } from '../hooks/useApi'
 import { fetchPortfolioValue, fetchAllocation } from '../api/portfolio'
@@ -73,7 +73,7 @@ export default function Overview() {
                 <Pie
                   data={allocation.data}
                   dataKey="value_gbp"
-                  nameKey="fund_name"
+                  nameKey="fund_short_name"
                   cx="50%"
                   cy="50%"
                   outerRadius={110}
@@ -85,10 +85,9 @@ export default function Overview() {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(v, name) => [fmt.format(Number(v)), String(name)]}
+                  formatter={(v, _name, props) => [fmt.format(Number(v)), props.payload.fund_name]}
                   contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
                 />
-                <Legend formatter={(v) => <span style={{ color: '#9ca3af', fontSize: 12 }}>{v}</span>} />
               </PieChart>
             </ResponsiveContainer>
 
@@ -106,7 +105,7 @@ export default function Overview() {
                     <tr key={a.fund_id}>
                       <td className="py-2 flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: COLOURS[i % COLOURS.length] }} />
-                        <span className="text-gray-300 truncate max-w-[160px]" title={a.fund_name}>{a.fund_name}</span>
+                        <span className="text-gray-300 truncate max-w-[160px]" title={a.fund_name}>{a.fund_short_name}</span>
                       </td>
                       <td className="py-2 text-right text-gray-300">{fmt.format(a.value_gbp)}</td>
                       <td className="py-2 text-right text-gray-400">{a.percentage.toFixed(1)}%</td>

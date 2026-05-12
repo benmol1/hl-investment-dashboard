@@ -11,6 +11,7 @@ class TimeSeriesPoint(BaseModel):
 class AllocationItem(BaseModel):
     fund_id: str
     fund_name: str
+    fund_short_name: str
     units_held: float
     price_gbp: float
     value_gbp: float
@@ -32,6 +33,7 @@ class PerformancePoint(BaseModel):
 class FundPerformanceResponse(BaseModel):
     fund_id: str
     fund_name: str
+    fund_short_name: str
     start_date: date
     fund: list[PerformancePoint]
     FTSE100: list[PerformancePoint]
@@ -42,6 +44,7 @@ class FundPerformanceResponse(BaseModel):
 class Fund(BaseModel):
     id: str
     name: str
+    fund_short_name: Optional[str]
     isin: Optional[str]
     morningstar_code: Optional[str]
     is_active: bool
@@ -52,6 +55,7 @@ class Transaction(BaseModel):
     account_id: str
     fund_id: Optional[str]
     fund_name: Optional[str]
+    fund_short_name: Optional[str]
     trade_date: date
     settle_date: Optional[date]
     reference: str
@@ -72,6 +76,7 @@ class TransactionPage(BaseModel):
 class HoldingItem(BaseModel):
     fund_id: str
     fund_name: str
+    fund_short_name: str
     units_held: float
     price_gbp: float
     value_gbp: float

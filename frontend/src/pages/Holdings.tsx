@@ -65,7 +65,7 @@ export default function Holdings() {
                 {data.map((h) => (
                   <tr key={h.fund_id} className="hover:bg-gray-800/40 transition-colors">
                     <td className="py-3 text-gray-200 font-medium max-w-[200px] truncate" title={h.fund_name}>
-                      {h.fund_name}
+                      {h.fund_short_name}
                     </td>
                     <td className="py-3 text-right text-gray-400 tabular-nums">{fmtUnits(h.units_held)}</td>
                     <td className="py-3 text-right text-gray-400 tabular-nums">{fmt.format(h.price_gbp)}</td>
