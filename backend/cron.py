@@ -19,14 +19,14 @@ _TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 _TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 
-def notify(message: str) -> None:
+def notify(message: str, silent: bool = False) -> None:
     if not _TELEGRAM_TOKEN or not _TELEGRAM_CHAT_ID:
         logger.warning("Telegram env vars not set — skipping notification")
         return
     try:
         requests.post(
             f"https://api.telegram.org/bot{_TELEGRAM_TOKEN}/sendMessage",
-            json={"chat_id": _TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"},
+            json={"chat_id": _TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML", "disable_notification": silent},
             timeout=10,
         )
     except Exception as exc:
@@ -116,8 +116,8 @@ def daily_refresh() -> None:
     if failures:
         return  # failure notifications already sent per step
 
-    # Daily success notification
-    notify(f"✅ <b>HL Dashboard refresh complete</b> ({today})\nAll steps passed.")
+    # Daily success notification — silent (no banner/sound)
+    notify(f"✅ <b>HL Dashboard refresh complete</b> ({today})\nAll steps passed.", silent=True)
 
     # Monthly summary on the first of the month
     if today.day == 1:
