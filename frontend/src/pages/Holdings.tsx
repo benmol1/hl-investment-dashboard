@@ -8,8 +8,8 @@ import AccountFilter from '../components/AccountFilter'
 import type { Account, HoldingItem } from '../types'
 
 const fmtGBP = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 })
-const fmtPrice = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 2, maximumFractionDigits: 4 })
-const fmtUnits = (n: number) => n.toLocaleString('en-GB', { maximumFractionDigits: 4 })
+const fmtPrice = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmtUnits = (n: number) => parseFloat(n.toPrecision(4)).toLocaleString('en-GB')
 
 type SortCol = 'fund_short_name' | 'units_held' | 'price_gbp' | 'value_gbp' | 'cost_basis_gbp' | 'unrealised_gain_gbp' | 'unrealised_gain_pct' | 'percentage'
 type SortDir = 'asc' | 'desc'
@@ -57,7 +57,9 @@ export default function Holdings() {
 
   const sorted = useMemo(() => {
     if (!data) return []
-    return [...data].sort((a, b) => {
+    const funds = data.filter(h => h.holding_type !== 'cash')
+    const cash = data.filter(h => h.holding_type === 'cash')
+    funds.sort((a, b) => {
       const av = a[sortCol]
       const bv = b[sortCol]
       if (av === null && bv === null) return 0
@@ -68,6 +70,7 @@ export default function Holdings() {
         : (av as number) - (bv as number)
       return sortDir === 'asc' ? cmp : -cmp
     })
+    return [...funds, ...cash]
   }, [data, sortCol, sortDir])
 
   const sharedHeaderProps = { sortCol, sortDir, onSort: handleSort }
@@ -119,6 +122,23 @@ export default function Holdings() {
                   <HoldingRow key={h.fund_id ?? `cash-${i}`} h={h} />
                 ))}
               </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-gray-700 text-gray-300 font-semibold">
+                  <td className="py-3">Total</td>
+                  <td className="py-3 text-right tabular-nums"><span className="text-gray-700">—</span></td>
+                  <td className="py-3 text-right tabular-nums"><span className="text-gray-700">—</span></td>
+                  <td className="py-3 text-right tabular-nums text-gray-200">{fmtGBP.format(totalValue)}</td>
+                  <td className="py-3 text-right tabular-nums text-gray-400">{fmtGBP.format(totalCost)}</td>
+                  <td className={`py-3 text-right tabular-nums ${totalGain >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {totalGain >= 0 ? '+' : ''}{fmtGBP.format(totalGain)}
+                  </td>
+                  <td className={`py-3 text-right tabular-nums ${totalGainPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {totalGainPct >= 0 ? '+' : ''}{totalGainPct.toFixed(1)}%
+                  </td>
+                  <td className="py-3 text-right tabular-nums text-gray-500">100.0%</td>
+                  <td />
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
