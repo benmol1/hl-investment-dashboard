@@ -176,6 +176,15 @@ Three Docker services, one shared bind mount:
 - [ ] Add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and `ANTHROPIC_API_KEY` to `.env` on the Raspberry Pi, then run `docker compose up -d --build bot`.
 - [x] Wire the bot to the Claude API (Anthropic SDK) with tool use — expose the existing FastAPI endpoints as Claude tools so natural language messages like "what's my ISA up this month?" are translated into API calls and returned as readable answers. Falls back to a read-only DuckDB query tool for questions the API can't answer.
 - [x] Restrict the bot to your own chat ID so it rejects messages from anyone else.
+- [ ] Audit number formatting in bot replies — ensure all pound figures (including those from the DuckDB fallback tool) consistently round to the nearest pound for amounts £10+.
+
+### 7c — Chart Generation in Bot Replies
+
+- [ ] Research approach: generate charts server-side (e.g. with `matplotlib` or `plotly`) as PNG images and send via Telegram's `send_photo` API rather than as text.
+- [ ] Add a `generate_chart` tool that Claude can call — accepts a chart type (line, bar, donut) and a data payload, renders a PNG in memory, and returns a file path or byte buffer.
+- [ ] Implement at least two chart types to start: portfolio value over time (line) and current allocation (donut/pie).
+- [ ] Update `handlers.py` to detect when the bot response includes a chart and send it as a photo message rather than (or alongside) a text reply.
+- [ ] Test on iPhone — confirm images render at a readable size in the Telegram chat.
 
 ---
 
@@ -200,5 +209,38 @@ Three Docker services, one shared bind mount:
 - [ ] Research using [BrowserUse](https://github.com/browser-use/browser-use) to automate logging in to the HL website and downloading transaction CSVs on a schedule
 - [ ] Investigate credential security options — e.g. storing the HL password in a secrets manager or using a read-only HL API key if one exists, to avoid hardcoding credentials in config
 - [ ] If viable, wire the downloader into `backend/cron.py` as the first step before `ingest_transactions.py`
+
+---
+
+## Phase 10 — User Accounts & Authentication (Research Spike)
+
+Two motivations: (1) a demo/dummy dataset so the app can be shown to others without exposing real positions; (2) multi-user support so family members (e.g. brother, dad) can each have their own accounts with data isolated by user.
+
+### Data model
+
+- [ ] Research spike: decide on a user model — likely a `users` table with `id`, `username`, `hashed_password`, and a `role` (e.g. `owner`, `viewer`, `demo`).
+- [ ] Add a `user_id` foreign key to the `accounts` table (ISA, SIPP) so every account belongs to a specific user.
+- [ ] Assess dbt impact: marts and intermediate models may need to be filtered by `user_id` or kept user-agnostic with filtering pushed to the API layer (preferred — simpler dbt models).
+
+### Demo dataset
+
+- [ ] Create a script to generate a plausible synthetic dataset (transactions, prices, holdings) that mirrors the real schema but uses fake figures — stored as a separate DuckDB file or a flagged user account.
+- [ ] Ensure the demo user is read-only and cannot trigger ingestion or refresh.
+
+### Authentication
+
+- [ ] Research options: simple JWT-based auth in FastAPI (e.g. `python-jose` + `passlib`) vs. a lightweight provider like Authelia in front of the Docker stack.
+- [ ] Implement login flow: `POST /auth/login` returns a JWT; all other endpoints require a valid token.
+- [ ] Add user context to API requests so each endpoint filters data to the authenticated user's accounts only.
+
+### Frontend
+
+- [ ] Add a login page to the React app (username + password form).
+- [ ] Store JWT in memory (not localStorage) and attach it to all API requests.
+- [ ] Handle token expiry gracefully — redirect to login on 401.
+
+### Deployment
+
+- [ ] Decide whether to expose the app publicly (requires HTTPS — e.g. Caddy reverse proxy with Let's Encrypt) or keep it Tailscale-only (simpler, no public exposure).
 
 ---
