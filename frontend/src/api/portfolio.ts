@@ -1,5 +1,5 @@
 import get from './client'
-import type { TimeSeriesPoint, AllocationItem, ContributionPoint, PortfolioPerformanceResponse, HoldingItem } from '../types'
+import type { TimeSeriesPoint, AllocationItem, ContributionPoint, PortfolioPerformanceResponse, HoldingItem, DataFreshness } from '../types'
 import type { Account } from '../types'
 
 export const fetchPortfolioValue = (from?: string, to?: string, account?: Account) =>
@@ -16,3 +16,6 @@ export const fetchPortfolioPerformance = (from?: string, to?: string, account?: 
 
 export const fetchHoldings = (account?: Account) =>
   get<HoldingItem[]>('/portfolio/holdings', { account })
+
+export const fetchFreshness = () =>
+  get<DataFreshness>('/portfolio/freshness')

@@ -2,14 +2,14 @@
 One-time setup: create the DuckDB schema and seed all reference data.
 Safe to re-run — schema uses CREATE IF NOT EXISTS and seed rows use INSERT OR IGNORE.
 
+dim_date is owned by dbt (seeded from dbt/seeds/seed_date.csv via the dim_date model).
+
 Usage:
     python backend/scripts/setup_db.py
 """
 
 import csv
 import re
-import sys
-from datetime import datetime
 from pathlib import Path
 
 import duckdb
@@ -77,36 +77,6 @@ def seed_funds(con: duckdb.DuckDBPyConnection) -> None:
     print(f"  Seeded {inserted} funds")
 
 
-
-def seed_dim_date(con: duckdb.DuckDBPyConnection) -> None:
-    date_csv = IMPORTS_DIR / "dates.csv"
-    if not date_csv.exists():
-        print("  WARNING: dates.csv not found — skipping dim_date seed")
-        return
-
-    print("  Loading dim_date from CSV (this may take a moment for large files)...")
-    # Use DuckDB's native CSV reader for speed — much faster than row-by-row Python
-    con.execute(
-        f"""
-        INSERT OR IGNORE INTO dim_date
-        SELECT
-            strptime(CAST(Date AS VARCHAR), '%d/%m/%Y')::DATE AS date,
-            CAST(Year AS INTEGER)                              AS year,
-            CAST(Month AS INTEGER)                             AS month,
-            CAST(Day AS INTEGER)                               AS day,
-            "Year-month"                                       AS year_month,
-            "Financial Year"                                   AS financial_year
-        FROM read_csv_auto(
-            '{date_csv.as_posix()}',
-            header=true,
-            columns={{'Date': 'VARCHAR', 'Year': 'INTEGER', 'Month': 'INTEGER', 'Day': 'INTEGER', 'Year-month': 'VARCHAR', 'Financial Year': 'VARCHAR'}}
-        )
-        """
-    )
-    count = con.execute("SELECT COUNT(*) FROM dim_date").fetchone()[0]
-    print(f"  dim_date loaded: {count:,} rows")
-
-
 def main() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     print(f"Opening database: {DB_PATH}")
@@ -118,7 +88,6 @@ def main() -> None:
     print("Seeding reference data...")
     seed_accounts(con)
     seed_funds(con)
-    seed_dim_date(con)
 
     con.close()
     print("Done.")

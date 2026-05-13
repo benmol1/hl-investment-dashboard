@@ -205,6 +205,25 @@ def get_benchmark_start(
 # Entry point
 # ---------------------------------------------------------------------------
 
+def _ensure_ingest_log(con: duckdb.DuckDBPyConnection) -> None:
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS ingest_log (
+            run_at        TIMESTAMPTZ NOT NULL,
+            source        TEXT        NOT NULL,
+            rows_inserted INTEGER     NOT NULL DEFAULT 0,
+            status        TEXT        NOT NULL,
+            detail        TEXT
+        )
+    """)
+
+
+def _write_log(con: duckdb.DuckDBPyConnection, rows_inserted: int, status: str, detail: Optional[str] = None) -> None:
+    con.execute(
+        "INSERT INTO ingest_log (run_at, source, rows_inserted, status, detail) VALUES (?, 'prices', ?, ?, ?)",
+        (datetime.now(timezone.utc), rows_inserted, status, detail),
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fetch fund prices and benchmark levels")
     parser.add_argument(
@@ -228,65 +247,74 @@ def main() -> None:
             sys.exit(1)
 
     con = duckdb.connect(str(DB_PATH))
+    _ensure_ingest_log(con)
     today = date.today()
+    total_inserted = 0
 
-    # --- Fund prices via Morningstar ---
-    status_filter = "" if args.all else "AND investment_status_indicator = 'Holding'"
-    funds = con.execute(
-        f"""
-        SELECT fund_id, fund_name, morningstar_code
-        FROM main.dim_fund
-        WHERE morningstar_code IS NOT NULL
-        {status_filter}
-        """
-    ).fetchall()
+    try:
+        # --- Fund prices via Morningstar ---
+        status_filter = "" if args.all else "AND investment_status_indicator = 'Holding'"
+        funds = con.execute(
+            f"""
+            SELECT fund_id, fund_name, morningstar_code
+            FROM main.dim_fund
+            WHERE morningstar_code IS NOT NULL
+            {status_filter}
+            """
+        ).fetchall()
 
-    scope = "all" if args.all else "active"
-    print(f"Fetching prices for {len(funds)} {scope} fund(s) with Morningstar codes...")
-    for fund_id, fund_name, ms_code in funds:
-        start = get_fetch_start(con, fund_id, backfill_from)
-        if start >= today:
-            print(f"  {fund_name}: up to date")
-            continue
+        scope = "all" if args.all else "active"
+        print(f"Fetching prices for {len(funds)} {scope} fund(s) with Morningstar codes...")
+        for fund_id, fund_name, ms_code in funds:
+            start = get_fetch_start(con, fund_id, backfill_from)
+            if start >= today:
+                print(f"  {fund_name}: up to date")
+                continue
 
-        print(f"  {fund_name} ({ms_code}): fetching {start} to {today}")
-        try:
-            prices = fetch_morningstar_prices(ms_code, start, today)
-        except requests.HTTPError as e:
-            print(f"    ERROR: {e}")
-            continue
-        except Exception as e:
-            print(f"    ERROR: {e}")
-            continue
+            print(f"  {fund_name} ({ms_code}): fetching {start} to {today}")
+            try:
+                prices = fetch_morningstar_prices(ms_code, start, today)
+            except requests.HTTPError as e:
+                print(f"    ERROR: {e}")
+                continue
+            except Exception as e:
+                print(f"    ERROR: {e}")
+                continue
 
-        if not prices:
-            print(f"    No price data returned — fund may need manual lookup")
-            continue
+            if not prices:
+                print(f"    No price data returned — fund may need manual lookup")
+                continue
 
-        n = insert_fund_prices(con, fund_id, prices)
-        print(f"    Inserted {n:,} rows")
-        time.sleep(REQUEST_DELAY_SECONDS)
+            n = insert_fund_prices(con, fund_id, prices)
+            total_inserted += n
+            print(f"    Inserted {n:,} rows")
+            time.sleep(REQUEST_DELAY_SECONDS)
 
-    # Warn about funds without Morningstar codes (same scope as the fetch above)
-    missing = con.execute(
-        f"""
-        SELECT fund_id, fund_name FROM main.dim_fund
-        WHERE morningstar_code IS NULL
-        {status_filter}
-        """
-    ).fetchall()
+        # Warn about funds without Morningstar codes (same scope as the fetch above)
+        missing = con.execute(
+            f"""
+            SELECT fund_id, fund_name FROM main.dim_fund
+            WHERE morningstar_code IS NULL
+            {status_filter}
+            """
+        ).fetchall()
 
-    if missing:
-        print(f"\nWARNING: {len(missing)} active fund(s) have no morningstar_code — prices cannot be fetched automatically:")
-        for fund_id, name in missing:
-            print(f"  [{fund_id}] {name}")
-        print("  Add morningstar_code values to the funds table to enable price fetching.")
+        if missing:
+            print(f"\nWARNING: {len(missing)} active fund(s) have no morningstar_code — prices cannot be fetched automatically:")
+            for fund_id, name in missing:
+                print(f"  [{fund_id}] {name}")
+            print("  Add morningstar_code values to the funds table to enable price fetching.")
 
-    # --- Benchmarks via yfinance ---
-    print("\nFetching benchmark indices...")
-    fetch_benchmarks(con, backfill_from)
+        # --- Benchmarks via yfinance ---
+        print("\nFetching benchmark indices...")
+        fetch_benchmarks(con, backfill_from)
 
-    con.close()
+        _write_log(con, total_inserted, "success")
+    except Exception as e:
+        _write_log(con, total_inserted, "failure", str(e))
+        raise
+    finally:
+        con.close()
     print("\nDone.")
 
 
