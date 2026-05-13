@@ -14,6 +14,7 @@ SYSTEM_PROMPT_TEMPLATE = (
     "Answer questions concisely and in plain English. Use percentages where relevant. Do not "
     "return raw data structures — summarise the data into a readable answer. If a question "
     "cannot be answered from the available tools, say so clearly.\n\n"
+    "Always begin every reply with '🤖: ' immediately followed by your answer on the same line.\n\n"
     "Formatting rules:\n"
     "- Format responses using Telegram Markdown: *bold* for headings/labels, plain text for "
     "values. Do not use ** (double asterisk) or # headings — Telegram does not render these.\n"
