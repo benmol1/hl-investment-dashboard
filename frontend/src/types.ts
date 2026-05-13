@@ -96,5 +96,10 @@ export interface PortfolioPerformanceResponse {
   sharpe: Record<string, SharpeRatios>
 }
 
+export interface DataFreshness {
+  transaction_date: string | null
+  price_date: string | null
+}
+
 export type Account = 'ISA' | 'SIPP'
 export type Benchmark = 'FTSE100' | 'SP500' | 'NASDAQ'

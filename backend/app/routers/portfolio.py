@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 import duckdb
 
 from app.db import get_db
-from app.models import TimeSeriesPoint, AllocationItem, ContributionPoint, PerformancePoint, PortfolioPerformanceResponse, SharpeRatios, HoldingItem
+from app.models import TimeSeriesPoint, AllocationItem, ContributionPoint, PerformancePoint, PortfolioPerformanceResponse, SharpeRatios, HoldingItem, DataFreshness
 
 router = APIRouter()
 
@@ -295,3 +295,15 @@ def portfolio_holdings(
     ]
 
     return fund_items + cash_items
+
+
+@router.get("/freshness", response_model=DataFreshness)
+def portfolio_freshness(con: duckdb.DuckDBPyConnection = Depends(get_db)):
+    tx_date = con.execute("SELECT MAX(trade_date) FROM fct_transactions").fetchone()
+    price_date = con.execute(
+        "SELECT MAX(dd.date) FROM fct_fund_prices_daily fp INNER JOIN dim_date dd ON dd.date_key = fp.date_key"
+    ).fetchone()
+    return DataFreshness(
+        transaction_date=tx_date[0] if tx_date else None,
+        price_date=price_date[0] if price_date else None,
+    )

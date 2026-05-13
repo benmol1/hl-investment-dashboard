@@ -87,6 +87,11 @@ class HoldingItem(BaseModel):
     percentage: float
 
 
+class DataFreshness(BaseModel):
+    transaction_date: Optional[date]
+    price_date: Optional[date]
+
+
 class SharpeRatios(BaseModel):
     trailing_12m: Optional[float]
     trailing_36m: Optional[float]

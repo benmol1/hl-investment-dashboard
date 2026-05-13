@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { useApi } from '../hooks/useApi'
+import { fetchFreshness } from '../api/portfolio'
 
 const navItems = [
   { to: '/', label: 'Overview', exact: true },
@@ -10,8 +12,12 @@ const navItems = [
   { to: '/transactions', label: 'Transactions' },
 ]
 
+const fmtDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+
 export default function Layout() {
   const [open, setOpen] = useState(() => window.innerWidth >= 768)
+  const { data: freshness } = useApi(fetchFreshness, [])
 
   return (
     <div className="flex min-h-screen bg-gray-950">
@@ -80,6 +86,12 @@ export default function Layout() {
             </svg>
           </button>
           <span className="text-sm font-semibold text-indigo-400 uppercase tracking-widest">HL Dashboard</span>
+          {freshness && (
+            <div className="ml-auto flex items-center gap-4 text-xs text-gray-500">
+              <span>Prices: <span className="text-gray-400">{fmtDate(freshness.price_date)}</span></span>
+              <span>Transactions: <span className="text-gray-400">{fmtDate(freshness.transaction_date)}</span></span>
+            </div>
+          )}
         </header>
 
         <main className="flex-1 p-6 overflow-auto">
