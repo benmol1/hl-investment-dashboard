@@ -27,7 +27,7 @@ import csv
 import hashlib
 import re
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -312,6 +312,25 @@ def ingest(file_path: Path, account_id: str, con: duckdb.DuckDBPyConnection) -> 
 # Entry point
 # ---------------------------------------------------------------------------
 
+def _ensure_ingest_log(con: duckdb.DuckDBPyConnection) -> None:
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS ingest_log (
+            run_at        TIMESTAMPTZ NOT NULL,
+            source        TEXT        NOT NULL,
+            rows_inserted INTEGER     NOT NULL DEFAULT 0,
+            status        TEXT        NOT NULL,
+            detail        TEXT
+        )
+    """)
+
+
+def _write_log(con: duckdb.DuckDBPyConnection, rows_inserted: int, status: str, detail: Optional[str] = None) -> None:
+    con.execute(
+        "INSERT INTO ingest_log (run_at, source, rows_inserted, status, detail) VALUES (?, 'transactions', ?, ?, ?)",
+        (datetime.now(timezone.utc), rows_inserted, status, detail),
+    )
+
+
 def main() -> None:
     print("Scanning for raw transaction files...")
     files = _rename_raw_files()
@@ -321,10 +340,25 @@ def main() -> None:
         return
 
     con = duckdb.connect(str(DB_PATH))
-    for file_path, account_id in files:
-        print(f"\nIngesting {file_path.name} -> account={account_id}")
-        ingest(file_path, account_id, con)
-    con.close()
+    _ensure_ingest_log(con)
+    total_inserted = 0
+    try:
+        for file_path, account_id in files:
+            print(f"\nIngesting {file_path.name} -> account={account_id}")
+            rows_before = con.execute(
+                "SELECT COUNT(*) FROM transactions WHERE account_id = ?", (account_id,)
+            ).fetchone()[0]
+            ingest(file_path, account_id, con)
+            rows_after = con.execute(
+                "SELECT COUNT(*) FROM transactions WHERE account_id = ?", (account_id,)
+            ).fetchone()[0]
+            total_inserted += rows_after - rows_before
+        _write_log(con, total_inserted, "success")
+    except Exception as e:
+        _write_log(con, total_inserted, "failure", str(e))
+        raise
+    finally:
+        con.close()
     print("\nDone.")
 
 
