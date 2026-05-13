@@ -299,7 +299,9 @@ def portfolio_holdings(
 
 @router.get("/freshness", response_model=DataFreshness)
 def portfolio_freshness(con: duckdb.DuckDBPyConnection = Depends(get_db)):
-    tx_date = con.execute("SELECT MAX(trade_date) FROM fct_transactions").fetchone()
+    tx_date = con.execute(
+        "SELECT MAX(dd.date) FROM fct_transactions ft INNER JOIN dim_date dd ON dd.date_key = ft.trade_date_key"
+    ).fetchone()
     price_date = con.execute(
         "SELECT MAX(dd.date) FROM fct_fund_prices_daily fp INNER JOIN dim_date dd ON dd.date_key = fp.date_key"
     ).fetchone()
