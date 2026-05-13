@@ -189,7 +189,7 @@ Open two terminals from the project root.
 **Terminal 1 — backend API**
 
 ```bash
-PYTHONPATH=backend uv run uvicorn app.main:app --reload --port 8000
+cd backend && uv run uvicorn app.main:app --reload --port 8000
 ```
 
 The API will be at [http://localhost:8000](http://localhost:8000). Interactive docs are at [http://localhost:8000/docs](http://localhost:8000/docs).
@@ -197,8 +197,7 @@ The API will be at [http://localhost:8000](http://localhost:8000). Interactive d
 **Terminal 2 — frontend dev server**
 
 ```bash
-cd frontend
-npm run dev
+cd frontend && npm run dev
 ```
 
 The dashboard will be at [http://localhost:5173](http://localhost:5173). All `/api/*` requests are proxied to the FastAPI backend via Vite's dev server proxy.

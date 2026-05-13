@@ -178,12 +178,12 @@ Three Docker services, one shared bind mount:
 
 ---
 
-## Phase 8 — Dashboard UI Improvements
+## Phase 8 — Dashboard UI Improvements ✅ COMPLETE
 
-- [ ] Make the sidebar collapsible so the dashboard is usable on a mobile screen
-- [ ] Round all monetary values in the Holdings table to the nearest pound (no pennies)
-- [ ] Make all columns in the Holdings table sortable (name, value, cost basis, unrealised gain, weight, etc.)
-- [ ] Include cash balances alongside fund holdings in the Holdings table
+- [x] Make the sidebar collapsible so the dashboard is usable on a mobile screen
+- [x] Round all monetary values in the Holdings table to the nearest pound (no pennies)
+- [x] Make all columns in the Holdings table sortable (name, value, cost basis, unrealised gain, weight, etc.)
+- [x] Include cash balances alongside fund holdings in the Holdings table
 
 ---
 
