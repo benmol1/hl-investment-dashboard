@@ -16,6 +16,9 @@ services:
     volumes:
       - ${DATA_DIR:-/srv/hl-dashboard/data}:/app/data
     command: ["/app/.venv/bin/python", "backend/cron.py"]
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
 
   frontend:
     build:

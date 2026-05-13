@@ -164,13 +164,13 @@ Three Docker services, one shared bind mount:
 
 ### 7a — Push Notifications (cron alerts)
 
-- [ ] Add failure notifications to `backend/cron.py` via Telegram bot — when any step of the daily refresh fails, send a message to your personal chat.
-- [ ] Add a daily success notification confirming the refresh ran cleanly (prices updated, dbt build passed).
-- [ ] Add a monthly summary notification: total portfolio value, change vs last month, and a brief breakdown by account.
+- [x] Add failure notifications to `backend/cron.py` via Telegram bot — when any step of the daily refresh fails, send a message to your personal chat.
+- [x] Add a daily success notification confirming the refresh ran cleanly (prices updated, dbt build passed).
+- [x] Add a monthly summary notification: total portfolio value, change vs last month, and a brief breakdown by account.
 
 ### 7b — Two-Way Query Bot
 
-- [ ] Create a Telegram bot via BotFather; store the bot token and your chat ID in `.env` / Docker secrets.
+- [x] Create a Telegram bot via BotFather; store the bot token and your chat ID in `.env` / Docker secrets.
 - [ ] Add `backend/bot.py` — a long-polling Telegram bot service (using `python-telegram-bot`).
 - [ ] Add a `bot` service to `docker-compose.yml` running `bot.py` alongside the existing backend/cron/frontend services.
 - [ ] Wire the bot to the Claude API (Anthropic SDK) with tool use — expose the existing FastAPI endpoints as Claude tools so natural language messages like "what's my ISA up this month?" are translated into API calls and returned as readable answers.
