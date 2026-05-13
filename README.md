@@ -166,4 +166,4 @@ Raw source tables (`accounts`, `funds`, `transactions`, `prices`, `benchmarks`) 
 | `intermediate` | `int_daily_fund_values`, `int_daily_cash_values` | Pre-aggregated inputs for marts |
 | `marts` | `mart_daily_portfolio_value`, `mart_current_holdings`, `mart_portfolio_contributions`, `mart_portfolio_returns`, `mart_benchmarks`, `mart_monthly_snapshot` | API-ready aggregates |
 
-Key conventions: `value_gbp` is negative for debits (buys, fees) and positive for credits (contributions, sells). Fund prices are stored in pence (`price_pence`) to match HL's raw format. `dim_date` is owned by dbt — seeded from `dbt/seeds/seed_date.csv`; do not populate it from `setup_db.py`.
+Key conventions: `value_gbp` is negative for debits (buys, fees) and positive for credits (contributions, sells). Fund prices are stored in pence (`price_pence`) to match HL's raw format.
