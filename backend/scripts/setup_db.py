@@ -2,7 +2,7 @@
 One-time setup: create the DuckDB schema and seed all reference data.
 Safe to re-run — schema uses CREATE IF NOT EXISTS and seed rows use INSERT OR IGNORE.
 
-dim_date is owned by dbt (seeded from dbt/seeds/seed_date.csv via the dim_date model).
+dim_date is owned by dbt (seeded from dbt/seeds/seed_date.csv; then represented in the dim_date model).
 
 Usage:
     python backend/scripts/setup_db.py
