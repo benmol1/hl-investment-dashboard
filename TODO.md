@@ -160,11 +160,21 @@ Three Docker services, one shared bind mount:
 
 ---
 
-## Phase 7 — Notifications
+## Phase 7 — Notifications & Bot Interface
 
-- [ ] Add failure notifications to `backend/cron.py` using [ntfy.sh](https://ntfy.sh) — a free push notification service requiring no account or API key. When any step of the daily refresh fails, POST to a private ntfy topic; the ntfy app on your phone receives the alert instantly.
+### 7a — Push Notifications (cron alerts)
+
+- [ ] Add failure notifications to `backend/cron.py` via Telegram bot — when any step of the daily refresh fails, send a message to your personal chat.
 - [ ] Add a daily success notification confirming the refresh ran cleanly (prices updated, dbt build passed).
 - [ ] Add a monthly summary notification: total portfolio value, change vs last month, and a brief breakdown by account.
+
+### 7b — Two-Way Query Bot
+
+- [ ] Create a Telegram bot via BotFather; store the bot token and your chat ID in `.env` / Docker secrets.
+- [ ] Add `backend/bot.py` — a long-polling Telegram bot service (using `python-telegram-bot`).
+- [ ] Add a `bot` service to `docker-compose.yml` running `bot.py` alongside the existing backend/cron/frontend services.
+- [ ] Wire the bot to the Claude API (Anthropic SDK) with tool use — expose the existing FastAPI endpoints as Claude tools so natural language messages like "what's my ISA up this month?" are translated into API calls and returned as readable answers.
+- [ ] Restrict the bot to your own chat ID so it rejects messages from anyone else.
 
 ---
 
