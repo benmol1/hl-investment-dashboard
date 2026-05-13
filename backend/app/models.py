@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from pydantic import BaseModel
 
@@ -88,8 +88,8 @@ class HoldingItem(BaseModel):
 
 
 class DataFreshness(BaseModel):
-    transaction_date: Optional[date]
-    price_date: Optional[date]
+    transaction_date: Optional[datetime]
+    price_date: Optional[datetime]
 
 
 class SharpeRatios(BaseModel):

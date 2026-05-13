@@ -12,8 +12,13 @@ const navItems = [
   { to: '/transactions', label: 'Transactions' },
 ]
 
-const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+const fmtDate = (iso: string | null) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  const date = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  return `${date}, ${time}`
+}
 
 export default function Layout() {
   const [open, setOpen] = useState(() => window.innerWidth >= 768)

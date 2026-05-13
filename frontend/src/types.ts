@@ -97,8 +97,8 @@ export interface PortfolioPerformanceResponse {
 }
 
 export interface DataFreshness {
-  transaction_date: string | null
-  price_date: string | null
+  transaction_date: string | null  // ISO datetime string
+  price_date: string | null        // ISO datetime string
 }
 
 export type Account = 'ISA' | 'SIPP'

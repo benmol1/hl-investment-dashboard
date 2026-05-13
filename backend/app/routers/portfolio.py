@@ -299,13 +299,13 @@ def portfolio_holdings(
 
 @router.get("/freshness", response_model=DataFreshness)
 def portfolio_freshness(con: duckdb.DuckDBPyConnection = Depends(get_db)):
-    tx_date = con.execute(
-        "SELECT MAX(dd.date) FROM fct_transactions ft INNER JOIN dim_date dd ON dd.date_key = ft.trade_date_key"
+    tx = con.execute(
+        "SELECT MAX(run_at) FROM ingest_log WHERE source = 'transactions' AND status = 'success'"
     ).fetchone()
-    price_date = con.execute(
-        "SELECT MAX(dd.date) FROM fct_fund_prices_daily fp INNER JOIN dim_date dd ON dd.date_key = fp.date_key"
+    prices = con.execute(
+        "SELECT MAX(run_at) FROM ingest_log WHERE source = 'prices' AND status = 'success'"
     ).fetchone()
     return DataFreshness(
-        transaction_date=tx_date[0] if tx_date else None,
-        price_date=price_date[0] if price_date else None,
+        transaction_date=tx[0] if tx else None,
+        price_date=prices[0] if prices else None,
     )
