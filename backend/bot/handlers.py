@@ -40,7 +40,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except Exception as exc:
         logger.exception("Claude loop failed")
         answer = f"Sorry, something went wrong: {exc}"
-    await thinking.edit_text(answer)
+    await thinking.edit_text(answer, parse_mode="Markdown")
 
 
 def main() -> None:
