@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-05-11*
+*Last updated: 2026-05-13 15:11*
 
 ---
 
@@ -114,7 +114,7 @@ dbt test --profiles-dir .   # run all 112 tests
 
 ---
 
-## Phase 6 — Deployment ✅ COMPLETE
+## Phase 6 — Deployment ⏳ IN PROGRESS
 
 ### Architecture
 
@@ -160,15 +160,15 @@ Three Docker services, one shared bind mount:
 
 ---
 
-## Phase 7 — Notifications & Bot Interface
+## Phase 7 — Notifications & Bot Interface ⏳ IN PROGRESS
 
-### 7a — Push Notifications (cron alerts)
+### 7a — Push Notifications (cron alerts) ✅ COMPLETE
 
 - [x] Add failure notifications to `backend/cron.py` via Telegram bot — when any step of the daily refresh fails, send a message to your personal chat.
 - [x] Add a daily success notification confirming the refresh ran cleanly (prices updated, dbt build passed).
 - [x] Add a monthly summary notification: total portfolio value, change vs last month, and a brief breakdown by account.
 
-### 7b — Two-Way Query Bot
+### 7b — Two-Way Query Bot ⏳ IN PROGRESS
 
 - [x] Create a Telegram bot via BotFather; store the bot token and your chat ID in `.env` / Docker secrets.
 - [x] Add `backend/bot/` — a long-polling Telegram bot service (using `python-telegram-bot`), structured as a package: `config.py`, `tools.py`, `executors.py`, `claude.py`, `handlers.py`, `__main__.py`.
