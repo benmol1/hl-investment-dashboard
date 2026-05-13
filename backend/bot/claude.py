@@ -1,0 +1,51 @@
+import asyncio
+import json
+import logging
+import os
+from datetime import date
+
+import anthropic
+
+from .config import CLAUDE_MODEL, SYSTEM_PROMPT_TEMPLATE
+from .executors import execute_tool
+from .tools import TOOLS
+
+logger = logging.getLogger(__name__)
+
+
+async def run_claude_loop(user_text: str) -> str:
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(today=date.today())
+    messages: list[dict] = [{"role": "user", "content": user_text}]
+
+    while True:
+        response = await asyncio.to_thread(
+            client.messages.create,
+            model=CLAUDE_MODEL,
+            max_tokens=1024,
+            system=system_prompt,
+            tools=TOOLS,
+            messages=messages,
+        )
+
+        if response.stop_reason == "end_turn":
+            return "\n".join(b.text for b in response.content if hasattr(b, "text"))
+
+        if response.stop_reason == "tool_use":
+            messages.append({"role": "assistant", "content": response.content})
+
+            tool_results = []
+            for block in response.content:
+                if block.type == "tool_use":
+                    logger.info("Tool call: %s %s", block.name, block.input)
+                    result = await asyncio.to_thread(execute_tool, block.name, block.input)
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": json.dumps(result, default=str),
+                    })
+
+            messages.append({"role": "user", "content": tool_results})
+        else:
+            logger.warning("Unexpected stop_reason: %s", response.stop_reason)
+            return "Sorry, I couldn't process that request."

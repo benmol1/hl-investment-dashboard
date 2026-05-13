@@ -164,17 +164,18 @@ Three Docker services, one shared bind mount:
 
 ### 7a — Push Notifications (cron alerts)
 
-- [ ] Add failure notifications to `backend/cron.py` via Telegram bot — when any step of the daily refresh fails, send a message to your personal chat.
-- [ ] Add a daily success notification confirming the refresh ran cleanly (prices updated, dbt build passed).
-- [ ] Add a monthly summary notification: total portfolio value, change vs last month, and a brief breakdown by account.
+- [x] Add failure notifications to `backend/cron.py` via Telegram bot — when any step of the daily refresh fails, send a message to your personal chat.
+- [x] Add a daily success notification confirming the refresh ran cleanly (prices updated, dbt build passed).
+- [x] Add a monthly summary notification: total portfolio value, change vs last month, and a brief breakdown by account.
 
 ### 7b — Two-Way Query Bot
 
-- [ ] Create a Telegram bot via BotFather; store the bot token and your chat ID in `.env` / Docker secrets.
-- [ ] Add `backend/bot.py` — a long-polling Telegram bot service (using `python-telegram-bot`).
-- [ ] Add a `bot` service to `docker-compose.yml` running `bot.py` alongside the existing backend/cron/frontend services.
-- [ ] Wire the bot to the Claude API (Anthropic SDK) with tool use — expose the existing FastAPI endpoints as Claude tools so natural language messages like "what's my ISA up this month?" are translated into API calls and returned as readable answers.
-- [ ] Restrict the bot to your own chat ID so it rejects messages from anyone else.
+- [x] Create a Telegram bot via BotFather; store the bot token and your chat ID in `.env` / Docker secrets.
+- [x] Add `backend/bot/` — a long-polling Telegram bot service (using `python-telegram-bot`), structured as a package: `config.py`, `tools.py`, `executors.py`, `claude.py`, `handlers.py`, `__main__.py`.
+- [x] Add a `bot` service to `docker-compose.yml` running `bot/` alongside the existing backend/cron/frontend services.
+- [ ] Add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and `ANTHROPIC_API_KEY` to `.env` on the Raspberry Pi, then run `docker compose up -d --build bot`.
+- [x] Wire the bot to the Claude API (Anthropic SDK) with tool use — expose the existing FastAPI endpoints as Claude tools so natural language messages like "what's my ISA up this month?" are translated into API calls and returned as readable answers. Falls back to a read-only DuckDB query tool for questions the API can't answer.
+- [x] Restrict the bot to your own chat ID so it rejects messages from anyone else.
 
 ---
 
