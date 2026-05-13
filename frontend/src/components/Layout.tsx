@@ -92,9 +92,9 @@ export default function Layout() {
           </button>
           <span className="text-sm font-semibold text-indigo-400 uppercase tracking-widest">HL Dashboard</span>
           {freshness && (
-            <div className="ml-auto flex items-center gap-4 text-xs text-gray-500">
-              <span>Prices: <span className="text-gray-400">{fmtDate(freshness.price_date)}</span></span>
-              <span>Transactions: <span className="text-gray-400">{fmtDate(freshness.transaction_date)}</span></span>
+            <div className="ml-auto flex flex-col items-end gap-0.5 text-xs text-gray-500">
+              <span>Prices last updated: <span className="text-gray-400">{fmtDate(freshness.price_date)}</span></span>
+              <span>Transactions last updated: <span className="text-gray-400">{fmtDate(freshness.transaction_date)}</span></span>
             </div>
           )}
         </header>
