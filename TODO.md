@@ -172,7 +172,8 @@ Three Docker services, one shared bind mount:
 
 - [x] Create a Telegram bot via BotFather; store the bot token and your chat ID in `.env` / Docker secrets.
 - [x] Add `backend/bot/` — a long-polling Telegram bot service (using `python-telegram-bot`), structured as a package: `config.py`, `tools.py`, `executors.py`, `claude.py`, `handlers.py`, `__main__.py`.
-- [ ] Add a `bot` service to `docker-compose.yml` running `bot/` alongside the existing backend/cron/frontend services.
+- [x] Add a `bot` service to `docker-compose.yml` running `bot/` alongside the existing backend/cron/frontend services.
+- [ ] Add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and `ANTHROPIC_API_KEY` to `.env` on the Raspberry Pi, then run `docker compose up -d --build bot`.
 - [x] Wire the bot to the Claude API (Anthropic SDK) with tool use — expose the existing FastAPI endpoints as Claude tools so natural language messages like "what's my ISA up this month?" are translated into API calls and returned as readable answers. Falls back to a read-only DuckDB query tool for questions the API can't answer.
 - [x] Restrict the bot to your own chat ID so it rejects messages from anyone else.
 
