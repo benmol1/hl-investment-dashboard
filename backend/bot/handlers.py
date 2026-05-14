@@ -36,8 +36,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     logger.info("Received message: %s", user_text)
 
     thinking = await update.message.reply_text("Thinking…")
+
+    async def on_tool_call(tool_names: list[str]) -> None:
+        label = ", ".join(tool_names)
+        await thinking.edit_text(f"⚙️ `{label}`…", parse_mode="Markdown")
+
     try:
-        result = await run_claude_loop(user_text)
+        result = await run_claude_loop(user_text, on_tool_call=on_tool_call)
     except Exception as exc:
         logger.exception("Claude loop failed")
         await thinking.edit_text(f"Sorry, something went wrong: {exc}", parse_mode="Markdown")

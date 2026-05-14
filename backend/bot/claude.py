@@ -32,7 +32,7 @@ def _round_currency(text: str) -> str:
     return re.sub(r"£([\d,]+\.\d+)", _replace, text)
 
 
-async def run_claude_loop(user_text: str) -> BotResponse:
+async def run_claude_loop(user_text: str, on_tool_call=None) -> BotResponse:
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(today=date.today())
     messages: list[dict] = [{"role": "user", "content": user_text}]
@@ -61,6 +61,10 @@ async def run_claude_loop(user_text: str) -> BotResponse:
 
         if response.stop_reason == "tool_use":
             messages.append({"role": "assistant", "content": response.content})
+
+            round_tools = [b.name for b in response.content if b.type == "tool_use"]
+            if on_tool_call and round_tools:
+                await on_tool_call(round_tools)
 
             tool_results = []
             for block in response.content:
