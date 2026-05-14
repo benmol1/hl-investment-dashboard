@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-05-13 15:11*
+*Last updated: 2026-05-14 10:05*
 
 ---
 
@@ -167,6 +167,7 @@ Three Docker services, one shared bind mount:
 - [x] Add failure notifications to `backend/cron.py` via Telegram bot — when any step of the daily refresh fails, send a message to your personal chat.
 - [x] Add a daily success notification confirming the refresh ran cleanly (prices updated, dbt build passed).
 - [x] Add a monthly summary notification: total portfolio value, change vs last month, and a brief breakdown by account.
+- [ ] Fix `dbt build` step in `cron.py` — `FileNotFoundError` because `"dbt"` wasn't on PATH in the container; replace with `Path(sys.executable).parent / "dbt"` so it resolves correctly in both Docker and local dev. Deploy with `docker compose up -d --build cron`.
 
 ### 7b — Two-Way Query Bot ⏳ IN PROGRESS
 

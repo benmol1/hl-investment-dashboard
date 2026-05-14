@@ -110,7 +110,8 @@ def daily_refresh() -> None:
     if not _run("fetch_prices.py", [sys.executable, str(_SCRIPTS_DIR / "fetch_prices.py")]):
         failures.append("fetch_prices.py")
 
-    if not _run("dbt build", ["dbt", "build", "--profiles-dir", "."], cwd=_DBT_PROJECT_DIR):
+    _dbt = str(Path(sys.executable).parent / "dbt")
+    if not _run("dbt build", [_dbt, "build", "--profiles-dir", "."], cwd=_DBT_PROJECT_DIR):
         failures.append("dbt build")
 
     if failures:
@@ -128,8 +129,9 @@ def daily_refresh() -> None:
 
 if __name__ == "__main__":
     scheduler = BlockingScheduler()
-    scheduler.add_job(daily_refresh, "cron", hour=18, minute=0, id="daily_refresh")
-    logger.info("Cron scheduler started — daily refresh at 18:00")
+    # TEMPORARY: every 15 min for testing — revert to hour=18, minute=0 before merging
+    scheduler.add_job(daily_refresh, "interval", minutes=15, id="daily_refresh")
+    logger.info("Cron scheduler started — refresh every 15 minutes (TEMPORARY)")
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
