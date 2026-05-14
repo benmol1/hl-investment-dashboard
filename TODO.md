@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-05-14 10:05*
+*Last updated: 2026-05-14 10:48*
 
 ---
 
@@ -114,7 +114,7 @@ dbt test --profiles-dir .   # run all 112 tests
 
 ---
 
-## Phase 6 — Deployment ⏳ IN PROGRESS
+## Phase 6 — Deployment ✅ COMPLETE
 
 ### Architecture
 
@@ -145,7 +145,7 @@ Three Docker services, one shared bind mount:
 - [x] Strip dev-only deps (jupyter, matplotlib, ipykernel) from the backend/cron image — add a `[tool.uv]` dev group or use `--no-dev` flag
 - [x] Install Docker Desktop on Windows dev machine
 - [x] Test full Docker build locally (`docker compose up --build`)
-- [ ] Verify daily refresh fires correctly in the cron container (check logs)
+- [x] Verify daily refresh fires correctly in the cron container (check logs)
 
 #### Raspberry Pi setup
 
@@ -154,7 +154,6 @@ Three Docker services, one shared bind mount:
 - [x] Copy initial `hl_dashboard.duckdb` to `/srv/hl-dashboard/data/` (one-time seed from dev machine)
 - [x] Clone repo to Pi and run `docker compose up -d`
 - [x] Install Tailscale on the Pi (`curl -fsSL https://tailscale.com/install.sh | sh`) and authenticate
-- [ ] Add Local DNS record in Pi-Hole admin: `hl-dashboard` → Pi's LAN IP (Settings → Local DNS → DNS Records)
 - [x] Verify end-to-end: open `http://192.168.1.220:2048` from another device on the home network
 - [x] Verify Tailscale access: open the dashboard from a device off the home network
 
@@ -167,9 +166,9 @@ Three Docker services, one shared bind mount:
 - [x] Add failure notifications to `backend/cron.py` via Telegram bot — when any step of the daily refresh fails, send a message to your personal chat.
 - [x] Add a daily success notification confirming the refresh ran cleanly (prices updated, dbt build passed).
 - [x] Add a monthly summary notification: total portfolio value, change vs last month, and a brief breakdown by account.
-- [ ] Fix `dbt build` step in `cron.py` — `FileNotFoundError` because `"dbt"` wasn't on PATH in the container; replace with `Path(sys.executable).parent / "dbt"` so it resolves correctly in both Docker and local dev. Deploy with `docker compose up -d --build cron`.
+- [x] Fix `dbt build` step in `cron.py` — `FileNotFoundError` because `"dbt"` wasn't on PATH in the container; replace with `Path(sys.executable).parent / "dbt"` so it resolves correctly in both Docker and local dev. Deploy with `docker compose up -d --build cron`.
 
-### 7b — Two-Way Query Bot ⏳ IN PROGRESS
+### 7b — Two-Way Query Bot ✅ COMPLETE
 
 - [x] Create a Telegram bot via BotFather; store the bot token and your chat ID in `.env` / Docker secrets.
 - [x] Add `backend/bot/` — a long-polling Telegram bot service (using `python-telegram-bot`), structured as a package: `config.py`, `tools.py`, `executors.py`, `claude.py`, `handlers.py`, `__main__.py`.
@@ -177,7 +176,7 @@ Three Docker services, one shared bind mount:
 - [x] Add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and `ANTHROPIC_API_KEY` to `.env` on the Raspberry Pi, then run `docker compose up -d --build bot`.
 - [x] Wire the bot to the Claude API (Anthropic SDK) with tool use — expose the existing FastAPI endpoints as Claude tools so natural language messages like "what's my ISA up this month?" are translated into API calls and returned as readable answers. Falls back to a read-only DuckDB query tool for questions the API can't answer.
 - [x] Restrict the bot to your own chat ID so it rejects messages from anyone else.
-- [ ] Audit number formatting in bot replies — ensure all pound figures (including those from the DuckDB fallback tool) consistently round to the nearest pound for amounts £10+.
+- [x] Audit number formatting in bot replies — ensure all pound figures (including those from the DuckDB fallback tool) consistently round to the nearest pound for amounts £10+.
 
 ### 7c — Chart Generation in Bot Replies
 
