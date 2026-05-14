@@ -1,3 +1,5 @@
+x-localtime: &localtime /etc/localtime:/etc/localtime:ro
+
 services:
 
   backend:
@@ -7,8 +9,7 @@ services:
     restart: unless-stopped
     volumes:
       - ${DATA_DIR:-/srv/hl-dashboard/data}:/app/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      - *localtime
 
   cron:
     build:
@@ -17,8 +18,7 @@ services:
     restart: unless-stopped
     volumes:
       - ${DATA_DIR:-/srv/hl-dashboard/data}:/app/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      - *localtime
     command: ["/app/.venv/bin/python", "backend/cron.py"]
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
@@ -31,8 +31,7 @@ services:
     restart: unless-stopped
     volumes:
       - ${DATA_DIR:-/srv/hl-dashboard/data}:/app/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      - *localtime
     command: ["/app/.venv/bin/python", "-m", "backend.bot"]
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
@@ -47,5 +46,7 @@ services:
     restart: unless-stopped
     ports:
       - "2048:80"
+    volumes:
+      - *localtime
     depends_on:
       - backend
