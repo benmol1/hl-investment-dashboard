@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-05-14 11:31*
+*Last updated: 2026-05-14 11:48*
 
 ---
 
@@ -198,12 +198,12 @@ Three Docker services, one shared bind mount:
 
 ---
 
-## Phase 9 — Refresh Automation
+## Phase 9 — Refresh Automation ⏳ IN PROGRESS
 
-### Basic — shared drop folder
+### Basic — shared drop folder ✅ COMPLETE
 
-- [ ] Set up a shared network folder on the Pi (e.g. via Samba) so HL CSV exports can be dropped directly from any device on the home network without using `scp`
-- [ ] The existing daily cron job already picks up files from the drop folders automatically — no further changes needed once the share is in place
+- [x] Set up a shared network folder on the Pi (e.g. via Samba) so HL CSV exports can be dropped directly from any device on the home network without using `scp`
+- [x] The existing daily cron job already picks up files from the drop folders automatically — no further changes needed once the share is in place
 
 ### Advanced — automated HL download (research spike)
 
