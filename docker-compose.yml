@@ -7,6 +7,8 @@ services:
     restart: unless-stopped
     volumes:
       - ${DATA_DIR:-/srv/hl-dashboard/data}:/app/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
 
   cron:
     build:
@@ -29,6 +31,8 @@ services:
     restart: unless-stopped
     volumes:
       - ${DATA_DIR:-/srv/hl-dashboard/data}:/app/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     command: ["/app/.venv/bin/python", "-m", "backend.bot"]
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
