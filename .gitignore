@@ -34,3 +34,6 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code project instructions — kept local, not for public repo
+CLAUDE.md
