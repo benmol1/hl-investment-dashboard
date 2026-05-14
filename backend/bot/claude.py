@@ -43,7 +43,7 @@ async def run_claude_loop(user_text: str) -> BotResponse:
         response = await asyncio.to_thread(
             client.messages.create,
             model=CLAUDE_MODEL,
-            max_tokens=1024,
+            max_tokens=4096,
             system=system_prompt,
             tools=TOOLS,
             messages=messages,
