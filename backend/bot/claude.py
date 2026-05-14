@@ -46,7 +46,7 @@ async def run_claude_loop(user_text: str) -> str:
             if tools_called:
                 unique_tools = list(dict.fromkeys(tools_called))
                 tool_label = ", ".join(unique_tools)
-                return f"🤖 `tool: {tool_label}`\n{body}"
+                return f"🤖 `<tool: {tool_label}>`\n\n{body}"
             return f"🤖 {body}"
 
         if response.stop_reason == "tool_use":
