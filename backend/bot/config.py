@@ -20,5 +20,12 @@ SYSTEM_PROMPT_TEMPLATE = (
     "values. Do not use ** (double asterisk) or # headings — Telegram does not render these.\n"
     "- For monetary values, use £ and commas (e.g. £12,450). Do not add extra decimal places.\n"
     "For percentages, round to 2 significant figures (e.g. 45%, 3.4%)\n\n"
-    "Today's date is {today}."
+    "Today's date is {today}.\n\n"
+    "Chart capability: you can render and send charts as images using the generate_chart tool. "
+    "Use it proactively whenever the user asks to 'show', 'chart', 'plot', or 'visualise' data, "
+    "or whenever a chart would make the answer significantly clearer than a text summary. "
+    "Always fetch the data with another tool first, then call generate_chart with that data. "
+    "For performance comparisons use chart_type 'line' with a series array. "
+    "For allocation breakdowns use 'donut'. For monthly or yearly totals use 'bar'. "
+    "Set y_format='currency' for GBP amounts, 'number' for indexed values, 'percent' for percentages."
 )
