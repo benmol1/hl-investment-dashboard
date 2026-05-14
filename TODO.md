@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-05-14 10:48*
+*Last updated: 2026-05-14 11:31*
 
 ---
 
@@ -159,7 +159,7 @@ Three Docker services, one shared bind mount:
 
 ---
 
-## Phase 7 — Notifications & Bot Interface ⏳ IN PROGRESS
+## Phase 7 — Notifications & Bot Interface ✅ COMPLETE
 
 ### 7a — Push Notifications (cron alerts) ✅ COMPLETE
 
@@ -178,13 +178,13 @@ Three Docker services, one shared bind mount:
 - [x] Restrict the bot to your own chat ID so it rejects messages from anyone else.
 - [x] Audit number formatting in bot replies — ensure all pound figures (including those from the DuckDB fallback tool) consistently round to the nearest pound for amounts £10+.
 
-### 7c — Chart Generation in Bot Replies
+### 7c — Chart Generation in Bot Replies ✅ COMPLETE
 
-- [ ] Research approach: generate charts server-side (e.g. with `matplotlib` or `plotly`) as PNG images and send via Telegram's `send_photo` API rather than as text.
-- [ ] Add a `generate_chart` tool that Claude can call — accepts a chart type (line, bar, donut) and a data payload, renders a PNG in memory, and returns a file path or byte buffer.
-- [ ] Implement at least two chart types to start: portfolio value over time (line) and current allocation (donut/pie).
-- [ ] Update `handlers.py` to detect when the bot response includes a chart and send it as a photo message rather than (or alongside) a text reply.
-- [ ] Test on iPhone — confirm images render at a readable size in the Telegram chat.
+- [x] Research approach: generate charts server-side (e.g. with `matplotlib` or `plotly`) as PNG images and send via Telegram's `send_photo` API rather than as text.
+- [x] Add a `generate_chart` tool that Claude can call — accepts a chart type (line, bar, donut) and a data payload, renders a PNG in memory, and returns a file path or byte buffer.
+- [x] Implement at least two chart types to start: portfolio value over time (line) and current allocation (donut/pie).
+- [x] Update `handlers.py` to detect when the bot response includes a chart and send it as a photo message rather than (or alongside) a text reply.
+- [x] Test on iPhone — confirm images render at a readable size in the Telegram chat.
 
 ---
 
