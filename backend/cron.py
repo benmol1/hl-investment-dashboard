@@ -2,7 +2,7 @@ import logging
 import os
 import subprocess
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import requests
@@ -117,8 +117,9 @@ def daily_refresh() -> None:
     if failures:
         return  # failure notifications already sent per step
 
-    # Daily success notification — silent (no banner/sound)
-    notify(f"✅ <b>HL Dashboard refresh complete</b> ({today})\nAll steps passed.", silent=True)
+    # Success notification — silent (no banner/sound)
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    notify(f"✅ <b>HL Dashboard refresh complete</b> ({now})\nAll steps passed.", silent=True)
 
     # Monthly summary on the first of the month
     if today.day == 1:
