@@ -18,6 +18,8 @@ async def run_claude_loop(user_text: str) -> str:
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(today=date.today())
     messages: list[dict] = [{"role": "user", "content": user_text}]
 
+    tools_called: list[str] = []
+
     while True:
         response = await asyncio.to_thread(
             client.messages.create,
@@ -29,7 +31,12 @@ async def run_claude_loop(user_text: str) -> str:
         )
 
         if response.stop_reason == "end_turn":
-            return "\n".join(b.text for b in response.content if hasattr(b, "text"))
+            body = "\n".join(b.text for b in response.content if hasattr(b, "text"))
+            if tools_called:
+                unique_tools = list(dict.fromkeys(tools_called))
+                tool_label = ", ".join(unique_tools)
+                return f"🤖[tool: {tool_label}]\n{body}"
+            return f"🤖 {body}"
 
         if response.stop_reason == "tool_use":
             messages.append({"role": "assistant", "content": response.content})
@@ -38,6 +45,7 @@ async def run_claude_loop(user_text: str) -> str:
             for block in response.content:
                 if block.type == "tool_use":
                     logger.info("Tool call: %s %s", block.name, block.input)
+                    tools_called.append(block.name)
                     result = await asyncio.to_thread(execute_tool, block.name, block.input)
                     tool_results.append({
                         "type": "tool_result",
