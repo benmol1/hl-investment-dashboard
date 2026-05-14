@@ -185,6 +185,7 @@ Three Docker services, one shared bind mount:
 - [x] Implement at least two chart types to start: portfolio value over time (line) and current allocation (donut/pie).
 - [x] Update `handlers.py` to detect when the bot response includes a chart and send it as a photo message rather than (or alongside) a text reply.
 - [x] Test on iPhone — confirm images render at a readable size in the Telegram chat.
+- [x] Show interim tool feedback in Telegram while the response is being generated (edits the "Thinking…" message to show which tools are being called).
 
 ---
 
