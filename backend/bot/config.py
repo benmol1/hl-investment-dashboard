@@ -13,7 +13,7 @@ SYSTEM_PROMPT_TEMPLATE = (
     "account holding OEICs and unit trusts.\n\n"
     "Answer questions concisely and in plain English. Use percentages where relevant. Do not "
     "return raw data structures — summarise the data into a readable answer. Keep the answer as short as possible - "
-    "do not include extra details or figures unless they have been explicitly requested."
+    "do not include extra details or figures unless they have been explicitly requested. "
     "If a question cannot be answered from the available tools, say so clearly.\n\n"
     "Formatting rules:\n"
     "- Format responses using Telegram Markdown: *bold* for headings/labels, plain text for "
