@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-05-14 12:00*
+*Last updated: 2026-05-14 20:15*
 
 ---
 
@@ -211,10 +211,10 @@ Three Docker services, one shared bind mount:
 - [ ] Investigate credential security options — e.g. storing the HL password in a secrets manager or using a read-only HL API key if one exists, to avoid hardcoding credentials in config
 - [ ] If viable, wire the downloader into `backend/cron.py` as the first step before `ingest_transactions.py`
 
-### Cron Fixes
+### Cron Fixes ✅ COMPLETE
 
-- [ ] Change cron job schedule back to daily at 01:00 (was changed from the regular cadence during testing)
-- [ ] Investigate why the cron job timestamp logs in GMT rather than BST — Pi system clock is set to British Summer Time, so the container may not be inheriting the host timezone
+- [x] Change cron job schedule back to daily at 01:00 (was changed from the regular cadence during testing)
+- [x] Investigate why the cron job timestamp logs in GMT rather than BST — Pi system clock is set to British Summer Time, so the container may not be inheriting the host timezone
 
 ---
 

@@ -130,9 +130,8 @@ def daily_refresh() -> None:
 
 if __name__ == "__main__":
     scheduler = BlockingScheduler()
-    # TEMPORARY: every 15 min for testing — revert to hour=18, minute=0 before merging
-    scheduler.add_job(daily_refresh, "interval", minutes=15, id="daily_refresh")
-    logger.info("Cron scheduler started — refresh every 15 minutes (TEMPORARY)")
+    scheduler.add_job(daily_refresh, "cron", hour=1, minute=0, id="daily_refresh")
+    logger.info("Cron scheduler started — daily refresh at 01:00")
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
