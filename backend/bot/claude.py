@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 from datetime import date
 
 import anthropic
@@ -11,6 +12,16 @@ from .executors import execute_tool
 from .tools import TOOLS
 
 logger = logging.getLogger(__name__)
+
+
+def _round_currency(text: str) -> str:
+    """Round any £X.XX amounts ≥ £10 to the nearest pound."""
+    def _replace(m: re.Match) -> str:
+        amount = float(m.group(1).replace(",", ""))
+        if amount >= 10:
+            return f"£{round(amount):,}"
+        return m.group(0)
+    return re.sub(r"£([\d,]+\.\d+)", _replace, text)
 
 
 async def run_claude_loop(user_text: str) -> str:
@@ -31,11 +42,11 @@ async def run_claude_loop(user_text: str) -> str:
         )
 
         if response.stop_reason == "end_turn":
-            body = "\n".join(b.text for b in response.content if hasattr(b, "text"))
+            body = _round_currency("\n".join(b.text for b in response.content if hasattr(b, "text")))
             if tools_called:
                 unique_tools = list(dict.fromkeys(tools_called))
                 tool_label = ", ".join(unique_tools)
-                return f"🤖[tool: {tool_label}]\n{body}"
+                return f"🤖 `tool: {tool_label}`\n{body}"
             return f"🤖 {body}"
 
         if response.stop_reason == "tool_use":

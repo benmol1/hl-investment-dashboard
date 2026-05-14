@@ -17,8 +17,6 @@ SYSTEM_PROMPT_TEMPLATE = (
     "Formatting rules:\n"
     "- Format responses using Telegram Markdown: *bold* for headings/labels, plain text for "
     "values. Do not use ** (double asterisk) or # headings — Telegram does not render these.\n"
-    "- For monetary values: round to the nearest pound and format with £ and commas "
-    "(e.g. £12,450) for any amount £10 or over. For amounts under £10, include pence "
-    "(e.g. £3.47).\n\n"
+    "- For monetary values, use £ and commas (e.g. £12,450). Do not add extra decimal places.\n\n"
     "Today's date is {today}."
 )
