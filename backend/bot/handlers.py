@@ -1,3 +1,4 @@
+import io
 import logging
 
 from telegram import Update
@@ -36,11 +37,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     thinking = await update.message.reply_text("Thinking…")
     try:
-        answer = await run_claude_loop(user_text)
+        result = await run_claude_loop(user_text)
     except Exception as exc:
         logger.exception("Claude loop failed")
-        answer = f"Sorry, something went wrong: {exc}"
-    await thinking.edit_text(answer, parse_mode="Markdown")
+        await thinking.edit_text(f"Sorry, something went wrong: {exc}", parse_mode="Markdown")
+        return
+
+    await thinking.edit_text(result.text, parse_mode="Markdown")
+    for chart_bytes in result.charts:
+        await update.message.reply_photo(io.BytesIO(chart_bytes))
 
 
 def main() -> None:

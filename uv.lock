@@ -976,6 +976,7 @@ dependencies = [
     { name = "dbt-duckdb" },
     { name = "duckdb" },
     { name = "fastapi" },
+    { name = "matplotlib" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pandas", version = "3.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "python-dateutil" },
@@ -988,7 +989,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "ipykernel" },
-    { name = "matplotlib" },
 ]
 
 [package.metadata]
@@ -998,6 +998,7 @@ requires-dist = [
     { name = "dbt-duckdb", specifier = ">=1.8.0" },
     { name = "duckdb", specifier = ">=0.10.0" },
     { name = "fastapi", specifier = ">=0.110.0" },
+    { name = "matplotlib", specifier = ">=3.10.9" },
     { name = "pandas", specifier = ">=2.0.0" },
     { name = "python-dateutil", specifier = ">=2.8.0" },
     { name = "python-telegram-bot", specifier = ">=22.7" },
@@ -1007,10 +1008,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "ipykernel", specifier = ">=7.2.0" },
-    { name = "matplotlib", specifier = ">=3.10.9" },
-]
+dev = [{ name = "ipykernel", specifier = ">=7.2.0" }]
 
 [[package]]
 name = "httpcore"

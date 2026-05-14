@@ -3,13 +3,21 @@ import json
 import logging
 import os
 import re
+from dataclasses import dataclass, field
 from datetime import date
 
 import anthropic
 
 from .config import CLAUDE_MODEL, SYSTEM_PROMPT_TEMPLATE
-from .executors import execute_tool
+from .executors import execute_tool, pop_pending_charts
 from .tools import TOOLS
+
+
+@dataclass
+class BotResponse:
+    text: str
+    charts: list[bytes] = field(default_factory=list)
+
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +32,7 @@ def _round_currency(text: str) -> str:
     return re.sub(r"£([\d,]+\.\d+)", _replace, text)
 
 
-async def run_claude_loop(user_text: str) -> str:
+async def run_claude_loop(user_text: str) -> BotResponse:
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(today=date.today())
     messages: list[dict] = [{"role": "user", "content": user_text}]
@@ -46,8 +54,10 @@ async def run_claude_loop(user_text: str) -> str:
             if tools_called:
                 unique_tools = list(dict.fromkeys(tools_called))
                 tool_label = ", ".join(unique_tools)
-                return f"🤖 `<tool: {tool_label}>`\n\n{body}"
-            return f"🤖 {body}"
+                text = f"🤖 `<tool: {tool_label}>`\n\n{body}"
+            else:
+                text = f"🤖 {body}"
+            return BotResponse(text=text, charts=pop_pending_charts())
 
         if response.stop_reason == "tool_use":
             messages.append({"role": "assistant", "content": response.content})
@@ -67,4 +77,4 @@ async def run_claude_loop(user_text: str) -> str:
             messages.append({"role": "user", "content": tool_results})
         else:
             logger.warning("Unexpected stop_reason: %s", response.stop_reason)
-            return "Sorry, I couldn't process that request."
+            return BotResponse(text="Sorry, I couldn't process that request.")

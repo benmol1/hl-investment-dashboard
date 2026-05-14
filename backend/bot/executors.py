@@ -1,12 +1,23 @@
 import concurrent.futures
+import io
 import logging
 import re
+import uuid
 from typing import Any
 
 import duckdb
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import requests
 
+matplotlib.use("Agg")  # non-interactive backend; must be set before any other pyplot import
+
 from .config import BACKEND_URL, DB_PATH
+
+# Charts rendered during a request are stored here until the handler retrieves them.
+# Safe for single-user sequential use; not thread-safe across concurrent requests.
+_pending_charts: dict[str, bytes] = {}
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +83,22 @@ def _execute_get_portfolio_performance(inputs: dict) -> Any:
     }.items() if v is not None}
     data = _api_get("/portfolio/performance", params)
 
+    if inputs.get("full_series"):
+        # Return complete series for charting; downsample to monthly to keep payload manageable
+        def monthly(series: list[dict]) -> list[dict]:
+            seen: dict[str, dict] = {}
+            for p in series:
+                seen[str(p.get("date", ""))[:7]] = p
+            return list(seen.values())
+        return {
+            "start_date": data.get("start_date"),
+            "portfolio": monthly(data.get("portfolio", [])),
+            "FTSE100": monthly(data.get("FTSE100", [])),
+            "SP500": monthly(data.get("SP500", [])),
+            "NASDAQ": monthly(data.get("NASDAQ", [])),
+            "sharpe": data.get("sharpe"),
+        }
+
     def compress(series: list[dict]) -> dict | None:
         if not series:
             return None
@@ -136,6 +163,215 @@ def _execute_list_transactions(inputs: dict) -> Any:
 
 
 # ---------------------------------------------------------------------------
+# Chart generation executor
+# ---------------------------------------------------------------------------
+
+_CHART_COLORS = [
+    "#4C9BE8", "#E8824C", "#4CE87A", "#E84C4C", "#A04CE8",
+    "#E8D44C", "#4CE8D4", "#E84CA0", "#8BE84C", "#4C4CE8",
+]
+
+
+def _y_formatter(y_format: str) -> mticker.FuncFormatter:
+    if y_format == "currency":
+        return mticker.FuncFormatter(lambda v, _: f"£{v:,.0f}")
+    if y_format == "percent":
+        return mticker.FuncFormatter(lambda v, _: f"{v:.1f}%")
+    return mticker.FuncFormatter(lambda v, _: f"{v:,.1f}")
+
+
+def _add_caption(fig: plt.Figure, caption: str) -> None:
+    fig.text(0.5, 0.01, caption, ha="center", va="bottom", fontsize=8.5,
+             color="#888888", style="italic", transform=fig.transFigure)
+
+
+def _x_tick_positions(n: int, step: int) -> list[int]:
+    return list(range(0, n, step))
+
+
+def _render_line_chart(
+    title: str,
+    data: list[dict],
+    x_key: str,
+    series: list[dict],
+    y_label: str,
+    y_format: str,
+    caption: str,
+) -> io.BytesIO:
+    xs = [str(p[x_key]) for p in data]
+    multi = len(series) > 1
+    bottom_pad = 0.12 if caption else 0
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    for i, s in enumerate(series):
+        ys = [float(p[s["y_key"]]) for p in data]
+        color = _CHART_COLORS[i % len(_CHART_COLORS)]
+        ax.plot(xs, ys, color=color, linewidth=2, label=s.get("label", ""))
+        if not multi:
+            ax.fill_between(range(len(xs)), ys, alpha=0.12, color=color)
+
+    step = max(1, len(xs) // 6)
+    ax.set_xticks(_x_tick_positions(len(xs), step))
+    ax.set_xticklabels([xs[i] for i in _x_tick_positions(len(xs), step)],
+                       rotation=30, ha="right", fontsize=9)
+
+    ax.yaxis.set_major_formatter(_y_formatter(y_format))
+    if y_label:
+        ax.set_ylabel(y_label, fontsize=10)
+    ax.set_title(title, fontsize=13, fontweight="bold", pad=12)
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    if multi:
+        ax.legend(fontsize=9, frameon=False)
+
+    fig.tight_layout(rect=[0, bottom_pad, 1, 1])
+    if caption:
+        _add_caption(fig, caption)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+def _render_bar_chart(
+    title: str,
+    data: list[dict],
+    x_key: str,
+    y_key: str,
+    y_label: str,
+    y_format: str,
+    caption: str,
+) -> io.BytesIO:
+    xs = [str(p[x_key]) for p in data]
+    ys = [float(p[y_key]) for p in data]
+    bottom_pad = 0.12 if caption else 0
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.bar(range(len(xs)), ys, color=_CHART_COLORS[0], width=0.7)
+
+    step = max(1, len(xs) // 8)
+    ax.set_xticks(_x_tick_positions(len(xs), step))
+    ax.set_xticklabels([xs[i] for i in _x_tick_positions(len(xs), step)],
+                       rotation=30, ha="right", fontsize=9)
+
+    ax.yaxis.set_major_formatter(_y_formatter(y_format))
+    if y_label:
+        ax.set_ylabel(y_label, fontsize=10)
+    ax.set_title(title, fontsize=13, fontweight="bold", pad=12)
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    fig.tight_layout(rect=[0, bottom_pad, 1, 1])
+    if caption:
+        _add_caption(fig, caption)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+def _render_donut_chart(
+    title: str,
+    data: list[dict],
+    label_key: str,
+    value_key: str,
+    caption: str,
+) -> io.BytesIO:
+    labels = [str(p[label_key]) for p in data]
+    values = [float(p[value_key]) for p in data]
+    bottom_pad = 0.12 if caption else 0
+
+    fig, ax = plt.subplots(figsize=(8, 7))
+    wedges, texts, autotexts = ax.pie(
+        values,
+        labels=None,
+        autopct=lambda pct: f"{pct:.1f}%" if pct >= 3 else "",
+        startangle=90,
+        pctdistance=0.78,
+        wedgeprops={"width": 0.5, "edgecolor": "white", "linewidth": 1.5},
+        colors=_CHART_COLORS[: len(values)],
+    )
+    for t in autotexts:
+        t.set_fontsize(9)
+
+    ax.legend(wedges, labels, loc="lower center", bbox_to_anchor=(0.5, -0.08),
+              ncol=2, fontsize=9, frameon=False)
+    ax.set_title(title, fontsize=13, fontweight="bold", pad=12)
+
+    fig.tight_layout(rect=[0, bottom_pad, 1, 1])
+    if caption:
+        _add_caption(fig, caption)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+def _execute_generate_chart(inputs: dict) -> Any:
+    chart_type = inputs.get("chart_type")
+    title = inputs.get("title", "")
+    data = inputs.get("data", [])
+    caption = inputs.get("caption", "")
+    y_format = inputs.get("y_format", "number")
+
+    if not data:
+        return {"error": "data array is empty — fetch data first with another tool."}
+
+    try:
+        if chart_type == "line":
+            x_key = inputs.get("x_key")
+            if not x_key:
+                return {"error": "x_key is required for a line chart."}
+            # Accept either series array or legacy single y_key
+            raw_series = inputs.get("series")
+            if not raw_series:
+                y_key = inputs.get("y_key")
+                if not y_key:
+                    return {"error": "Either 'series' or 'y_key' is required for a line chart."}
+                raw_series = [{"label": "", "y_key": y_key}]
+            buf = _render_line_chart(title, data, x_key, raw_series,
+                                     inputs.get("y_label", ""), y_format, caption)
+        elif chart_type == "bar":
+            x_key = inputs.get("x_key")
+            y_key = inputs.get("y_key")
+            if not x_key or not y_key:
+                return {"error": "x_key and y_key are required for a bar chart."}
+            buf = _render_bar_chart(title, data, x_key, y_key,
+                                    inputs.get("y_label", ""), y_format, caption)
+        elif chart_type == "donut":
+            label_key = inputs.get("label_key")
+            value_key = inputs.get("value_key")
+            if not label_key or not value_key:
+                return {"error": "label_key and value_key are required for a donut chart."}
+            buf = _render_donut_chart(title, data, label_key, value_key, caption)
+        else:
+            return {"error": f"Unknown chart_type '{chart_type}'. Use 'line', 'bar', or 'donut'."}
+    except (KeyError, ValueError, TypeError) as exc:
+        return {"error": f"Chart rendering failed: {exc}"}
+
+    chart_id = uuid.uuid4().hex[:8]
+    _pending_charts[chart_id] = buf.read()
+    return {"success": True, "chart_id": chart_id, "description": f"{chart_type} chart: {title}"}
+
+
+def pop_pending_charts() -> list[bytes]:
+    """Return and clear any charts rendered during the current request."""
+    charts = list(_pending_charts.values())
+    _pending_charts.clear()
+    return charts
+
+
+# ---------------------------------------------------------------------------
 # DuckDB fallback executor
 # ---------------------------------------------------------------------------
 
@@ -187,6 +423,7 @@ _EXECUTORS = {
     "list_funds": _execute_list_funds,
     "get_fund_performance": _execute_get_fund_performance,
     "list_transactions": _execute_list_transactions,
+    "generate_chart": _execute_generate_chart,
     "query_database": _execute_query_database,
 }
 

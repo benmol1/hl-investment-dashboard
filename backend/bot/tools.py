@@ -68,7 +68,8 @@ TOOLS = [
             "Get portfolio investment return (Modified Dietz, contribution-adjusted) indexed to 100 "
             "at the start date, plus FTSE100/S&P500/NASDAQ benchmarks indexed to the same start. "
             "Also returns trailing 12m and 36m Sharpe ratios. Use for questions about returns, "
-            "performance vs benchmarks, or risk-adjusted performance."
+            "performance vs benchmarks, or risk-adjusted performance. "
+            "Set full_series=true when you intend to pass the data to generate_chart."
         ),
         "input_schema": {
             "type": "object",
@@ -79,6 +80,10 @@ TOOLS = [
                     "type": "string",
                     "enum": ["ISA", "SIPP"],
                     "description": "Filter to a single account. Omit for combined view.",
+                },
+                "full_series": {
+                    "type": "boolean",
+                    "description": "If true, return the full monthly series for all lines instead of just start/end summaries. Required when passing data to generate_chart.",
                 },
             },
         },
@@ -166,6 +171,75 @@ TOOLS = [
                 "page": {"type": "integer", "description": "Page number (default 1)."},
                 "per_page": {"type": "integer", "description": "Results per page (default 50, max 200)."},
             },
+        },
+    },
+    {
+        "name": "generate_chart",
+        "description": (
+            "Render a chart as an image and send it to the user. Call this AFTER fetching data "
+            "with another tool. Supported types: 'line' (time series, supports multiple series), "
+            "'bar' (vertical bars, single series), 'donut' (allocation pie)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "chart_type": {
+                    "type": "string",
+                    "enum": ["line", "bar", "donut"],
+                    "description": "'line' for time-series; 'bar' for vertical bar chart; 'donut' for allocation.",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Chart title shown at the top.",
+                },
+                "caption": {
+                    "type": "string",
+                    "description": "Optional small subtitle shown below the chart, e.g. 'Indexed to 100 at start date' or 'Source: Morningstar'.",
+                },
+                "data": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "Flat array of data point objects already fetched from another tool.",
+                },
+                "x_key": {
+                    "type": "string",
+                    "description": "(line, bar) Key in each data object to use as the x-axis (usually a date string).",
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "label": {"type": "string", "description": "Legend label for this series."},
+                            "y_key": {"type": "string", "description": "Key in each data object for this series' y values."},
+                        },
+                        "required": ["label", "y_key"],
+                    },
+                    "description": "(line) One entry per line to draw. Use multiple entries for a comparison chart, e.g. portfolio vs benchmarks.",
+                },
+                "y_key": {
+                    "type": "string",
+                    "description": "(bar, or line shorthand for a single unlabelled series) Key for y-axis values.",
+                },
+                "y_label": {
+                    "type": "string",
+                    "description": "(line, bar) Label for the y-axis.",
+                },
+                "y_format": {
+                    "type": "string",
+                    "enum": ["number", "currency", "percent"],
+                    "description": "How to format y-axis tick labels. 'currency' adds £ and rounds to whole pounds. 'percent' appends %. Default: 'number'.",
+                },
+                "label_key": {
+                    "type": "string",
+                    "description": "(donut) Key in each data object to use as the slice label.",
+                },
+                "value_key": {
+                    "type": "string",
+                    "description": "(donut) Key in each data object to use as the slice value.",
+                },
+            },
+            "required": ["chart_type", "data"],
         },
     },
     {
