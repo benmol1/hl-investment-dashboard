@@ -9,11 +9,12 @@ saved session should be trusted by HL and OTP won't be requested again.
 
 How to find your account IDs:
   Log in to hl.co.uk, go to your ISA/SIPP, click "Transaction history",
-  then export to CSV. The URL will contain /account/XXXXXX/ — that number is
+  then export to CSV. The URL will contain /account/XX/ — that number is
   your account ID.
 
 Required env vars:
     HL_USERNAME          HL client number (on your statements)
+    HL_DATE_OF_BIRTH     Date of birth in DDMMYY format (e.g. 150590)
     HL_PASSWORD          Full HL password
     HL_SECURE_NUMBER     Full HL secure number (6-digit PIN)
     HL_ISA_ACCOUNT_ID    Numeric account ID for ISA
@@ -32,7 +33,6 @@ Optional:
 import asyncio
 import logging
 import os
-import re
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -63,67 +63,6 @@ def _require(name: str) -> str:
     return val
 
 
-def _parse_positions(label_text: str) -> list[int]:
-    """
-    Parse the character/digit position from an HL login label.
-    Handles ordinal forms ("1st", "3rd") and bare numbers.
-    Returns a list of 1-based integers.
-    """
-    nums = re.findall(r"\b(\d+)(?:st|nd|rd|th)?\b", label_text, re.IGNORECASE)
-    return [int(n) for n in nums if 1 <= int(n) <= 20]
-
-
-async def _fill_partial_inputs(page: Page, full_value: str) -> bool:
-    """
-    Fill the partial-entry character/digit inputs on an HL login page.
-
-    HL presents N single-character inputs, each paired with a label that
-    names the position (e.g. "3rd character of your password"). We parse the
-    position from the label and fill the corresponding character.
-
-    Returns True if at least one input was filled.
-    """
-    # Cast a wide net for single-char inputs — HL's exact class names may change
-    inputs = await page.locator(
-        "input[maxlength='1'], input[type='password'][maxlength='1'], "
-        "input[name*='letter'], input[name*='digit'], input[name*='character']"
-    ).all()
-
-    if not inputs:
-        return False
-
-    filled = 0
-    for inp in inputs:
-        # Try to get the label: check aria-label, then look for a nearby <label>
-        label_text = await inp.get_attribute("aria-label") or ""
-        if not label_text:
-            inp_id = await inp.get_attribute("id") or ""
-            inp_name = await inp.get_attribute("name") or ""
-            if inp_id:
-                lbl = page.locator(f"label[for='{inp_id}']")
-                if await lbl.count():
-                    label_text = await lbl.first.inner_text()
-            if not label_text and inp_name:
-                # Name often encodes the position, e.g. "online-password-letter-3"
-                label_text = inp_name
-
-        positions = _parse_positions(label_text)
-        if not positions:
-            logger.warning("Could not determine position from label %r — skipping input", label_text)
-            continue
-
-        pos = positions[0]
-        if pos > len(full_value):
-            logger.error("Position %d exceeds value length %d", pos, len(full_value))
-            continue
-
-        char = full_value[pos - 1]
-        await inp.fill(char)
-        logger.debug("Filled position %d", pos)
-        filled += 1
-
-    return filled > 0
-
 
 async def _is_logged_in(page: Page) -> bool:
     await page.goto(f"{_HL_BASE}/my-accounts/portfolio_overview", wait_until="domcontentloaded")
@@ -136,6 +75,7 @@ async def _login(page: Page) -> bool:
     Exits (or returns False) if an unexpected page is encountered.
     """
     username = _require("HL_USERNAME")
+    dob = _require("HL_DATE_OF_BIRTH")
     password = _require("HL_PASSWORD")
     secure_number = _require("HL_SECURE_NUMBER")
     otp = os.environ.get("HL_OTP", "").strip()
@@ -143,27 +83,50 @@ async def _login(page: Page) -> bool:
     logger.info("Starting HL login")
     await page.goto(f"{_HL_BASE}/my-accounts/login-step-one", wait_until="domcontentloaded")
 
-    # Step 1: username
+    # Step 1: username + date of birth
     username_field = page.locator("input#username, input[name='username']")
     if not await username_field.count():
         logger.error("Username field not found — HL page structure may have changed")
         return False
     await username_field.first.fill(username)
+
+    dob_field = page.locator("input[name*='birth'], input[id*='birth'], input[name*='dob'], input[id*='dob']")
+    if not await dob_field.count():
+        logger.error("Date of birth field not found — HL page structure may have changed")
+        return False
+    await dob_field.first.fill(dob)
+
     await page.locator("button[type='submit'], input[type='submit']").first.click()
     await page.wait_for_load_state("domcontentloaded")
-    logger.info("Username submitted; now at: %s", page.url)
+    logger.info("Username + DOB submitted; now at: %s", page.url)
 
-    # Step 2: partial password
-    if await _fill_partial_inputs(page, password):
-        await page.locator("button[type='submit'], input[type='submit']").first.click()
+    # Dismiss cookie consent banner if present
+    accept_btn = page.locator("button:has-text('Accept essential cookies only')")
+    if await accept_btn.count():
+        await accept_btn.first.click()
         await page.wait_for_load_state("domcontentloaded")
-        logger.info("Password step done; now at: %s", page.url)
+        logger.info("Cookie banner dismissed")
 
-    # Step 3: partial secure number
-    if await _fill_partial_inputs(page, secure_number):
-        await page.locator("button[type='submit'], input[type='submit']").first.click()
-        await page.wait_for_load_state("domcontentloaded")
-        logger.info("Secure number step done; now at: %s", page.url)
+    # Step 2: full password in a single input
+    password_field = page.locator("input[type='password'], input[name*='password'], input[id*='password']")
+    if not await password_field.count():
+        logger.error("Password field not found on step two — page structure may have changed")
+        return False
+    await password_field.first.fill(password)
+    logger.info("Password filled")
+
+    # Step 3: secure number — all 6 digits in DOM order
+    secure_inputs = await page.locator(".js-secure-number-input").all()
+    if len(secure_inputs) != 6:
+        logger.error("Expected 6 secure number inputs, found %d", len(secure_inputs))
+        return False
+    for i, inp in enumerate(secure_inputs):
+        await inp.evaluate(f"el => {{ el.removeAttribute('disabled'); el.value = '{secure_number[i]}'; el.dispatchEvent(new Event('input', {{bubbles: true}})); }}")
+    logger.info("Secure number filled")
+
+    await page.locator("button[type='submit'], input[type='submit']").first.click()
+    await page.wait_for_load_state("domcontentloaded")
+    logger.info("Step two submitted; now at: %s", page.url)
 
     # Step 4: SMS OTP — should not appear for trusted sessions; handle gracefully
     otp_field = page.locator(
