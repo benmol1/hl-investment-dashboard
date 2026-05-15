@@ -101,5 +101,12 @@ export interface DataFreshness {
   price_date: string | null        // ISO datetime string
 }
 
+export interface IngestLogEntry {
+  source: string
+  latest_data_date: string | null
+  last_successful_at: string | null
+  last_rows_imported_at: string | null
+}
+
 export type Account = 'ISA' | 'SIPP'
 export type Benchmark = 'FTSE100' | 'SP500' | 'NASDAQ'

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 import duckdb
 
 from app.db import get_db
-from app.models import TimeSeriesPoint, AllocationItem, ContributionPoint, PerformancePoint, PortfolioPerformanceResponse, SharpeRatios, HoldingItem, DataFreshness
+from app.models import TimeSeriesPoint, AllocationItem, ContributionPoint, PerformancePoint, PortfolioPerformanceResponse, SharpeRatios, HoldingItem, DataFreshness, IngestLogEntry
 
 router = APIRouter()
 
@@ -309,3 +309,38 @@ def portfolio_freshness(con: duckdb.DuckDBPyConnection = Depends(get_db)):
         transaction_date=tx[0] if tx else None,
         price_date=prices[0] if prices else None,
     )
+
+
+@router.get("/ingest-log", response_model=list[IngestLogEntry])
+def ingest_log_summary(con: duckdb.DuckDBPyConnection = Depends(get_db)):
+    def _log_stats(source: str):
+        last_successful = con.execute(
+            "SELECT MAX(run_at) FROM ingest_log WHERE source = ? AND status = 'success'",
+            (source,),
+        ).fetchone()[0]
+        last_rows_imported = con.execute(
+            "SELECT MAX(run_at) FROM ingest_log WHERE source = ? AND status = 'success' AND rows_inserted > 0",
+            (source,),
+        ).fetchone()[0]
+        return last_successful, last_rows_imported
+
+    tx_last_successful, tx_last_rows = _log_stats("transactions")
+    tx_latest_date = con.execute("SELECT MAX(trade_date) FROM transactions").fetchone()[0]
+
+    pr_last_successful, pr_last_rows = _log_stats("prices")
+    pr_latest_date = con.execute("SELECT MAX(date) FROM prices").fetchone()[0]
+
+    return [
+        IngestLogEntry(
+            source="transactions",
+            latest_data_date=tx_latest_date,
+            last_successful_at=tx_last_successful,
+            last_rows_imported_at=tx_last_rows,
+        ),
+        IngestLogEntry(
+            source="prices",
+            latest_data_date=pr_latest_date,
+            last_successful_at=pr_last_successful,
+            last_rows_imported_at=pr_last_rows,
+        ),
+    ]
