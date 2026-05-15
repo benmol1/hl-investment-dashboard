@@ -300,10 +300,10 @@ def portfolio_holdings(
 @router.get("/freshness", response_model=DataFreshness)
 def portfolio_freshness(con: duckdb.DuckDBPyConnection = Depends(get_db)):
     tx = con.execute(
-        "SELECT MAX(run_at) FROM ingest_log WHERE source = 'transactions' AND status = 'success'"
+        "SELECT MAX(run_at) FROM ingest_log WHERE source = 'transactions' AND status = 'success' AND rows_inserted > 0"
     ).fetchone()
     prices = con.execute(
-        "SELECT MAX(run_at) FROM ingest_log WHERE source = 'prices' AND status = 'success'"
+        "SELECT MAX(run_at) FROM ingest_log WHERE source = 'prices' AND status = 'success' AND rows_inserted > 0"
     ).fetchone()
     return DataFreshness(
         transaction_date=tx[0] if tx else None,
