@@ -62,15 +62,6 @@
 - [x] All pages wired to FastAPI endpoints via `/api` Vite proxy
 - [x] ISA / SIPP / All account filter on Overview, Contributions, Benchmarks, Holdings
 
-**To run locally:**
-```bash
-# Terminal 1 — backend (PYTHONPATH puts backend/ on sys.path so 'from app.xxx import' works)
-PYTHONPATH=backend uv run uvicorn app.main:app --reload --port 8000
-
-# Terminal 2 — frontend dev server
-cd frontend && npm run dev
-```
-
 ---
 
 ## Phase 4 — dbt Data Layer ✅ COMPLETE
@@ -87,15 +78,6 @@ cd frontend && npm run dev
 - [x] Review data model end-to-end. Polish, make improvements and align it with Kimball style (surrogate keeys used for joins; more explicit column names)
 - [x] Understand and calculate Sharpe ratios for each account + benchmarks
 - [x] Add a short_name to dim_fund
-
-
-**To run dbt:**
-```bash
-cd dbt
-dbt seed --profiles-dir .   # load dim_date (first time only)
-dbt run  --profiles-dir .   # build all models
-dbt test --profiles-dir .   # run all 112 tests
-```
 
 ---
 
@@ -124,7 +106,7 @@ Three Docker services, one shared bind mount:
 | Service | Image | Role |
 |---------|-------|------|
 | `backend` | Python slim + uv | FastAPI/uvicorn — read-only API server |
-| `cron` | same as backend | Runs `fetch_prices.py` + `dbt build` daily at 18:00 |
+| `cron` | same as backend | Runs the refresh of prices and transactions |
 | `frontend` | Nginx alpine | Serves Vite build; proxies `/api/*` → backend |
 
 - **DuckDB + data**: bind-mounted from `/srv/hl-dashboard/data/` on the Pi into both `backend` and `cron` containers. New HL CSV exports are dropped into `/srv/hl-dashboard/data/imports/raw_transactions/{ISA,SIPP}/` directly on the Pi filesystem.
