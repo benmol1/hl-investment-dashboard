@@ -92,6 +92,13 @@ class DataFreshness(BaseModel):
     price_date: Optional[datetime]
 
 
+class IngestLogEntry(BaseModel):
+    source: str
+    latest_data_date: Optional[date]
+    last_successful_at: Optional[datetime]
+    last_rows_imported_at: Optional[datetime]
+
+
 class SharpeRatios(BaseModel):
     trailing_12m: Optional[float]
     trailing_36m: Optional[float]
