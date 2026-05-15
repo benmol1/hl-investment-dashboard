@@ -100,6 +100,16 @@ def _monthly_summary() -> str:
         return ""
 
 
+def weekly_download() -> None:
+    # Download fresh CSVs from HL. Runs weekly (Sunday 00:00) so the daily
+    # refresh at 01:00 picks up the new files on Sunday morning.
+    # Skipped silently if HL_USERNAME is not configured.
+    if not os.environ.get("HL_USERNAME"):
+        return
+    if not _run("download_transactions.py", [sys.executable, str(_SCRIPTS_DIR / "download_transactions.py")]):
+        return  # failure notification already sent
+
+
 def daily_refresh() -> None:
     today = date.today()
     failures = []
@@ -131,7 +141,8 @@ def daily_refresh() -> None:
 if __name__ == "__main__":
     scheduler = BlockingScheduler()
     scheduler.add_job(daily_refresh, "cron", hour=1, minute=0, id="daily_refresh")
-    logger.info("Cron scheduler started — daily refresh at 01:00")
+    scheduler.add_job(weekly_download, "cron", day_of_week="sun", hour=0, minute=0, id="weekly_download")
+    logger.info("Cron scheduler started — daily refresh at 01:00, HL download Sundays at 00:00")
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):

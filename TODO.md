@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-05-15 07:15*
+*Last updated: 2026-05-15 10:57*
 
 ---
 
@@ -182,18 +182,18 @@ Three Docker services, one shared bind mount:
 
 ---
 
-## Phase 9 — Refresh Automation ⏳ IN PROGRESS
+## Phase 9 — Refresh Automation ✅ COMPLETE
 
 ### Basic — shared drop folder ✅ COMPLETE
 
 - [x] Set up a shared network folder on the Pi (e.g. via Samba) so HL CSV exports can be dropped directly from any device on the home network without using `scp`
 - [x] The existing daily cron job already picks up files from the drop folders automatically — no further changes needed once the share is in place
 
-### Advanced — automated HL download (research spike)
+### Advanced — automated HL download ✅ COMPLETE
 
-- [ ] Research using [BrowserUse](https://github.com/browser-use/browser-use) to automate logging in to the HL website and downloading transaction CSVs on a schedule
-- [ ] Investigate credential security options — e.g. storing the HL password in a secrets manager or using a read-only HL API key if one exists, to avoid hardcoding credentials in config
-- [ ] If viable, wire the downloader into `backend/cron.py` as the first step before `ingest_transactions.py`
+- [x] Research using [BrowserUse](https://github.com/browser-use/browser-use) to automate logging in to the HL website and downloading transaction CSVs on a schedule — pivoted to Playwright directly; working end-to-end
+- [x] Investigate credential security options — decided `.env` file (gitignored, Pi-only) is sufficient for a private home server behind Tailscale; Docker secrets would be overkill
+- [x] If viable, wire the downloader into `backend/cron.py` as the first step before `ingest_transactions.py`
 
 ### Ingestion Monitoring ✅ COMPLETE
 
