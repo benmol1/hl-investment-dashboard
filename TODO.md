@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-05-14 20:15*
+*Last updated: 2026-05-15*
 
 ---
 
@@ -195,6 +195,7 @@ Three Docker services, one shared bind mount:
 - [x] Round all monetary values in the Holdings table to the nearest pound (no pennies)
 - [x] Make all columns in the Holdings table sortable (name, value, cost basis, unrealised gain, weight, etc.)
 - [x] Include cash balances alongside fund holdings in the Holdings table
+- [x] Fix browser tab title (was "frontend", now "HL Dashboard")
 
 ---
 
@@ -210,6 +211,11 @@ Three Docker services, one shared bind mount:
 - [ ] Research using [BrowserUse](https://github.com/browser-use/browser-use) to automate logging in to the HL website and downloading transaction CSVs on a schedule
 - [ ] Investigate credential security options — e.g. storing the HL password in a secrets manager or using a read-only HL API key if one exists, to avoid hardcoding credentials in config
 - [ ] If viable, wire the downloader into `backend/cron.py` as the first step before `ingest_transactions.py`
+
+### Ingestion Monitoring ✅ COMPLETE
+
+- [x] Fix data freshness endpoint (`GET /portfolio/freshness`) to only surface the most recent run where rows were actually inserted (`rows_inserted > 0`), so a no-op run doesn't advance the displayed timestamp
+- [x] Add Data Ingestion Log page (`/ingest-log`) — table with one row per source (transactions, prices) showing: latest data date, timestamp of last successful run, and timestamp of last run where rows were imported
 
 ### Cron Fixes ✅ COMPLETE
 
