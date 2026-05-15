@@ -10,7 +10,7 @@ const navItems = [
   { to: '/benchmarks', label: 'Benchmarks' },
   { to: '/holdings', label: 'Current Holdings' },
   { to: '/transactions', label: 'Transactions' },
-  { to: '/ingest-log', label: 'Ingest Log' },
+  { to: '/ingest-log', label: 'Data Ingestion Log' },
 ]
 
 const fmtDate = (iso: string | null) => {
