@@ -13,6 +13,7 @@
 - [x] Write `backend/scripts/ingest_transactions.py` — parses HL CSVs, classifies all transaction types (BUY, SELL, SWITCH, CONTRIBUTION, FEE, REBATE, etc.), links trades to funds, upserts with deduplication
 - [x] Write `backend/scripts/fetch_prices.py` — Morningstar NAV history + yfinance benchmark indices (FTSE 100, S&P 500, Nasdaq)
 - [x] Smoke-tested against ISA transaction CSV: 491/491 rows loaded, 0 unlinked fund trades
+- [ ] Figure out why the SIPP cash balance matches reality, but the ISA one does not
 
 ---
 
