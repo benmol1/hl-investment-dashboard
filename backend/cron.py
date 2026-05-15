@@ -104,6 +104,13 @@ def daily_refresh() -> None:
     today = date.today()
     failures = []
 
+    # Download fresh CSVs from HL before ingestion.
+    # Skipped silently if HL_USERNAME is not configured (e.g. manual-drop workflow).
+    if os.environ.get("HL_USERNAME"):
+        if not _run("download_transactions.py", [sys.executable, str(_SCRIPTS_DIR / "download_transactions.py")]):
+            failures.append("download_transactions.py")
+            return  # no point ingesting stale data if the download failed
+
     if not _run("ingest_transactions.py", [sys.executable, str(_SCRIPTS_DIR / "ingest_transactions.py")]):
         failures.append("ingest_transactions.py")
 

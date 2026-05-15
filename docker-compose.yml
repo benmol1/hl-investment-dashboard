@@ -14,15 +14,19 @@ services:
   cron:
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: cron/Dockerfile
     restart: unless-stopped
     volumes:
       - ${DATA_DIR:-/srv/hl-dashboard/data}:/app/data
       - *localtime
-    command: ["/app/.venv/bin/python", "backend/cron.py"]
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - HL_USERNAME=${HL_USERNAME}
+      - HL_PASSWORD=${HL_PASSWORD}
+      - HL_SECURE_NUMBER=${HL_SECURE_NUMBER}
+      - HL_ISA_ACCOUNT_ID=${HL_ISA_ACCOUNT_ID}
+      - HL_SIPP_ACCOUNT_ID=${HL_SIPP_ACCOUNT_ID}
 
   bot:
     build:
