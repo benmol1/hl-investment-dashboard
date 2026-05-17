@@ -4,7 +4,8 @@ models:
   - name: dim_date
     description: >
       Date dimension covering 2016 onwards, with UK financial year grouping.
-
+      
+      **Table type**: Dimension
       **Grain**: One row per calendar date
       **Update Frequency**: Static — regenerate seed CSV to extend coverage
       **Source**: seed_date

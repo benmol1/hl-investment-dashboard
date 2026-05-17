@@ -5,8 +5,9 @@ models:
     description: >
       Atomic event fact table recording every HL investment transaction.
 
+      **Table type**: Fact - transaction
       **Grain**: One row per transaction_id
-      **Update Frequency**: Daily (after HL export ingest)
+      **Update Frequency**: Weekly (after ingest_transactions)
       **Source**: base__hl_transactions joined to dim_account and dim_fund
     columns:
       - name: transaction_id

@@ -6,6 +6,7 @@ models:
       Periodic snapshot fact table recording the month-end index level for each benchmark.
       One row per (index_id, year_month), aggregated from daily closes in base__hl_benchmarks.
 
+      **Table type**: Fact - periodic snapshot
       **Grain**: One row per (index_id, year_month)
       **Update Frequency**: Daily (after benchmark price ingest)
       **Source**: base__hl_benchmarks joined to dim_date

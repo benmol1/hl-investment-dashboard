@@ -5,6 +5,7 @@ models:
     description: >
       Fund dimension. One row per fund.
 
+      **Table type**: Dimension
       **Grain**: One row per fund_id (ISIN)
       **Update Frequency**: Updated when new funds are added to the portfolio
       **Source**: hl_dashboard.funds

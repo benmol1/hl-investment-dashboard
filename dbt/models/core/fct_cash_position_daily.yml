@@ -5,8 +5,9 @@ models:
     description: >
       Aggregate periodic snapshot fact recording daily cash movements per account.
 
+      **Table type**: Fact - periodic snapshot
       **Grain**: One row per (account_key, date_key)
-      **Update Frequency**: Daily (after transaction ingest)
+      **Update Frequency**: Weekly (after transaction ingest)
       **Source**: fct_transactions aggregated via dim_transaction_type indicators
 
       Cash movements are split into three buckets:

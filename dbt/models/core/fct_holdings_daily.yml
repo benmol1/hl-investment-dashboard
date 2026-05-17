@@ -7,9 +7,9 @@ models:
       Each row represents one holding — either a fund position or a cash balance — for
       a given account on a given day.
 
+      **Table type**: Fact - periodic snapshot
       **Grain**: One row per (account_key, fund_key, date_key, holding_type).
-      fund_key is NULL for Cash rows; dbt_utils hashes NULL as an empty string so
-      the uniqueness test handles both subtypes correctly without special filtering.
+      NB: fund_key is NULL for Cash rows
       **Update Frequency**: Daily (after price ingest)
       **Source**: int_fund_values_daily (fund rows); int_cash_values_daily (cash rows)
 

@@ -5,6 +5,7 @@ models:
     description: >
       Junk dimension of distinct transaction classification combinations.
 
+      **Table type**: Dimension
       **Grain**: One row per (transaction_type, transaction_subtype) combination
       **Update Frequency**: Static in practice — only changes if new transaction types are introduced
       **Source**: Derived from distinct values in base__hl_transactions

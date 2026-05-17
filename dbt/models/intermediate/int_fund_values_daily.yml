@@ -11,6 +11,7 @@ models:
       most-recent-available price. Rows where units_held <= 0.0001 are excluded
       to filter rounding errors from recently-closed positions.
 
+      **Table type**: Intermediate - periodic snapshot
       **Grain**: One row per (account_key, fund_key, date_key)
       **Source**: fct_transactions, dim_date, dim_transaction_type, fct_fund_prices_daily
     columns:

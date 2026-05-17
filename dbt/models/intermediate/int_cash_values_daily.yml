@@ -10,6 +10,7 @@ models:
       cash balance from fct_cash_position_daily via ASOF join. Dates before the
       first cash movement carry a balance of zero.
 
+      **Table type**: Intermediate - periodic snapshot
       **Grain**: One row per (account_key, date_key)
       **Source**: dim_account, dim_date, fct_cash_position_daily
     columns:

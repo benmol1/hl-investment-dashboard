@@ -5,6 +5,7 @@ models:
     description: >
       Account dimension. One row per account (ISA, SIPP).
 
+      **Table type**: Dimension
       **Grain**: One row per account_name
       **Update Frequency**: Static — only two accounts exist
       **Source**: hl_dashboard.accounts

@@ -5,6 +5,7 @@ models:
     description: >
       Periodic snapshot fact table recording the end-of-day price for each fund.
 
+      **Table type**: Fact - periodic snapshot
       **Grain**: One row per fund per day (fund_key, date_key)
       **Update Frequency**: Daily (after price ingest)
       **Source**: base__hl_prices joined to dim_date, dim_fund
