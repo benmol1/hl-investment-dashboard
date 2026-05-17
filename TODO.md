@@ -239,3 +239,10 @@ Two motivations: (1) a demo/dummy dataset so the app can be shown to others with
 - [ ] Decide whether to expose the app publicly (requires HTTPS — e.g. Caddy reverse proxy with Let's Encrypt) or keep it Tailscale-only (simpler, no public exposure).
 
 ---
+
+## Miscellaneous
+
+- [ ] Rename all dbt models to use a consistent underscore suffix convention (e.g. `transactions_stg`, `daily_holdings_fct`, `daily_portfolio_value_mart`, `fund_dim`) — currently a mix of prefix styles (`stg_`, `int_`, `mart_`, `dim_`, `fct_`) is in use.
+- [ ] Update the custom Kimball-style dbt skill so that new models it generates automatically follow the underscore suffix naming convention.
+
+---
