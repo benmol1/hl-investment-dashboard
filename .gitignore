@@ -37,3 +37,6 @@ Thumbs.db
 
 # Claude Code project instructions — kept local, not for public repo
 CLAUDE.md
+
+# Website session data
+data/hl_session.json
