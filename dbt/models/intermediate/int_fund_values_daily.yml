@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: int_daily_fund_values
+  - name: int_fund_values_daily
     description: >
       Private intermediate model. One row per (account_key, fund_key, date_key) for
       every calendar date on which a positive unit balance is held.

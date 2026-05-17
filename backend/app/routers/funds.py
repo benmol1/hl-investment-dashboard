@@ -59,7 +59,7 @@ def fund_performance(
     # Monthly fund price at each calendar month-end date
     fund_sql = """
     SELECT dd.date, idv.fund_price_gbp
-    FROM int_daily_fund_values idv
+    FROM int_fund_values_daily idv
     INNER JOIN dim_date dd ON dd.date_key = idv.date_key
     INNER JOIN dim_fund df ON df.fund_key = idv.fund_key
     WHERE df.fund_id = ?

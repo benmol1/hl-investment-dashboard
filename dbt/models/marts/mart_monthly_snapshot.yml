@@ -8,7 +8,7 @@ models:
       joined to dim_date.
 
       month_end_value_gbp reflects total portfolio value including cash holdings
-      (funds + cash), sourced from fct_daily_holdings on dates where
+      (funds + cash), sourced from fct_holdings_daily on dates where
       dim_date.month_end_indicator = 'Month End'.
 
       Contributions and fund purchases are sourced from fct_transactions,
@@ -16,7 +16,7 @@ models:
 
       **Grain**: One row per (account_name, year_month)
       **Update Frequency**: Daily
-      **Sources**: fct_daily_holdings, fct_transactions, dim_account, dim_date, dim_transaction_type
+      **Sources**: fct_holdings_daily, fct_transactions, dim_account, dim_date, dim_transaction_type
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

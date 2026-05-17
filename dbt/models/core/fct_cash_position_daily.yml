@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: fct_daily_cash_position
+  - name: fct_cash_position_daily
     description: >
       Aggregate periodic snapshot fact recording daily cash movements per account.
 

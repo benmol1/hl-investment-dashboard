@@ -13,6 +13,6 @@ select
     ads.account_key,
     coalesce(cp.cash_balance_gbp, 0) as value_gbp
 from account_date_spine ads
-asof left join {{ ref('fct_daily_cash_position') }} cp
+asof left join {{ ref('fct_cash_position_daily') }} cp
     on  cp.account_key = ads.account_key
     and cp.date_key   <= ads.date_key

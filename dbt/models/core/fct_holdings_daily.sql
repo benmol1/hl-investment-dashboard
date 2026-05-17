@@ -6,7 +6,7 @@ select
     units_held,
     fund_price_gbp,
     value_gbp
-from {{ ref('int_daily_fund_values') }}
+from {{ ref('int_fund_values_daily') }}
 
 union all
 
@@ -18,4 +18,4 @@ select
     null           as units_held,
     null           as fund_price_gbp,
     value_gbp
-from {{ ref('int_daily_cash_values') }}
+from {{ ref('int_cash_values_daily') }}

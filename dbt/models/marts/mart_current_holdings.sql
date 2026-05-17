@@ -2,7 +2,7 @@ with
 -- Most recent date for which fund we have at least 1 fund holding.
 latest_date_key as (
     select max(date_key) as date_key
-    from {{ ref('fct_daily_holdings') }}
+    from {{ ref('fct_holdings_daily') }}
     where holding_type = 'Fund'
 ),
 
@@ -15,7 +15,7 @@ current_holdings as (
         fdh.units_held,
         fdh.fund_price_gbp,
         fdh.value_gbp
-    from {{ ref('fct_daily_holdings') }} fdh
+    from {{ ref('fct_holdings_daily') }} fdh
     inner join latest_date_key ldk on ldk.date_key = fdh.date_key
     inner join {{ ref('dim_date') }}    dd  on dd.date_key    = fdh.date_key
     where fdh.holding_type = 'Fund'

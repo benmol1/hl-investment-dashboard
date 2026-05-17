@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: fct_daily_holdings
+  - name: fct_holdings_daily
     description: >
       Periodic snapshot fact table recording daily portfolio holdings per account.
       Each row represents one holding — either a fund position or a cash balance — for
@@ -11,7 +11,7 @@ models:
       fund_key is NULL for Cash rows; dbt_utils hashes NULL as an empty string so
       the uniqueness test handles both subtypes correctly without special filtering.
       **Update Frequency**: Daily (after price ingest)
-      **Source**: int_daily_fund_values (fund rows); int_daily_cash_values (cash rows)
+      **Source**: int_fund_values_daily (fund rows); int_cash_values_daily (cash rows)
 
       holding_type distinguishes the two subtypes: 'Fund' rows have fund_key, units_held,
       and fund_price_gbp populated; 'Cash' rows have these set to NULL. value_gbp is the

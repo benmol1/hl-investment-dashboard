@@ -8,7 +8,7 @@ models:
 
       **Grain**: One row per (account_name, valuation_date)
       **Update Frequency**: Daily (after price ingest)
-      **Source**: fct_daily_holdings joined to dim_account, dim_date
+      **Source**: fct_holdings_daily joined to dim_account, dim_date
 
       The API queries this with an optional account_name filter and a date range;
       for the "All accounts" view it sums across both ISA and SIPP.

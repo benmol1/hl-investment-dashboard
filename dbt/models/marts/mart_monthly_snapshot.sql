@@ -20,7 +20,7 @@ month_end_values as (
         dd.year_month,
         dd.date                as month_end_date,
         sum(fdh.value_gbp)     as month_end_value_gbp
-    from {{ ref('fct_daily_holdings') }} fdh
+    from {{ ref('fct_holdings_daily') }} fdh
     inner join {{ ref('dim_date') }} dd on dd.date_key = fdh.date_key
     where dd.month_end_indicator = 'Month End'
     group by fdh.account_key, dd.year_month, dd.date

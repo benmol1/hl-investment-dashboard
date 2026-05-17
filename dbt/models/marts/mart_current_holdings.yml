@@ -8,7 +8,7 @@ models:
 
       **Grain**: One row per (account_name, fund_name)
       **Update Frequency**: Daily (after price ingest and dbt run)
-      **Source**: fct_daily_holdings, fct_transactions, dim_account, dim_fund, dim_transaction_type
+      **Source**: fct_holdings_daily, fct_transactions, dim_account, dim_fund, dim_transaction_type
 
       Cost basis is calculated as total buy cost (BUY + SWITCH_IN) minus total sell
       proceeds (SELL + SWITCH_OUT), floored at zero.  Unrealised gain is market value

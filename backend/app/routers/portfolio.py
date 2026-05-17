@@ -42,7 +42,7 @@ def portfolio_allocation(
 ):
     if as_of is None:
         result = con.execute(
-            "SELECT MAX(dd.date) FROM fct_daily_holdings fdh INNER JOIN dim_date dd ON dd.date_key = fdh.date_key"
+            "SELECT MAX(dd.date) FROM fct_holdings_daily fdh INNER JOIN dim_date dd ON dd.date_key = fdh.date_key"
         ).fetchone()
         as_of = result[0] if result and result[0] else date.today()
 
@@ -51,7 +51,7 @@ def portfolio_allocation(
     sql = f"""
     WITH target_date AS (
         SELECT MAX(fdh.date_key) AS date_key
-        FROM fct_daily_holdings fdh
+        FROM fct_holdings_daily fdh
         INNER JOIN dim_date dd ON dd.date_key = fdh.date_key
         WHERE fdh.holding_type = 'Fund'
           AND dd.date <= ?
@@ -64,7 +64,7 @@ def portfolio_allocation(
         MAX(fdh.fund_price_gbp)    AS price_gbp,
         SUM(fdh.value_gbp)         AS value_gbp,
         ROUND(SUM(fdh.value_gbp) / SUM(SUM(fdh.value_gbp)) OVER () * 100.0, 2) AS percentage
-    FROM fct_daily_holdings fdh
+    FROM fct_holdings_daily fdh
     INNER JOIN target_date td  ON td.date_key    = fdh.date_key
     INNER JOIN dim_fund    df  ON df.fund_key    = fdh.fund_key
     INNER JOIN dim_account da  ON da.account_key = fdh.account_key
@@ -251,7 +251,7 @@ def portfolio_holdings(
     cash_params: list = [account] if account else []
     cash_sql = f"""
     SELECT da.account_name, cp.cash_balance_gbp
-    FROM fct_daily_cash_position cp
+    FROM fct_cash_position_daily cp
     INNER JOIN dim_account da ON da.account_key = cp.account_key
     WHERE 1=1 {cash_account_filter}
     QUALIFY ROW_NUMBER() OVER (PARTITION BY cp.account_key ORDER BY cp.date_key DESC) = 1
