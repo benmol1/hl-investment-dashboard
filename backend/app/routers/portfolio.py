@@ -24,7 +24,7 @@ def portfolio_value(
 
     sql = f"""
     SELECT valuation_date AS date, SUM(portfolio_value_gbp) AS value_gbp
-    FROM mart_daily_portfolio_value
+    FROM mart_portfolio_value_daily
     WHERE valuation_date BETWEEN ? AND ?
     {account_filter}
     GROUP BY valuation_date
@@ -104,7 +104,7 @@ def contributions_vs_growth(
         SUM(portfolio_value_gbp)                                             AS portfolio_value,
         SUM(cumulative_contributions_gbp)                                    AS cumulative_contributions,
         ROUND(SUM(portfolio_value_gbp) - SUM(cumulative_contributions_gbp), 2) AS growth
-    FROM mart_portfolio_contributions
+    FROM mart_portfolio_contributions_daily
     WHERE valuation_date BETWEEN ? AND ?
     {account_filter}
     GROUP BY valuation_date
@@ -137,7 +137,7 @@ def portfolio_performance(
     if account:
         params.append(account)
 
-    # Compound monthly Modified Dietz returns from mart_portfolio_returns.
+    # Compound monthly Modified Dietz returns from mart_portfolio_returns_monthly.
     # Aggregate across accounts (sum weighted by BMV) when no account filter is applied.
     returns_sql = f"""
     SELECT
@@ -147,7 +147,7 @@ def portfolio_performance(
             ELSE SUM(monthly_return * (prev_month_end_value_gbp + 0.5 * month_contributions_gbp))
                  / SUM(prev_month_end_value_gbp + 0.5 * month_contributions_gbp)
         END AS monthly_return
-    FROM mart_portfolio_returns
+    FROM mart_portfolio_returns_monthly
     WHERE month_end_date BETWEEN ? AND ?
     {account_filter}
     GROUP BY month_end_date
@@ -169,7 +169,7 @@ def portfolio_performance(
     def bench_series(index_id: str) -> list[PerformancePoint]:
         rows = con.execute(
             """SELECT month_end_date, month_end_level
-               FROM mart_benchmarks
+               FROM mart_benchmarks_monthly
                WHERE index_id = ? AND month_end_date BETWEEN ? AND ?
                ORDER BY month_end_date""",
             [index_id, start_date, to_date],
@@ -187,8 +187,8 @@ def portfolio_performance(
             / NULLIF(SUM(CASE WHEN trailing_12m_sharpe IS NOT NULL THEN prev_month_end_value_gbp END), 0),
         SUM(trailing_36m_sharpe * prev_month_end_value_gbp)
             / NULLIF(SUM(CASE WHEN trailing_36m_sharpe IS NOT NULL THEN prev_month_end_value_gbp END), 0)
-    FROM mart_portfolio_returns
-    WHERE month_end_date = (SELECT MAX(month_end_date) FROM mart_portfolio_returns WHERE month_end_date <= ?)
+    FROM mart_portfolio_returns_monthly
+    WHERE month_end_date = (SELECT MAX(month_end_date) FROM mart_portfolio_returns_monthly WHERE month_end_date <= ?)
     {account_filter}
     """
     sharpe_params = [to_date] + ([account] if account else [])
@@ -196,8 +196,8 @@ def portfolio_performance(
 
     bench_sharpe_rows = con.execute(
         """SELECT index_id, trailing_12m_sharpe, trailing_36m_sharpe
-           FROM mart_benchmarks
-           WHERE year_month = (SELECT MAX(year_month) FROM mart_benchmarks WHERE month_end_date <= ?)""",
+           FROM mart_benchmarks_monthly
+           WHERE year_month = (SELECT MAX(year_month) FROM mart_benchmarks_monthly WHERE month_end_date <= ?)""",
         [to_date],
     ).fetchall()
     bench_sharpe = {r[0]: SharpeRatios(trailing_12m=r[1], trailing_36m=r[2]) for r in bench_sharpe_rows}

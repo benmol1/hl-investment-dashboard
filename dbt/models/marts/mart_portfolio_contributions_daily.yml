@@ -1,13 +1,13 @@
 version: 2
 
 models:
-  - name: mart_portfolio_contributions
+  - name: mart_portfolio_contributions_daily
     description: >
       Daily portfolio value alongside cumulative contributions per account.
 
       **Grain**: One row per (account_name, valuation_date)
       **Update Frequency**: Daily (after price ingest)
-      **Source**: mart_daily_portfolio_value; contributions derived inline from fct_transactions
+      **Source**: mart_portfolio_value_daily; contributions derived inline from fct_transactions
 
       The difference between portfolio_value_gbp and cumulative_contributions_gbp
       is the return attributable to investment performance rather than fresh capital.

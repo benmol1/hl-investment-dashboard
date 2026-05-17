@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: mart_monthly_snapshot
+  - name: mart_portfolio_snapshot_monthly
     description: >
       One row per (account, calendar month) from account opening through the
       last completed month. Spine is driven by dim_account.account_open_date

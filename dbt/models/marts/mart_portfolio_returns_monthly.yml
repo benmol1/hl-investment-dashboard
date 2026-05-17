@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: mart_portfolio_returns
+  - name: mart_portfolio_returns_monthly
     description: >
       One row per (account, calendar month), starting from the second month of
       data per account (the first month has no prior period and cannot produce a

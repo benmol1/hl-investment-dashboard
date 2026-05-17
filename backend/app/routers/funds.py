@@ -84,7 +84,7 @@ def fund_performance(
 
     bench_rows = con.execute(
         """SELECT index_id, month_end_date, month_end_level
-           FROM mart_benchmarks
+           FROM mart_benchmarks_monthly
            WHERE index_id IN ('FTSE100', 'SP500', 'NASDAQ')
              AND month_end_date BETWEEN ? AND ?
            ORDER BY index_id, month_end_date""",

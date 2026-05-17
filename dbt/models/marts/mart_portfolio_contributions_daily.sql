@@ -34,7 +34,7 @@ select
     coalesce(dc.contributed_today, 0)            as contributions_gbp,
     coalesce(cc.cumulative_contributions_gbp, 0) as cumulative_contributions_gbp
 
-from {{ ref('mart_daily_portfolio_value') }} pv
+from {{ ref('mart_portfolio_value_daily') }} pv
 left join daily_contributions dc
     on  dc.account_name      = pv.account_name
     and dc.contribution_date = pv.valuation_date

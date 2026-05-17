@@ -9,7 +9,7 @@ monthly_inputs as (
         month_end_value_gbp                                                         as emv,
         lag(month_end_value_gbp) over (partition by account_name order by year_month) as bmv,
         monthly_contributions_gbp                                                    as cf
-    from {{ ref('mart_monthly_snapshot') }}
+    from {{ ref('mart_portfolio_snapshot_monthly') }}
 ),
 
 -- Calculates Modified Dietz return for each month; nulls out the first month per account (no prior BMV).

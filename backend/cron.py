@@ -66,11 +66,11 @@ def _monthly_summary() -> str:
                 SELECT account_name, month_end_date, month_end_value_gbp,
                        monthly_contributions_gbp,
                        LAG(month_end_value_gbp) OVER (PARTITION BY account_name ORDER BY month_end_date) AS prev_value
-                FROM mart_monthly_snapshot
+                FROM mart_portfolio_snapshot_monthly
             )
             SELECT account_name, month_end_date, month_end_value_gbp, prev_value, monthly_contributions_gbp
             FROM ranked
-            WHERE month_end_date = (SELECT MAX(month_end_date) FROM mart_monthly_snapshot)
+            WHERE month_end_date = (SELECT MAX(month_end_date) FROM mart_portfolio_snapshot_monthly)
             ORDER BY account_name
         """).fetchall()
         con.close()

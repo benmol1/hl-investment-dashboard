@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: mart_daily_portfolio_value
+  - name: mart_portfolio_value_daily
     description: >
       Daily total portfolio value per account — the sum of all fund values for a
       given account on a given date.
