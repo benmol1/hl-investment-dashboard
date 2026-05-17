@@ -7,19 +7,19 @@ latest_date_key as (
 ),
 
 -- Fund positions on the latest date, excluding near-zero balances.
-current_holdings as (
+holdings_latest as (
     select
-        fdh.account_key,
-        fdh.fund_key,
+        fct_hd.account_key,
+        fct_hd.fund_key,
         dd.date   as valuation_date,
-        fdh.units_held,
-        fdh.fund_price_gbp,
-        fdh.value_gbp
-    from {{ ref('fct_holdings_daily') }} fdh
-    inner join latest_date_key ldk on ldk.date_key = fdh.date_key
-    inner join {{ ref('dim_date') }}    dd  on dd.date_key    = fdh.date_key
-    where fdh.holding_type = 'Fund'
-      and fdh.units_held   >= 0.01
+        fct_hd.units_held,
+        fct_hd.fund_price_gbp,
+        fct_hd.value_gbp
+    from {{ ref('fct_holdings_daily') }} fct_hd
+    inner join latest_date_key ldk on ldk.date_key = fct_hd.date_key
+    inner join {{ ref('dim_date') }}    dd  on dd.date_key    = fct_hd.date_key
+    where fct_hd.holding_type = 'Fund'
+      and fct_hd.units_held   >= 0.01
 ),
 
 -- Total amount invested per (account, fund) across all BUY and SWITCH_IN trades.
@@ -55,19 +55,19 @@ valued as (
     select
         da.account_name,
         df.fund_name,
-        ch.valuation_date,
-        ch.units_held,
-        ch.fund_price_gbp,
-        ch.value_gbp,
+        hl.valuation_date,
+        hl.units_held,
+        hl.fund_price_gbp,
+        hl.value_gbp,
         greatest(
             coalesce(bc.total_cost_gbp, 0) - coalesce(sp.total_proceeds_gbp, 0),
             0
         ) as cost_basis_gbp
-    from current_holdings ch
-    inner join {{ ref('dim_account') }} da  on da.account_key = ch.account_key
-    inner join {{ ref('dim_fund') }}    df  on df.fund_key    = ch.fund_key
-    left join  buy_cost      bc  on bc.account_key  = ch.account_key and bc.fund_key  = ch.fund_key
-    left join  sell_proceeds sp  on sp.account_key  = ch.account_key and sp.fund_key  = ch.fund_key
+    from holdings_latest hl
+    inner join {{ ref('dim_account') }} da  on da.account_key = hl.account_key
+    inner join {{ ref('dim_fund') }}    df  on df.fund_key    = hl.fund_key
+    left join  buy_cost      bc  on bc.account_key  = hl.account_key and bc.fund_key  = hl.fund_key
+    left join  sell_proceeds sp  on sp.account_key  = hl.account_key and sp.fund_key  = hl.fund_key
 )
 
 select
@@ -84,7 +84,7 @@ select
         then round((value_gbp - cost_basis_gbp) / cost_basis_gbp * 100.0, 2)
         else 0.0
     end                                                                                   as unrealised_gain_pct,
-    round(value_gbp / sum(value_gbp) over (partition by account_name) * 100.0, 2)        as weight_pct
+    round(value_gbp / sum(value_gbp) over (partition by account_name) * 100.0, 2)         as weight_pct
 
 from valued
-order by account_name, value_gbp desc
+order by account_name, fund_name desc

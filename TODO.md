@@ -243,6 +243,7 @@ Two motivations: (1) a demo/dummy dataset so the app can be shown to others with
 ## Miscellaneous
 
 - [x] Rename all dbt models to use a consistent convention for frequency of snapshot (e.g. `fct_holdings_daily`, `mart_portfolio_snapshot_monthly`) 
+- [ ] Update the Readme file with the improved data model naming convention
 - [ ] Update the custom Kimball-style dbt skill so that new models it generates automatically follow the underscore suffix naming convention for frequency.
 - [ ] Set up dotfiles repo on Windows PC — clone `~/.dotfiles`, run `mklink /D %USERPROFILE%\.claude %USERPROFILE%\.dotfiles\claude` in an elevated cmd prompt (or enable Developer Mode to avoid needing elevation).
 

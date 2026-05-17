@@ -222,28 +222,31 @@ def portfolio_holdings(
     account: Optional[Literal["ISA", "SIPP"]] = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
-    account_filter = "WHERE mch.account_name = ?" if account else ""
+    account_filter = "WHERE mhl.account_name = ?" if account else ""
     params: list = [account] if account else []
 
+    # TODO: Double-check whether the GROUP BY is necessary in this query. I suspect it is not because MHL has the grain of 
+    # one row per fund per account
+    
     fund_sql = f"""
     SELECT
         df.fund_id,
-        mch.fund_name,
+        mhl.fund_name,
         df.fund_short_name,
-        SUM(mch.units_held)                                                                AS units_held,
-        MAX(mch.fund_price_gbp)                                                            AS price_gbp,
-        SUM(mch.value_gbp)                                                                 AS value_gbp,
-        SUM(mch.cost_basis_gbp)                                                            AS cost_basis_gbp,
-        SUM(mch.unrealised_gain_gbp)                                                       AS unrealised_gain_gbp,
-        CASE WHEN SUM(mch.cost_basis_gbp) > 0
-             THEN ROUND((SUM(mch.value_gbp) - SUM(mch.cost_basis_gbp))
-                        / SUM(mch.cost_basis_gbp) * 100.0, 2)
+        SUM(mhl.units_held)                                                                AS units_held,
+        MAX(mhl.fund_price_gbp)                                                            AS price_gbp,
+        SUM(mhl.value_gbp)                                                                 AS value_gbp,
+        SUM(mhl.cost_basis_gbp)                                                            AS cost_basis_gbp,
+        SUM(mhl.unrealised_gain_gbp)                                                       AS unrealised_gain_gbp,
+        CASE WHEN SUM(mhl.cost_basis_gbp) > 0
+             THEN ROUND((SUM(mhl.value_gbp) - SUM(mhl.cost_basis_gbp))
+                        / SUM(mhl.cost_basis_gbp) * 100.0, 2)
              ELSE 0.0 END                                                                  AS unrealised_gain_pct
-    FROM mart_current_holdings mch
-    INNER JOIN dim_fund df ON df.fund_name = mch.fund_name
+    FROM mart_holdings_latest mhl
+    INNER JOIN dim_fund df ON df.fund_name = mhl.fund_name
     {account_filter}
-    GROUP BY df.fund_id, mch.fund_name, df.fund_short_name
-    ORDER BY SUM(mch.value_gbp) DESC
+    GROUP BY df.fund_id, mhl.fund_name, df.fund_short_name
+    ORDER BY SUM(mhl.value_gbp) DESC
     """
     fund_rows = con.execute(fund_sql, params).fetchall()
 

@@ -1,13 +1,13 @@
 version: 2
 
 models:
-  - name: mart_current_holdings
+  - name: mart_holdings_latest
     description: >
-      Current holdings snapshot per account — fund positions as of the most recent
+      Snapshot of latest holdings per account — fund positions as of the most recent
       price date, with cost basis and unrealised gain.
 
       **Grain**: One row per (account_name, fund_name)
-      **Update Frequency**: Daily (after price ingest and dbt run)
+      **Update Frequency**: Daily (after ingest_prices)
       **Source**: fct_holdings_daily, fct_transactions, dim_account, dim_fund, dim_transaction_type
 
       Cost basis is calculated as total buy cost (BUY + SWITCH_IN) minus total sell
