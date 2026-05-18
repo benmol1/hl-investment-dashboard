@@ -162,8 +162,8 @@ Raw source tables (`accounts`, `funds`, `transactions`, `prices`, `benchmarks`) 
 | Layer | Models | Notes |
 |---|---|---|
 | `base` | `base__hl_transactions`, `base__hl_prices`, `base__hl_benchmarks` | Typed, renamed views over raw tables |
-| `core` | `dim_fund`, `dim_account`, `dim_date`, `dim_transaction_type`, `fct_transactions`, `fct_daily_holdings`, `fct_daily_cash_position`, `fct_fund_prices_daily`, `fct_benchmarks_monthly` | Kimball-style dims and facts |
-| `intermediate` | `int_daily_fund_values`, `int_daily_cash_values` | Pre-aggregated inputs for marts |
-| `marts` | `mart_daily_portfolio_value`, `mart_current_holdings`, `mart_portfolio_contributions`, `mart_portfolio_returns`, `mart_benchmarks`, `mart_monthly_snapshot` | API-ready aggregates |
+| `core` | `dim_fund`, `dim_account`, `dim_date`, `dim_transaction_type`, `fct_transactions`, `fct_holdings_daily`, `fct_cash_position_daily`, `fct_fund_prices_daily`, `fct_benchmarks_monthly` | Kimball-style dims and facts |
+| `intermediate` | `int_fund_values_daily`, `int_cash_values_daily` | Pre-aggregated inputs for marts |
+| `marts` | `mart_portfolio_value_daily`, `mart_holdings_latest`, `mart_portfolio_contributions_daily`, `mart_portfolio_returns_monthly`, `mart_benchmarks_monthly`, `mart_portfolio_snapshot_monthly` | API-ready aggregates |
 
 Key conventions: `value_gbp` is negative for debits (buys, fees) and positive for credits (contributions, sells). Fund prices are stored in pence (`price_pence`) to match HL's raw format.
