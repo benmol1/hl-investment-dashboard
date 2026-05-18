@@ -207,7 +207,15 @@ Three Docker services, one shared bind mount:
 
 ---
 
-## Phase 10 — User Accounts & Authentication (Research Spike)
+## Phase 10 — Tax Year Contributions
+
+- [ ] Add `mart_contributions_by_financial_year` dbt mart — aggregate contributions from `fct_transactions` joined to `dim_date` (using `dim_date.financial_year`, e.g. `FY24`), summing `value_gbp` for contribution-type transactions per account per financial year
+- [ ] Add `GET /portfolio/contributions/financial-year` API endpoint — returns a list of `{ financial_year, contributions_gbp }` rows; accepts optional `account` filter (`ISA`, `SIPP`, or omit for combined)
+- [ ] Add Financial Year Contributions page to the React frontend — bar chart of annual contributions by financial year + summary table showing ISA, SIPP, and combined total per year; ISA / SIPP / All account filter consistent with other pages
+
+---
+
+## Phase 11 — User Accounts & Authentication (Research Spike)
 
 Two motivations: (1) a demo/dummy dataset so the app can be shown to others without exposing real positions; (2) multi-user support so family members (e.g. brother, dad) can each have their own accounts with data isolated by user.
 
