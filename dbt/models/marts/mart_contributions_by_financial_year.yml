@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: mart_contributions_by_financial_year
+    description: >
+      Total contributions per account per UK financial year (April–March).
+
+      **Grain**: One row per (account_name, financial_year)
+      **Update Frequency**: Daily (after price ingest)
+      **Source**: fct_transactions filtered to contribution-type transactions
+
+      Useful for tracking ISA and SIPP allowance usage year-on-year.
+    columns:
+      - name: account_name
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: financial_year
+        description: "UK financial year label, e.g. FY24 (April 2023 – March 2024)."
+        tests:
+          - not_null
+      - name: contributions_gbp
+        description: "Total amount contributed to this account in this financial year."
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [account_name, financial_year]

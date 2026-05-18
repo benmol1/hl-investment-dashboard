@@ -108,5 +108,12 @@ export interface IngestLogEntry {
   last_rows_imported_at: string | null
 }
 
+export interface FinancialYearContribution {
+  financial_year: string
+  isa_gbp: number
+  sipp_gbp: number
+  total_gbp: number
+}
+
 export type Account = 'ISA' | 'SIPP'
 export type Benchmark = 'FTSE100' | 'SP500' | 'NASDAQ'
