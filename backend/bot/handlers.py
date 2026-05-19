@@ -2,7 +2,13 @@ import io
 import logging
 
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
 
 from .claude import run_claude_loop
 from .config import ALLOWED_CHAT_ID, TELEGRAM_TOKEN
@@ -12,15 +18,18 @@ logger = logging.getLogger(__name__)
 
 
 def _is_authorised(update: Update) -> bool:
-    return update.effective_chat is not None and update.effective_chat.id == ALLOWED_CHAT_ID
+    return (
+        update.effective_chat is not None
+        and update.effective_chat.id == ALLOWED_CHAT_ID
+    )
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorised(update):
         return
     await update.message.reply_text(
-        "Hi! Ask me anything about your portfolio — e.g. \"what are my current holdings?\" "
-        "or \"how has my ISA performed this year?\""
+        'Hi! Ask me anything about your portfolio — e.g. "what are my current holdings?" '
+        'or "how has my ISA performed this year?"'
     )
 
 
@@ -45,7 +54,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         result = await run_claude_loop(user_text, on_tool_call=on_tool_call)
     except Exception as exc:
         logger.exception("Claude loop failed")
-        await thinking.edit_text(f"Sorry, something went wrong: {exc}", parse_mode="Markdown")
+        await thinking.edit_text(
+            f"Sorry, something went wrong: {exc}", parse_mode="Markdown"
+        )
         return
 
     await thinking.edit_text(result.text, parse_mode="Markdown")

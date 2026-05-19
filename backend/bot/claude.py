@@ -24,11 +24,13 @@ logger = logging.getLogger(__name__)
 
 def _round_currency(text: str) -> str:
     """Round any £X.XX amounts ≥ £10 to the nearest pound."""
+
     def _replace(m: re.Match) -> str:
         amount = float(m.group(1).replace(",", ""))
         if amount >= 10:
             return f"£{round(amount):,}"
         return m.group(0)
+
     return re.sub(r"£([\d,]+\.\d+)", _replace, text)
 
 
@@ -50,7 +52,9 @@ async def run_claude_loop(user_text: str, on_tool_call=None) -> BotResponse:
         )
 
         if response.stop_reason == "end_turn":
-            body = _round_currency("\n".join(b.text for b in response.content if hasattr(b, "text")))
+            body = _round_currency(
+                "\n".join(b.text for b in response.content if hasattr(b, "text"))
+            )
             if tools_called:
                 unique_tools = list(dict.fromkeys(tools_called))
                 tool_label = ", ".join(unique_tools)
@@ -71,12 +75,16 @@ async def run_claude_loop(user_text: str, on_tool_call=None) -> BotResponse:
                 if block.type == "tool_use":
                     logger.info("Tool call: %s %s", block.name, block.input)
                     tools_called.append(block.name)
-                    result = await asyncio.to_thread(execute_tool, block.name, block.input)
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": json.dumps(result, default=str),
-                    })
+                    result = await asyncio.to_thread(
+                        execute_tool, block.name, block.input
+                    )
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": json.dumps(result, default=str),
+                        }
+                    )
 
             messages.append({"role": "user", "content": tool_results})
         else:

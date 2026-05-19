@@ -27,7 +27,14 @@ def list_funds(
     sql += " ORDER BY fund_name"
     rows = con.execute(sql).fetchall()
     return [
-        Fund(id=r[0], name=r[1], fund_short_name=r[2], isin=r[3], morningstar_code=r[4], is_active=bool(r[5]))
+        Fund(
+            id=r[0],
+            name=r[1],
+            fund_short_name=r[2],
+            isin=r[3],
+            morningstar_code=r[4],
+            is_active=bool(r[5]),
+        )
         for r in rows
     ]
 
@@ -35,7 +42,9 @@ def list_funds(
 @router.get("/{fund_id}/performance", response_model=FundPerformanceResponse)
 def fund_performance(
     fund_id: str,
-    from_date: Optional[date] = Query(None, alias="from", description="Defaults to first purchase date"),
+    from_date: Optional[date] = Query(
+        None, alias="from", description="Defaults to first purchase date"
+    ),
     to_date: date = Query(default_factory=date.today, alias="to"),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
@@ -45,7 +54,8 @@ def fund_performance(
     independent of when units were bought.
     """
     fund_row = con.execute(
-        "SELECT fund_id, fund_name, fund_short_name, first_investment_date FROM dim_fund WHERE fund_id = ?", (fund_id,)
+        "SELECT fund_id, fund_name, fund_short_name, first_investment_date FROM dim_fund WHERE fund_id = ?",
+        (fund_id,),
     ).fetchone()
     if not fund_row:
         raise HTTPException(status_code=404, detail=f"Fund '{fund_id}' not found")
@@ -72,14 +82,19 @@ def fund_performance(
 
     if not fund_rows:
         return FundPerformanceResponse(
-            fund_id=fund_id, fund_name=fund_name, fund_short_name=fund_short_name,
-            start_date=from_date, fund=[], benchmark=[],
+            fund_id=fund_id,
+            fund_name=fund_name,
+            fund_short_name=fund_short_name,
+            start_date=from_date,
+            fund=[],
+            benchmark=[],
         )
 
     base_price = fund_rows[0][1]
     fund_series = [
         PerformancePoint(date=r[0], indexed=round(r[1] / base_price * 100, 4))
-        for r in fund_rows if r[1] and r[1] > 0
+        for r in fund_rows
+        if r[1] and r[1] > 0
     ]
 
     bench_rows = con.execute(
@@ -91,8 +106,13 @@ def fund_performance(
         [from_date, to_date],
     ).fetchall()
 
-    benchmarks: dict[str, list[PerformancePoint]] = {'FTSE100': [], 'SP500': [], 'NASDAQ': []}
+    benchmarks: dict[str, list[PerformancePoint]] = {
+        "FTSE100": [],
+        "SP500": [],
+        "NASDAQ": [],
+    }
     from itertools import groupby
+
     for index_id, rows in groupby(bench_rows, key=lambda r: r[0]):
         row_list = list(rows)
         if row_list:
@@ -108,7 +128,7 @@ def fund_performance(
         fund_short_name=fund_short_name,
         start_date=fund_series[0].date if fund_series else from_date,
         fund=fund_series,
-        FTSE100=benchmarks['FTSE100'],
-        SP500=benchmarks['SP500'],
-        NASDAQ=benchmarks['NASDAQ'],
+        FTSE100=benchmarks["FTSE100"],
+        SP500=benchmarks["SP500"],
+        NASDAQ=benchmarks["NASDAQ"],
     )

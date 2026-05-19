@@ -26,7 +26,12 @@ def notify(message: str, silent: bool = False) -> None:
     try:
         requests.post(
             f"https://api.telegram.org/bot{_TELEGRAM_TOKEN}/sendMessage",
-            json={"chat_id": _TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML", "disable_notification": silent},
+            json={
+                "chat_id": _TELEGRAM_CHAT_ID,
+                "text": message,
+                "parse_mode": "HTML",
+                "disable_notification": silent,
+            },
             timeout=10,
         )
     except Exception as exc:
@@ -38,7 +43,9 @@ def _run(label: str, cmd: list[str], cwd: Path | None = None) -> bool:
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
     if result.returncode != 0:
         logger.error("%s failed:\n%s", label, result.stderr)
-        notify(f"❌ <b>HL Dashboard — {label} failed</b>\n\n<pre>{result.stderr[-1000:]}</pre>")
+        notify(
+            f"❌ <b>HL Dashboard — {label} failed</b>\n\n<pre>{result.stderr[-1000:]}</pre>"
+        )
         return False
     logger.info("%s completed OK", label)
     return True
@@ -60,6 +67,7 @@ def _delta_str(value: float, prev: float | None) -> str:
 def _monthly_summary() -> str:
     try:
         import duckdb
+
         con = duckdb.connect(str(_DB_PATH), read_only=True)
         rows = con.execute("""
             WITH ranked AS (
@@ -106,7 +114,10 @@ def weekly_download() -> None:
     # Skipped silently if HL_USERNAME is not configured.
     if not os.environ.get("HL_USERNAME"):
         return
-    if not _run("download_transactions.py", [sys.executable, str(_SCRIPTS_DIR / "download_transactions.py")]):
+    if not _run(
+        "download_transactions.py",
+        [sys.executable, str(_SCRIPTS_DIR / "download_transactions.py")],
+    ):
         return  # failure notification already sent
 
 
@@ -114,14 +125,21 @@ def daily_refresh() -> None:
     today = date.today()
     failures = []
 
-    if not _run("ingest_transactions.py", [sys.executable, str(_SCRIPTS_DIR / "ingest_transactions.py")]):
+    if not _run(
+        "ingest_transactions.py",
+        [sys.executable, str(_SCRIPTS_DIR / "ingest_transactions.py")],
+    ):
         failures.append("ingest_transactions.py")
 
-    if not _run("fetch_prices.py", [sys.executable, str(_SCRIPTS_DIR / "fetch_prices.py")]):
+    if not _run(
+        "fetch_prices.py", [sys.executable, str(_SCRIPTS_DIR / "fetch_prices.py")]
+    ):
         failures.append("fetch_prices.py")
 
     _dbt = str(Path(sys.executable).parent / "dbt")
-    if not _run("dbt build", [_dbt, "build", "--profiles-dir", "."], cwd=_DBT_PROJECT_DIR):
+    if not _run(
+        "dbt build", [_dbt, "build", "--profiles-dir", "."], cwd=_DBT_PROJECT_DIR
+    ):
         failures.append("dbt build")
 
     if failures:
@@ -129,7 +147,10 @@ def daily_refresh() -> None:
 
     # Success notification — silent (no banner/sound)
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    notify(f"✅ <b>HL Dashboard refresh complete</b> ({now})\nAll steps passed.", silent=True)
+    notify(
+        f"✅ <b>HL Dashboard refresh complete</b> ({now})\nAll steps passed.",
+        silent=True,
+    )
 
     # Monthly summary on the first of the month
     if today.day == 1:
@@ -141,8 +162,17 @@ def daily_refresh() -> None:
 if __name__ == "__main__":
     scheduler = BlockingScheduler()
     scheduler.add_job(daily_refresh, "cron", hour=1, minute=0, id="daily_refresh")
-    scheduler.add_job(weekly_download, "cron", day_of_week="sun", hour=0, minute=0, id="weekly_download")
-    logger.info("Cron scheduler started — daily refresh at 01:00, HL download Sundays at 00:00")
+    scheduler.add_job(
+        weekly_download,
+        "cron",
+        day_of_week="sun",
+        hour=0,
+        minute=0,
+        id="weekly_download",
+    )
+    logger.info(
+        "Cron scheduler started — daily refresh at 01:00, HL download Sundays at 00:00"
+    )
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):

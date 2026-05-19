@@ -52,8 +52,14 @@ TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "from_date": {"type": "string", "description": "Start date YYYY-MM-DD."},
-                "to_date": {"type": "string", "description": "End date YYYY-MM-DD. Defaults to today."},
+                "from_date": {
+                    "type": "string",
+                    "description": "Start date YYYY-MM-DD.",
+                },
+                "to_date": {
+                    "type": "string",
+                    "description": "End date YYYY-MM-DD. Defaults to today.",
+                },
                 "account": {
                     "type": "string",
                     "enum": ["ISA", "SIPP"],
@@ -74,8 +80,14 @@ TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "from_date": {"type": "string", "description": "Start date YYYY-MM-DD."},
-                "to_date": {"type": "string", "description": "End date YYYY-MM-DD. Defaults to today."},
+                "from_date": {
+                    "type": "string",
+                    "description": "Start date YYYY-MM-DD.",
+                },
+                "to_date": {
+                    "type": "string",
+                    "description": "End date YYYY-MM-DD. Defaults to today.",
+                },
                 "account": {
                     "type": "string",
                     "enum": ["ISA", "SIPP"],
@@ -164,12 +176,28 @@ TOOLS = [
                 "fund_id": {"type": "string", "description": "Filter by fund ID."},
                 "tx_type": {
                     "type": "string",
-                    "enum": ["BUY", "SELL", "SWITCH_IN", "SWITCH_OUT", "CONTRIBUTION", "FEE", "INTEREST", "REBATE", "TRANSFER"],
+                    "enum": [
+                        "BUY",
+                        "SELL",
+                        "SWITCH_IN",
+                        "SWITCH_OUT",
+                        "CONTRIBUTION",
+                        "FEE",
+                        "INTEREST",
+                        "REBATE",
+                        "TRANSFER",
+                    ],
                 },
-                "from_date": {"type": "string", "description": "Start date YYYY-MM-DD."},
+                "from_date": {
+                    "type": "string",
+                    "description": "Start date YYYY-MM-DD.",
+                },
                 "to_date": {"type": "string", "description": "End date YYYY-MM-DD."},
                 "page": {"type": "integer", "description": "Page number (default 1)."},
-                "per_page": {"type": "integer", "description": "Results per page (default 50, max 200)."},
+                "per_page": {
+                    "type": "integer",
+                    "description": "Results per page (default 50, max 200).",
+                },
             },
         },
     },
@@ -210,8 +238,14 @@ TOOLS = [
                     "items": {
                         "type": "object",
                         "properties": {
-                            "label": {"type": "string", "description": "Legend label for this series."},
-                            "y_key": {"type": "string", "description": "Key in each data object for this series' y values."},
+                            "label": {
+                                "type": "string",
+                                "description": "Legend label for this series.",
+                            },
+                            "y_key": {
+                                "type": "string",
+                                "description": "Key in each data object for this series' y values.",
+                            },
                         },
                         "required": ["label", "y_key"],
                     },

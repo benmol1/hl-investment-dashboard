@@ -5,7 +5,18 @@ from fastapi import APIRouter, Depends, Query
 import duckdb
 
 from app.db import get_db
-from app.models import TimeSeriesPoint, AllocationItem, ContributionPoint, PerformancePoint, PortfolioPerformanceResponse, SharpeRatios, HoldingItem, DataFreshness, IngestLogEntry, FinancialYearContribution
+from app.models import (
+    TimeSeriesPoint,
+    AllocationItem,
+    ContributionPoint,
+    PerformancePoint,
+    PortfolioPerformanceResponse,
+    SharpeRatios,
+    HoldingItem,
+    DataFreshness,
+    IngestLogEntry,
+    FinancialYearContribution,
+)
 
 router = APIRouter()
 
@@ -36,7 +47,9 @@ def portfolio_value(
 
 @router.get("/allocation", response_model=list[AllocationItem])
 def portfolio_allocation(
-    as_of: Optional[date] = Query(None, description="Date to calculate allocation (defaults to latest price date)"),
+    as_of: Optional[date] = Query(
+        None, description="Date to calculate allocation (defaults to latest price date)"
+    ),
     account: Optional[Literal["ISA", "SIPP"]] = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
@@ -79,8 +92,13 @@ def portfolio_allocation(
     rows = con.execute(sql, params).fetchall()
     return [
         AllocationItem(
-            fund_id=r[0], fund_name=r[1], fund_short_name=r[2] or r[1], units_held=r[3],
-            price_gbp=r[4], value_gbp=r[5], percentage=r[6],
+            fund_id=r[0],
+            fund_name=r[1],
+            fund_short_name=r[2] or r[1],
+            units_held=r[3],
+            price_gbp=r[4],
+            value_gbp=r[5],
+            percentage=r[6],
         )
         for r in rows
     ]
@@ -113,14 +131,18 @@ def contributions_vs_growth(
     rows = con.execute(sql, params).fetchall()
     return [
         ContributionPoint(
-            date=r[0], portfolio_value=r[1],
-            cumulative_contributions=r[2], growth=r[3],
+            date=r[0],
+            portfolio_value=r[1],
+            cumulative_contributions=r[2],
+            growth=r[3],
         )
         for r in rows
     ]
 
 
-@router.get("/contributions/financial-year", response_model=list[FinancialYearContribution])
+@router.get(
+    "/contributions/financial-year", response_model=list[FinancialYearContribution]
+)
 def contributions_by_financial_year(con: duckdb.DuckDBPyConnection = Depends(get_db)):
     sql = """
     SELECT
@@ -134,7 +156,9 @@ def contributions_by_financial_year(con: duckdb.DuckDBPyConnection = Depends(get
     """
     rows = con.execute(sql).fetchall()
     return [
-        FinancialYearContribution(financial_year=r[0], isa_gbp=r[1], sipp_gbp=r[2], total_gbp=r[3])
+        FinancialYearContribution(
+            financial_year=r[0], isa_gbp=r[1], sipp_gbp=r[2], total_gbp=r[3]
+        )
         for r in rows
     ]
 
@@ -196,7 +220,10 @@ def portfolio_performance(
         if not rows:
             return []
         base = rows[0][1]
-        return [PerformancePoint(date=r[0], indexed=round(r[1] / base * 100, 4)) for r in rows]
+        return [
+            PerformancePoint(date=r[0], indexed=round(r[1] / base * 100, 4))
+            for r in rows
+        ]
 
     # Latest Sharpe ratios — trailing windows are independent of the chart start date,
     # so we take the most recent row up to to_date.
@@ -219,10 +246,15 @@ def portfolio_performance(
            WHERE year_month = (SELECT MAX(year_month) FROM mart_benchmarks_monthly WHERE month_end_date <= ?)""",
         [to_date],
     ).fetchall()
-    bench_sharpe = {r[0]: SharpeRatios(trailing_12m=r[1], trailing_36m=r[2]) for r in bench_sharpe_rows}
+    bench_sharpe = {
+        r[0]: SharpeRatios(trailing_12m=r[1], trailing_36m=r[2])
+        for r in bench_sharpe_rows
+    }
 
     sharpe = {
-        'portfolio': SharpeRatios(trailing_12m=ps[0] if ps else None, trailing_36m=ps[1] if ps else None),
+        "portfolio": SharpeRatios(
+            trailing_12m=ps[0] if ps else None, trailing_36m=ps[1] if ps else None
+        ),
         **bench_sharpe,
     }
 
@@ -244,9 +276,9 @@ def portfolio_holdings(
     account_filter = "WHERE mhl.account_name = ?" if account else ""
     params: list = [account] if account else []
 
-    # TODO: Double-check whether the GROUP BY is necessary in this query. I suspect it is not because MHL has the grain of 
+    # TODO: Double-check whether the GROUP BY is necessary in this query. I suspect it is not because MHL has the grain of
     # one row per fund per account
-    
+
     fund_sql = f"""
     SELECT
         df.fund_id,
@@ -290,11 +322,16 @@ def portfolio_holdings(
 
     fund_items = [
         HoldingItem(
-            holding_type='fund',
-            fund_id=r[0], fund_name=r[1], fund_short_name=r[2] or r[1],
-            units_held=round(r[3], 4), price_gbp=round(r[4], 4),
-            value_gbp=round(r[5], 2), cost_basis_gbp=round(r[6], 2),
-            unrealised_gain_gbp=round(r[7], 2), unrealised_gain_pct=r[8],
+            holding_type="fund",
+            fund_id=r[0],
+            fund_name=r[1],
+            fund_short_name=r[2] or r[1],
+            units_held=round(r[3], 4),
+            price_gbp=round(r[4], 4),
+            value_gbp=round(r[5], 2),
+            cost_basis_gbp=round(r[6], 2),
+            unrealised_gain_gbp=round(r[7], 2),
+            unrealised_gain_pct=r[8],
             percentage=pct(r[5]),
         )
         for r in fund_rows
@@ -302,14 +339,16 @@ def portfolio_holdings(
 
     cash_items = [
         HoldingItem(
-            holding_type='cash',
+            holding_type="cash",
             fund_id=None,
-            fund_name=f'{r[0]} Cash',
-            fund_short_name=f'{r[0]} Cash',
-            units_held=None, price_gbp=None,
+            fund_name=f"{r[0]} Cash",
+            fund_short_name=f"{r[0]} Cash",
+            units_held=None,
+            price_gbp=None,
             value_gbp=round(r[1], 2),
             cost_basis_gbp=round(r[1], 2),
-            unrealised_gain_gbp=0.0, unrealised_gain_pct=0.0,
+            unrealised_gain_gbp=0.0,
+            unrealised_gain_pct=0.0,
             percentage=pct(r[1]),
         )
         for r in cash_rows
@@ -347,7 +386,9 @@ def ingest_log_summary(con: duckdb.DuckDBPyConnection = Depends(get_db)):
         return last_successful, last_rows_imported
 
     tx_last_successful, tx_last_rows = _log_stats("transactions")
-    tx_latest_date = con.execute("SELECT MAX(trade_date) FROM transactions").fetchone()[0]
+    tx_latest_date = con.execute("SELECT MAX(trade_date) FROM transactions").fetchone()[
+        0
+    ]
 
     pr_last_successful, pr_last_rows = _log_stats("prices")
     pr_latest_date = con.execute("SELECT MAX(date) FROM prices").fetchone()[0]

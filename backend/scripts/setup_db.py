@@ -32,9 +32,7 @@ def seed_accounts(con: duckdb.DuckDBPyConnection) -> None:
         ("SIPP", "Self-Invested Personal Pension"),
     ]
     for row in rows:
-        con.execute(
-            "INSERT OR IGNORE INTO accounts VALUES (?, ?)", row
-        )
+        con.execute("INSERT OR IGNORE INTO accounts VALUES (?, ?)", row)
     print(f"  Seeded {len(rows)} accounts")
 
 

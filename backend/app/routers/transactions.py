@@ -10,8 +10,17 @@ from app.models import Transaction, TransactionPage
 router = APIRouter()
 
 VALID_TYPES = {
-    "BUY", "SELL", "SWITCH_IN", "SWITCH_OUT",
-    "CONTRIBUTION", "FEE", "INTEREST", "REBATE", "TRANSFER", "REJECTED", "OTHER",
+    "BUY",
+    "SELL",
+    "SWITCH_IN",
+    "SWITCH_OUT",
+    "CONTRIBUTION",
+    "FEE",
+    "INTEREST",
+    "REBATE",
+    "TRANSFER",
+    "REJECTED",
+    "OTHER",
 }
 
 _BASE_JOINS = """
@@ -85,10 +94,19 @@ def list_transactions(
 
     items = [
         Transaction(
-            id=r[0], account_id=r[1], fund_id=r[2], fund_name=r[3], fund_short_name=r[4],
-            trade_date=r[5], settle_date=r[6], reference=r[7],
-            transaction_type=r[8], transaction_subtype=r[9],
-            unit_cost_pence=r[10], quantity=r[11], value_gbp=r[12],
+            id=r[0],
+            account_id=r[1],
+            fund_id=r[2],
+            fund_name=r[3],
+            fund_short_name=r[4],
+            trade_date=r[5],
+            settle_date=r[6],
+            reference=r[7],
+            transaction_type=r[8],
+            transaction_subtype=r[9],
+            unit_cost_pence=r[10],
+            quantity=r[11],
+            value_gbp=r[12],
         )
         for r in rows
     ]

@@ -63,9 +63,10 @@ def _require(name: str) -> str:
     return val
 
 
-
 async def _is_logged_in(page: Page) -> bool:
-    await page.goto(f"{_HL_BASE}/my-accounts/portfolio_overview", wait_until="domcontentloaded")
+    await page.goto(
+        f"{_HL_BASE}/my-accounts/portfolio_overview", wait_until="domcontentloaded"
+    )
     return "login" not in page.url.lower()
 
 
@@ -81,7 +82,9 @@ async def _login(page: Page) -> bool:
     otp = os.environ.get("HL_OTP", "").strip()
 
     logger.info("Starting HL login")
-    await page.goto(f"{_HL_BASE}/my-accounts/login-step-one", wait_until="domcontentloaded")
+    await page.goto(
+        f"{_HL_BASE}/my-accounts/login-step-one", wait_until="domcontentloaded"
+    )
 
     # Step 1: username + date of birth
     username_field = page.locator("input#username, input[name='username']")
@@ -90,9 +93,13 @@ async def _login(page: Page) -> bool:
         return False
     await username_field.first.fill(username)
 
-    dob_field = page.locator("input[name*='birth'], input[id*='birth'], input[name*='dob'], input[id*='dob']")
+    dob_field = page.locator(
+        "input[name*='birth'], input[id*='birth'], input[name*='dob'], input[id*='dob']"
+    )
     if not await dob_field.count():
-        logger.error("Date of birth field not found — HL page structure may have changed")
+        logger.error(
+            "Date of birth field not found — HL page structure may have changed"
+        )
         return False
     await dob_field.first.fill(dob)
 
@@ -108,9 +115,13 @@ async def _login(page: Page) -> bool:
         logger.info("Cookie banner dismissed")
 
     # Step 2: full password in a single input
-    password_field = page.locator("input[type='password'], input[name*='password'], input[id*='password']")
+    password_field = page.locator(
+        "input[type='password'], input[name*='password'], input[id*='password']"
+    )
     if not await password_field.count():
-        logger.error("Password field not found on step two — page structure may have changed")
+        logger.error(
+            "Password field not found on step two — page structure may have changed"
+        )
         return False
     await password_field.first.fill(password)
     logger.info("Password filled")
@@ -121,7 +132,9 @@ async def _login(page: Page) -> bool:
         logger.error("Expected 6 secure number inputs, found %d", len(secure_inputs))
         return False
     for i, inp in enumerate(secure_inputs):
-        await inp.evaluate(f"el => {{ el.removeAttribute('disabled'); el.value = '{secure_number[i]}'; el.dispatchEvent(new Event('input', {{bubbles: true}})); }}")
+        await inp.evaluate(
+            f"el => {{ el.removeAttribute('disabled'); el.value = '{secure_number[i]}'; el.dispatchEvent(new Event('input', {{bubbles: true}})); }}"
+        )
     logger.info("Secure number filled")
 
     await page.locator("button[type='submit'], input[type='submit']").first.click()
@@ -151,14 +164,18 @@ async def _login(page: Page) -> bool:
         logger.info("OTP submitted; now at: %s", page.url)
 
     if "login" in page.url.lower():
-        logger.error("Still on a login page after all steps — credentials may be wrong, or the page structure has changed")
+        logger.error(
+            "Still on a login page after all steps — credentials may be wrong, or the page structure has changed"
+        )
         return False
 
     logger.info("Login successful")
     return True
 
 
-def _download_csv(http_session: req_lib.Session, account_type: str, account_id: str) -> None:
+def _download_csv(
+    http_session: req_lib.Session, account_type: str, account_id: str
+) -> None:
     end_date = date.today()
     start_date = end_date - timedelta(days=_lookback_days())
 
@@ -186,7 +203,9 @@ def _download_csv(http_session: req_lib.Session, account_type: str, account_id: 
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{account_type}_{end_date.strftime('%Y-%m-%d')}.csv"
     out_path.write_bytes(response.content)
-    logger.info("Saved %s CSV → %s (%d bytes)", account_type, out_path, len(response.content))
+    logger.info(
+        "Saved %s CSV → %s (%d bytes)", account_type, out_path, len(response.content)
+    )
 
 
 async def _run() -> None:
@@ -240,5 +259,7 @@ async def _run() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
+    )
     asyncio.run(_run())

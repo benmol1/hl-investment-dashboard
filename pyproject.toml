@@ -18,6 +18,7 @@ dependencies = [
     "anthropic>=0.101.0",
     "matplotlib>=3.10.9",
     "playwright>=1.59.0",
+    "ruff>=0.15.13",
 ]
 
 [dependency-groups]

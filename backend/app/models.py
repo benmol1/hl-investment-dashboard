@@ -74,7 +74,7 @@ class TransactionPage(BaseModel):
 
 
 class HoldingItem(BaseModel):
-    holding_type: str = 'fund'  # 'fund' or 'cash'
+    holding_type: str = "fund"  # 'fund' or 'cash'
     fund_id: Optional[str] = None
     fund_name: str
     fund_short_name: str

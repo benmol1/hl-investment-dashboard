@@ -42,9 +42,7 @@ DB_PATH = ROOT / "data" / "hl_dashboard.duckdb"
 
 # Morningstar's unofficial history API — see module docstring if this stops working
 MORNINGSTAR_API_TOKEN = os.getenv("MORNINGSTAR_API_TOKEN", "9vehuxllxs")
-MORNINGSTAR_BASE = (
-    f"https://tools.morningstar.co.uk/api/rest.svc/timeseries_price/{MORNINGSTAR_API_TOKEN}"
-)
+MORNINGSTAR_BASE = f"https://tools.morningstar.co.uk/api/rest.svc/timeseries_price/{MORNINGSTAR_API_TOKEN}"
 
 BENCHMARKS = [
     ("FTSE100", "^FTSE"),
@@ -59,6 +57,7 @@ REQUEST_DELAY_SECONDS = 1.5
 # ---------------------------------------------------------------------------
 # Morningstar
 # ---------------------------------------------------------------------------
+
 
 def fetch_morningstar_prices(
     morningstar_code: str, start: date, end: date
@@ -149,6 +148,7 @@ def get_fetch_start(
 # Benchmarks via yfinance
 # ---------------------------------------------------------------------------
 
+
 def fetch_benchmarks(
     con: duckdb.DuckDBPyConnection, backfill_from: Optional[date]
 ) -> None:
@@ -162,7 +162,9 @@ def fetch_benchmarks(
 
         print(f"  {index_id} ({ticker}): fetching {start} to {end}")
         try:
-            df = yf.download(ticker, start=start.isoformat(), end=end.isoformat(), progress=False)
+            df = yf.download(
+                ticker, start=start.isoformat(), end=end.isoformat(), progress=False
+            )
         except Exception as e:
             print(f"    ERROR fetching {ticker}: {e}")
             continue
@@ -205,6 +207,7 @@ def get_benchmark_start(
 # Entry point
 # ---------------------------------------------------------------------------
 
+
 def _ensure_ingest_log(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
         CREATE TABLE IF NOT EXISTS ingest_log (
@@ -217,7 +220,12 @@ def _ensure_ingest_log(con: duckdb.DuckDBPyConnection) -> None:
     """)
 
 
-def _write_log(con: duckdb.DuckDBPyConnection, rows_inserted: int, status: str, detail: Optional[str] = None) -> None:
+def _write_log(
+    con: duckdb.DuckDBPyConnection,
+    rows_inserted: int,
+    status: str,
+    detail: Optional[str] = None,
+) -> None:
     con.execute(
         "INSERT INTO ingest_log (run_at, source, rows_inserted, status, detail) VALUES (?, 'prices', ?, ?, ?)",
         (datetime.now(timezone.utc), rows_inserted, status, detail),
@@ -225,7 +233,9 @@ def _write_log(con: duckdb.DuckDBPyConnection, rows_inserted: int, status: str, 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Fetch fund prices and benchmark levels")
+    parser = argparse.ArgumentParser(
+        description="Fetch fund prices and benchmark levels"
+    )
     parser.add_argument(
         "--backfill",
         metavar="YYYY-MM-DD",
@@ -253,7 +263,9 @@ def main() -> None:
 
     try:
         # --- Fund prices via Morningstar ---
-        status_filter = "" if args.all else "AND investment_status_indicator = 'Holding'"
+        status_filter = (
+            "" if args.all else "AND investment_status_indicator = 'Holding'"
+        )
         funds = con.execute(
             f"""
             SELECT fund_id, fund_name, morningstar_code
@@ -264,7 +276,9 @@ def main() -> None:
         ).fetchall()
 
         scope = "all" if args.all else "active"
-        print(f"Fetching prices for {len(funds)} {scope} fund(s) with Morningstar codes...")
+        print(
+            f"Fetching prices for {len(funds)} {scope} fund(s) with Morningstar codes..."
+        )
         for fund_id, fund_name, ms_code in funds:
             start = get_fetch_start(con, fund_id, backfill_from)
             if start >= today:
@@ -282,7 +296,7 @@ def main() -> None:
                 continue
 
             if not prices:
-                print(f"    No price data returned — fund may need manual lookup")
+                print("    No price data returned — fund may need manual lookup")
                 continue
 
             n = insert_fund_prices(con, fund_id, prices)
@@ -300,10 +314,14 @@ def main() -> None:
         ).fetchall()
 
         if missing:
-            print(f"\nWARNING: {len(missing)} active fund(s) have no morningstar_code — prices cannot be fetched automatically:")
+            print(
+                f"\nWARNING: {len(missing)} active fund(s) have no morningstar_code — prices cannot be fetched automatically:"
+            )
             for fund_id, name in missing:
                 print(f"  [{fund_id}] {name}")
-            print("  Add morningstar_code values to the funds table to enable price fetching.")
+            print(
+                "  Add morningstar_code values to the funds table to enable price fetching."
+            )
 
         # --- Benchmarks via yfinance ---
         print("\nFetching benchmark indices...")

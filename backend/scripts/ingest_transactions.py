@@ -58,6 +58,7 @@ _COLUMN_REMAP: list[tuple[str, str]] = [
 # File renaming
 # ---------------------------------------------------------------------------
 
+
 def _rename_raw_files() -> list[tuple[Path, str]]:
     """
     Scan each account subfolder. Rename any file not already following the
@@ -98,6 +99,7 @@ def _rename_raw_files() -> list[tuple[Path, str]]:
 # Column header normalisation
 # ---------------------------------------------------------------------------
 
+
 def _remap_headers(raw_headers: list[str]) -> list[str]:
     """Map raw HL column names to internal names using substring matching."""
     remapped = []
@@ -115,6 +117,7 @@ def _remap_headers(raw_headers: list[str]) -> list[str]:
 # Parsing helpers
 # ---------------------------------------------------------------------------
 
+
 def parse_date(s: str) -> Optional[date]:
     s = s.strip()
     if not s:
@@ -130,7 +133,9 @@ def parse_float(s: str) -> Optional[float]:
     return float(s)
 
 
-def make_tx_id(account_id: str, trade_date: date, reference: str, value_gbp: float) -> str:
+def make_tx_id(
+    account_id: str, trade_date: date, reference: str, value_gbp: float
+) -> str:
     key = f"{account_id}|{trade_date}|{reference}|{value_gbp}"
     return hashlib.md5(key.encode()).hexdigest()
 
@@ -138,6 +143,7 @@ def make_tx_id(account_id: str, trade_date: date, reference: str, value_gbp: flo
 # ---------------------------------------------------------------------------
 # Transaction type classification
 # ---------------------------------------------------------------------------
+
 
 def classify_transaction(reference: str, value_gbp: float) -> tuple[str, Optional[str]]:
     """
@@ -193,6 +199,7 @@ def classify_transaction(reference: str, value_gbp: float) -> tuple[str, Optiona
 # Fund name extraction and matching
 # ---------------------------------------------------------------------------
 
+
 def extract_fund_name(description: str) -> Optional[str]:
     """
     HL description format for fund purchases:
@@ -224,12 +231,15 @@ def match_fund(description: str, lookup: dict[str, str]) -> Optional[str]:
 # Ingestion
 # ---------------------------------------------------------------------------
 
+
 def ingest(file_path: Path, account_id: str, con: duckdb.DuckDBPyConnection) -> None:
     exists = con.execute(
         "SELECT 1 FROM accounts WHERE id = ?", (account_id,)
     ).fetchone()
     if not exists:
-        print(f"ERROR: account '{account_id}' not found in database. Run setup_db.py first.")
+        print(
+            f"ERROR: account '{account_id}' not found in database. Run setup_db.py first."
+        )
         sys.exit(1)
 
     fund_lookup = build_fund_lookup(con)
@@ -259,7 +269,9 @@ def ingest(file_path: Path, account_id: str, con: duckdb.DuckDBPyConnection) -> 
             value_gbp = parse_float(row["Value_GBP"])
 
             if value_gbp is None:
-                warnings.append(f"Line {line_num}: could not parse Value_GBP — skipping")
+                warnings.append(
+                    f"Line {line_num}: could not parse Value_GBP — skipping"
+                )
                 continue
 
             tx_type, tx_subtype = classify_transaction(reference, value_gbp)
@@ -285,11 +297,18 @@ def ingest(file_path: Path, account_id: str, con: duckdb.DuckDBPyConnection) -> 
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    tx_id, account_id, fund_id,
-                    trade_date, settle_date,
-                    reference, description,
-                    tx_type, tx_subtype,
-                    unit_cost_pence, quantity, value_gbp,
+                    tx_id,
+                    account_id,
+                    fund_id,
+                    trade_date,
+                    settle_date,
+                    reference,
+                    description,
+                    tx_type,
+                    tx_subtype,
+                    unit_cost_pence,
+                    quantity,
+                    value_gbp,
                 ),
             )
             processed += 1
@@ -300,7 +319,9 @@ def ingest(file_path: Path, account_id: str, con: duckdb.DuckDBPyConnection) -> 
 
     inserted = rows_after - rows_before
     skipped = processed - inserted
-    print(f"  Processed: {processed}  Inserted: {inserted}  Already present (skipped): {skipped}")
+    print(
+        f"  Processed: {processed}  Inserted: {inserted}  Already present (skipped): {skipped}"
+    )
 
     if warnings:
         print(f"\n  {len(warnings)} warning(s):")
@@ -311,6 +332,7 @@ def ingest(file_path: Path, account_id: str, con: duckdb.DuckDBPyConnection) -> 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def _ensure_ingest_log(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
@@ -324,7 +346,12 @@ def _ensure_ingest_log(con: duckdb.DuckDBPyConnection) -> None:
     """)
 
 
-def _write_log(con: duckdb.DuckDBPyConnection, rows_inserted: int, status: str, detail: Optional[str] = None) -> None:
+def _write_log(
+    con: duckdb.DuckDBPyConnection,
+    rows_inserted: int,
+    status: str,
+    detail: Optional[str] = None,
+) -> None:
     con.execute(
         "INSERT INTO ingest_log (run_at, source, rows_inserted, status, detail) VALUES (?, 'transactions', ?, ?, ?)",
         (datetime.now(timezone.utc), rows_inserted, status, detail),

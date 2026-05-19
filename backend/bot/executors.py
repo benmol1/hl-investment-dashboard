@@ -11,7 +11,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import requests
 
-matplotlib.use("Agg")  # non-interactive backend; must be set before any other pyplot import
+matplotlib.use(
+    "Agg"
+)  # non-interactive backend; must be set before any other pyplot import
 
 from .config import BACKEND_URL, DB_PATH
 
@@ -25,6 +27,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # HTTP helper
 # ---------------------------------------------------------------------------
+
 
 def _api_get(path: str, params: dict | None = None) -> Any:
     url = f"{BACKEND_URL}{path}"
@@ -46,6 +49,7 @@ def _summarise_series(points: list[dict], date_key: str) -> list[dict]:
 # Named API tool executors
 # ---------------------------------------------------------------------------
 
+
 def _execute_get_holdings(inputs: dict) -> Any:
     params = {}
     if inputs.get("account"):
@@ -54,21 +58,29 @@ def _execute_get_holdings(inputs: dict) -> Any:
 
 
 def _execute_get_portfolio_value(inputs: dict) -> Any:
-    params = {k: v for k, v in {
-        "from": inputs.get("from_date"),
-        "to": inputs.get("to_date"),
-        "account": inputs.get("account"),
-    }.items() if v is not None}
+    params = {
+        k: v
+        for k, v in {
+            "from": inputs.get("from_date"),
+            "to": inputs.get("to_date"),
+            "account": inputs.get("account"),
+        }.items()
+        if v is not None
+    }
     points = _api_get("/portfolio/value", params)
     return _summarise_series(points, "date")
 
 
 def _execute_get_contributions(inputs: dict) -> Any:
-    params = {k: v for k, v in {
-        "from": inputs.get("from_date"),
-        "to": inputs.get("to_date"),
-        "account": inputs.get("account"),
-    }.items() if v is not None}
+    params = {
+        k: v
+        for k, v in {
+            "from": inputs.get("from_date"),
+            "to": inputs.get("to_date"),
+            "account": inputs.get("account"),
+        }.items()
+        if v is not None
+    }
     points = _api_get("/portfolio/contributions", params)
     monthly = _summarise_series(points, "date")
     # First point for context + last 23 months
@@ -76,11 +88,15 @@ def _execute_get_contributions(inputs: dict) -> Any:
 
 
 def _execute_get_portfolio_performance(inputs: dict) -> Any:
-    params = {k: v for k, v in {
-        "from": inputs.get("from_date"),
-        "to": inputs.get("to_date"),
-        "account": inputs.get("account"),
-    }.items() if v is not None}
+    params = {
+        k: v
+        for k, v in {
+            "from": inputs.get("from_date"),
+            "to": inputs.get("to_date"),
+            "account": inputs.get("account"),
+        }.items()
+        if v is not None
+    }
     data = _api_get("/portfolio/performance", params)
 
     if inputs.get("full_series"):
@@ -90,6 +106,7 @@ def _execute_get_portfolio_performance(inputs: dict) -> Any:
             for p in series:
                 seen[str(p.get("date", ""))[:7]] = p
             return list(seen.values())
+
         return {
             "start_date": data.get("start_date"),
             "portfolio": monthly(data.get("portfolio", [])),
@@ -115,10 +132,14 @@ def _execute_get_portfolio_performance(inputs: dict) -> Any:
 
 
 def _execute_get_portfolio_allocation(inputs: dict) -> Any:
-    params = {k: v for k, v in {
-        "as_of": inputs.get("as_of"),
-        "account": inputs.get("account"),
-    }.items() if v is not None}
+    params = {
+        k: v
+        for k, v in {
+            "as_of": inputs.get("as_of"),
+            "account": inputs.get("account"),
+        }.items()
+        if v is not None
+    }
     return _api_get("/portfolio/allocation", params)
 
 
@@ -131,10 +152,14 @@ def _execute_list_funds(inputs: dict) -> Any:
 
 def _execute_get_fund_performance(inputs: dict) -> Any:
     fund_id = inputs["fund_id"]
-    params = {k: v for k, v in {
-        "from": inputs.get("from_date"),
-        "to": inputs.get("to_date"),
-    }.items() if v is not None}
+    params = {
+        k: v
+        for k, v in {
+            "from": inputs.get("from_date"),
+            "to": inputs.get("to_date"),
+        }.items()
+        if v is not None
+    }
     data = _api_get(f"/funds/{fund_id}/performance", params)
     fund_series = data.get("fund", [])
     return {
@@ -150,15 +175,19 @@ def _execute_get_fund_performance(inputs: dict) -> Any:
 
 
 def _execute_list_transactions(inputs: dict) -> Any:
-    params = {k: v for k, v in {
-        "account": inputs.get("account"),
-        "fund_id": inputs.get("fund_id"),
-        "type": inputs.get("tx_type"),
-        "from": inputs.get("from_date"),
-        "to": inputs.get("to_date"),
-        "page": inputs.get("page"),
-        "per_page": inputs.get("per_page"),
-    }.items() if v is not None}
+    params = {
+        k: v
+        for k, v in {
+            "account": inputs.get("account"),
+            "fund_id": inputs.get("fund_id"),
+            "type": inputs.get("tx_type"),
+            "from": inputs.get("from_date"),
+            "to": inputs.get("to_date"),
+            "page": inputs.get("page"),
+            "per_page": inputs.get("per_page"),
+        }.items()
+        if v is not None
+    }
     return _api_get("/transactions", params)
 
 
@@ -167,8 +196,16 @@ def _execute_list_transactions(inputs: dict) -> Any:
 # ---------------------------------------------------------------------------
 
 _CHART_COLORS = [
-    "#4C9BE8", "#E8824C", "#4CE87A", "#E84C4C", "#A04CE8",
-    "#E8D44C", "#4CE8D4", "#E84CA0", "#8BE84C", "#4C4CE8",
+    "#4C9BE8",
+    "#E8824C",
+    "#4CE87A",
+    "#E84C4C",
+    "#A04CE8",
+    "#E8D44C",
+    "#4CE8D4",
+    "#E84CA0",
+    "#8BE84C",
+    "#4C4CE8",
 ]
 
 
@@ -181,8 +218,17 @@ def _y_formatter(y_format: str) -> mticker.FuncFormatter:
 
 
 def _add_caption(fig: plt.Figure, caption: str) -> None:
-    fig.text(0.5, 0.01, caption, ha="center", va="bottom", fontsize=8.5,
-             color="#888888", style="italic", transform=fig.transFigure)
+    fig.text(
+        0.5,
+        0.01,
+        caption,
+        ha="center",
+        va="bottom",
+        fontsize=8.5,
+        color="#888888",
+        style="italic",
+        transform=fig.transFigure,
+    )
 
 
 def _x_tick_positions(n: int, step: int) -> list[int]:
@@ -213,8 +259,12 @@ def _render_line_chart(
 
     step = max(1, len(xs) // 6)
     ax.set_xticks(_x_tick_positions(len(xs), step))
-    ax.set_xticklabels([xs[i] for i in _x_tick_positions(len(xs), step)],
-                       rotation=30, ha="right", fontsize=9)
+    ax.set_xticklabels(
+        [xs[i] for i in _x_tick_positions(len(xs), step)],
+        rotation=30,
+        ha="right",
+        fontsize=9,
+    )
 
     ax.yaxis.set_major_formatter(_y_formatter(y_format))
     if y_label:
@@ -256,8 +306,12 @@ def _render_bar_chart(
 
     step = max(1, len(xs) // 8)
     ax.set_xticks(_x_tick_positions(len(xs), step))
-    ax.set_xticklabels([xs[i] for i in _x_tick_positions(len(xs), step)],
-                       rotation=30, ha="right", fontsize=9)
+    ax.set_xticklabels(
+        [xs[i] for i in _x_tick_positions(len(xs), step)],
+        rotation=30,
+        ha="right",
+        fontsize=9,
+    )
 
     ax.yaxis.set_major_formatter(_y_formatter(y_format))
     if y_label:
@@ -302,8 +356,15 @@ def _render_donut_chart(
     for t in autotexts:
         t.set_fontsize(9)
 
-    ax.legend(wedges, labels, loc="lower center", bbox_to_anchor=(0.5, -0.08),
-              ncol=2, fontsize=9, frameon=False)
+    ax.legend(
+        wedges,
+        labels,
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.08),
+        ncol=2,
+        fontsize=9,
+        frameon=False,
+    )
     ax.set_title(title, fontsize=13, fontweight="bold", pad=12)
 
     fig.tight_layout(rect=[0, bottom_pad, 1, 1])
@@ -337,31 +398,49 @@ def _execute_generate_chart(inputs: dict) -> Any:
             if not raw_series:
                 y_key = inputs.get("y_key")
                 if not y_key:
-                    return {"error": "Either 'series' or 'y_key' is required for a line chart."}
+                    return {
+                        "error": "Either 'series' or 'y_key' is required for a line chart."
+                    }
                 raw_series = [{"label": "", "y_key": y_key}]
-            buf = _render_line_chart(title, data, x_key, raw_series,
-                                     inputs.get("y_label", ""), y_format, caption)
+            buf = _render_line_chart(
+                title,
+                data,
+                x_key,
+                raw_series,
+                inputs.get("y_label", ""),
+                y_format,
+                caption,
+            )
         elif chart_type == "bar":
             x_key = inputs.get("x_key")
             y_key = inputs.get("y_key")
             if not x_key or not y_key:
                 return {"error": "x_key and y_key are required for a bar chart."}
-            buf = _render_bar_chart(title, data, x_key, y_key,
-                                    inputs.get("y_label", ""), y_format, caption)
+            buf = _render_bar_chart(
+                title, data, x_key, y_key, inputs.get("y_label", ""), y_format, caption
+            )
         elif chart_type == "donut":
             label_key = inputs.get("label_key")
             value_key = inputs.get("value_key")
             if not label_key or not value_key:
-                return {"error": "label_key and value_key are required for a donut chart."}
+                return {
+                    "error": "label_key and value_key are required for a donut chart."
+                }
             buf = _render_donut_chart(title, data, label_key, value_key, caption)
         else:
-            return {"error": f"Unknown chart_type '{chart_type}'. Use 'line', 'bar', or 'donut'."}
+            return {
+                "error": f"Unknown chart_type '{chart_type}'. Use 'line', 'bar', or 'donut'."
+            }
     except (KeyError, ValueError, TypeError) as exc:
         return {"error": f"Chart rendering failed: {exc}"}
 
     chart_id = uuid.uuid4().hex[:8]
     _pending_charts[chart_id] = buf.read()
-    return {"success": True, "chart_id": chart_id, "description": f"{chart_type} chart: {title}"}
+    return {
+        "success": True,
+        "chart_id": chart_id,
+        "description": f"{chart_type} chart: {title}",
+    }
 
 
 def pop_pending_charts() -> list[bytes]:
@@ -375,23 +454,27 @@ def pop_pending_charts() -> list[bytes]:
 # DuckDB fallback executor
 # ---------------------------------------------------------------------------
 
-_ALLOWED_TABLE_PATTERN = re.compile(r'\b(mart_\w+|dim_\w+)\b', re.IGNORECASE)
+_ALLOWED_TABLE_PATTERN = re.compile(r"\b(mart_\w+|dim_\w+)\b", re.IGNORECASE)
 _DISALLOWED_TABLE_PATTERN = re.compile(
-    r'\b(fct_\w+|stg_\w+|int_\w+|raw_\w+|information_schema)\b', re.IGNORECASE
+    r"\b(fct_\w+|stg_\w+|int_\w+|raw_\w+|information_schema)\b", re.IGNORECASE
 )
 
 
 def _execute_query_database(inputs: dict) -> Any:
     sql = inputs["sql"].strip()
 
-    if not re.match(r'^\s*SELECT\b', sql, re.IGNORECASE):
+    if not re.match(r"^\s*SELECT\b", sql, re.IGNORECASE):
         return {"error": "Only SELECT statements are permitted."}
 
     if _DISALLOWED_TABLE_PATTERN.search(sql):
-        return {"error": "Query references tables outside the allowed mart_/dim_ scope."}
+        return {
+            "error": "Query references tables outside the allowed mart_/dim_ scope."
+        }
 
     if not _ALLOWED_TABLE_PATTERN.search(sql):
-        return {"error": "No mart_ or dim_ tables found in query. Only those tables may be queried."}
+        return {
+            "error": "No mart_ or dim_ tables found in query. Only those tables may be queried."
+        }
 
     def _run() -> dict:
         con = duckdb.connect(str(DB_PATH), read_only=True)
@@ -405,7 +488,9 @@ def _execute_query_database(inputs: dict) -> Any:
         try:
             return future.result(timeout=30)
         except concurrent.futures.TimeoutError:
-            return {"error": "Query timed out after 30 seconds. Try a more targeted query."}
+            return {
+                "error": "Query timed out after 30 seconds. Try a more targeted query."
+            }
         except Exception as exc:
             return {"error": str(exc)}
 
@@ -435,6 +520,8 @@ def execute_tool(name: str, tool_input: dict) -> Any:
     try:
         return fn(tool_input)
     except requests.HTTPError as exc:
-        return {"error": f"API error {exc.response.status_code}: {exc.response.text[:200]}"}
+        return {
+            "error": f"API error {exc.response.status_code}: {exc.response.text[:200]}"
+        }
     except Exception as exc:
         return {"error": str(exc)}

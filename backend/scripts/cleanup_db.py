@@ -43,7 +43,11 @@ def get_dbt_models() -> set[str]:
         print("ERROR: dbt ls failed:")
         print(result.stderr)
         sys.exit(1)
-    return {line.strip().split(".")[-1] for line in result.stdout.splitlines() if line.strip()}
+    return {
+        line.strip().split(".")[-1]
+        for line in result.stdout.splitlines()
+        if line.strip()
+    }
 
 
 def get_db_tables(con: duckdb.DuckDBPyConnection) -> dict[str, str]:
