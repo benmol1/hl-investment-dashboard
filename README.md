@@ -15,7 +15,7 @@ Runs on a Raspberry Pi on the home network, accessible via browser or Telegram f
 - **Holdings Table** — units, price, value, cost basis, unrealised gain/loss; sortable columns; cash rows included
 - **Transaction Log** — paginated, filterable across both accounts
 - **ISA / SIPP filter** — every view can be scoped to a single account or combined
-- **Daily refresh** — cron container runs ingest + prices + `dbt build` automatically at 18:00
+- **Daily refresh** — cron container runs ingest + prices + `dbt build` automatically at 01:00
 - **Telegram notifications** — failure alerts, daily success confirmation, and a monthly portfolio summary
 - **Telegram query bot** — ask natural language questions ("what's my ISA up this year?") and get answers via Claude tool use; falls back to a read-only DuckDB query for anything the API can't answer directly
 
@@ -28,7 +28,7 @@ Four Docker services share a bind-mounted data directory (`/srv/hl-dashboard/dat
 | Service | Role | Port |
 |---|---|---|
 | `backend` | FastAPI read-only API server | 8000 (internal) |
-| `cron` | Daily refresh + Telegram push notifications | — |
+| `cron` | Scheduled ETL — ingests transactions, fetches prices, runs `dbt build` to write marts into the shared DuckDB file; sends Telegram alerts | — |
 | `bot` | Long-polling Telegram query bot (Claude-powered) | — |
 | `frontend` | Nginx serving the Vite build; proxies `/api/` to backend | 2048 (host) |
 
@@ -146,6 +146,7 @@ All endpoints are read-only (GET). Interactive docs at `http://localhost:8000/do
 | `GET /portfolio/allocation` | Current fund allocation |
 | `GET /portfolio/contributions` | Portfolio value vs cumulative contributions |
 | `GET /portfolio/performance` | Portfolio + benchmarks indexed to 100 |
+| `GET /portfolio/contributions/financial-year` | Contributions per UK tax year (ISA, SIPP, combined) |
 | `GET /portfolio/holdings` | Holdings with cost basis and unrealised gain/loss |
 | `GET /funds` | List all funds |
 | `GET /funds/{id}/performance` | Fund indexed to 100 + benchmark overlay |
@@ -164,6 +165,6 @@ Raw source tables (`accounts`, `funds`, `transactions`, `prices`, `benchmarks`) 
 | `base` | `base__hl_transactions`, `base__hl_prices`, `base__hl_benchmarks` | Typed, renamed views over raw tables |
 | `core` | `dim_fund`, `dim_account`, `dim_date`, `dim_transaction_type`, `fct_transactions`, `fct_holdings_daily`, `fct_cash_position_daily`, `fct_fund_prices_daily`, `fct_benchmarks_monthly` | Kimball-style dims and facts |
 | `intermediate` | `int_fund_values_daily`, `int_cash_values_daily` | Pre-aggregated inputs for marts |
-| `marts` | `mart_portfolio_value_daily`, `mart_holdings_latest`, `mart_portfolio_contributions_daily`, `mart_portfolio_returns_monthly`, `mart_benchmarks_monthly`, `mart_portfolio_snapshot_monthly` | API-ready aggregates |
+| `marts` | `mart_portfolio_value_daily`, `mart_holdings_latest`, `mart_portfolio_contributions_daily`, `mart_portfolio_returns_monthly`, `mart_benchmarks_monthly`, `mart_portfolio_snapshot_monthly`, `mart_contributions_by_financial_year` | API-ready aggregates |
 
 Key conventions: `value_gbp` is negative for debits (buys, fees) and positive for credits (contributions, sells). Fund prices are stored in pence (`price_pence`) to match HL's raw format.

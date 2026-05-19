@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 import duckdb
 
 from app.db import get_db
-from app.models import TimeSeriesPoint, AllocationItem, ContributionPoint, PerformancePoint, PortfolioPerformanceResponse, SharpeRatios, HoldingItem, DataFreshness, IngestLogEntry
+from app.models import TimeSeriesPoint, AllocationItem, ContributionPoint, PerformancePoint, PortfolioPerformanceResponse, SharpeRatios, HoldingItem, DataFreshness, IngestLogEntry, FinancialYearContribution
 
 router = APIRouter()
 
@@ -116,6 +116,25 @@ def contributions_vs_growth(
             date=r[0], portfolio_value=r[1],
             cumulative_contributions=r[2], growth=r[3],
         )
+        for r in rows
+    ]
+
+
+@router.get("/contributions/financial-year", response_model=list[FinancialYearContribution])
+def contributions_by_financial_year(con: duckdb.DuckDBPyConnection = Depends(get_db)):
+    sql = """
+    SELECT
+        financial_year,
+        SUM(CASE WHEN account_name = 'ISA'  THEN contributions_gbp ELSE 0 END) AS isa_gbp,
+        SUM(CASE WHEN account_name = 'SIPP' THEN contributions_gbp ELSE 0 END) AS sipp_gbp,
+        SUM(contributions_gbp) AS total_gbp
+    FROM mart_contributions_by_financial_year
+    GROUP BY financial_year
+    ORDER BY financial_year
+    """
+    rows = con.execute(sql).fetchall()
+    return [
+        FinancialYearContribution(financial_year=r[0], isa_gbp=r[1], sipp_gbp=r[2], total_gbp=r[3])
         for r in rows
     ]
 

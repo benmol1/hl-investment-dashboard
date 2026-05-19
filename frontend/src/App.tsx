@@ -8,6 +8,7 @@ import Benchmarks from './pages/Benchmarks'
 import Holdings from './pages/Holdings'
 import Transactions from './pages/Transactions'
 import IngestLog from './pages/IngestLog'
+import FinancialYearContributions from './pages/FinancialYearContributions'
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="holdings" element={<Holdings />} />
           <Route path="transactions" element={<Transactions />} />
           <Route path="ingest-log" element={<IngestLog />} />
+          <Route path="tax-year-contributions" element={<FinancialYearContributions />} />
         </Route>
       </Routes>
     </BrowserRouter>

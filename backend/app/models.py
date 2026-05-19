@@ -99,6 +99,13 @@ class IngestLogEntry(BaseModel):
     last_rows_imported_at: Optional[datetime]
 
 
+class FinancialYearContribution(BaseModel):
+    financial_year: str
+    isa_gbp: float
+    sipp_gbp: float
+    total_gbp: float
+
+
 class SharpeRatios(BaseModel):
     trailing_12m: Optional[float]
     trailing_36m: Optional[float]
