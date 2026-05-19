@@ -110,12 +110,8 @@ export interface IngestLogEntry {
 
 export interface FinancialYearContribution {
   financial_year: string
-  isa_contributions_gbp: number
-  isa_transfers_gbp: number
-  sipp_contributions_gbp: number
-  sipp_transfers_gbp: number
-  total_contributions_gbp: number
-  total_transfers_gbp: number
+  isa_gbp: number
+  sipp_gbp: number
   total_gbp: number
 }
 

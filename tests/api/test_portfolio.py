@@ -57,13 +57,9 @@ def test_contributions_financial_year(client):
     assert len(data) == 2
     first = data[0]
     assert first["financial_year"] == "2023/24"
-    assert first["isa_contributions_gbp"] == 5000.0
-    assert first["isa_transfers_gbp"] == 1000.0
-    assert first["sipp_contributions_gbp"] == 3000.0
-    assert first["sipp_transfers_gbp"] == 0.0
-    assert first["total_contributions_gbp"] == 8000.0
-    assert first["total_transfers_gbp"] == 1000.0
-    assert first["total_gbp"] == 9000.0
+    assert first["isa_gbp"] == 5000.0
+    assert first["sipp_gbp"] == 3000.0
+    assert first["total_gbp"] == 8000.0
 
 
 def test_performance_default(client):
