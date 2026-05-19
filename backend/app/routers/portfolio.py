@@ -147,9 +147,13 @@ def contributions_by_financial_year(con: duckdb.DuckDBPyConnection = Depends(get
     sql = """
     SELECT
         financial_year,
-        SUM(CASE WHEN account_name = 'ISA'  THEN contributions_gbp ELSE 0 END) AS isa_gbp,
-        SUM(CASE WHEN account_name = 'SIPP' THEN contributions_gbp ELSE 0 END) AS sipp_gbp,
-        SUM(contributions_gbp) AS total_gbp
+        SUM(CASE WHEN account_name = 'ISA'  THEN contributions_gbp ELSE 0 END) AS isa_contributions_gbp,
+        SUM(CASE WHEN account_name = 'ISA'  THEN transfers_gbp     ELSE 0 END) AS isa_transfers_gbp,
+        SUM(CASE WHEN account_name = 'SIPP' THEN contributions_gbp ELSE 0 END) AS sipp_contributions_gbp,
+        SUM(CASE WHEN account_name = 'SIPP' THEN transfers_gbp     ELSE 0 END) AS sipp_transfers_gbp,
+        SUM(contributions_gbp)                                                  AS total_contributions_gbp,
+        SUM(transfers_gbp)                                                      AS total_transfers_gbp,
+        SUM(contributions_gbp) + SUM(transfers_gbp)                            AS total_gbp
     FROM mart_contributions_by_financial_year
     GROUP BY financial_year
     ORDER BY financial_year
@@ -157,7 +161,14 @@ def contributions_by_financial_year(con: duckdb.DuckDBPyConnection = Depends(get
     rows = con.execute(sql).fetchall()
     return [
         FinancialYearContribution(
-            financial_year=r[0], isa_gbp=r[1], sipp_gbp=r[2], total_gbp=r[3]
+            financial_year=r[0],
+            isa_contributions_gbp=r[1],
+            isa_transfers_gbp=r[2],
+            sipp_contributions_gbp=r[3],
+            sipp_transfers_gbp=r[4],
+            total_contributions_gbp=r[5],
+            total_transfers_gbp=r[6],
+            total_gbp=r[7],
         )
         for r in rows
     ]

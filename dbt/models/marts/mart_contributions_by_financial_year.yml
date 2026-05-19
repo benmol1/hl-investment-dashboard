@@ -3,24 +3,29 @@ version: 2
 models:
   - name: mart_contributions_by_financial_year
     description: >
-      Total contributions per account per UK financial year (April–March).
+      New-money contributions and transfers-in per account per UK financial year (April–March).
 
       **Grain**: One row per (account_name, financial_year)
       **Update Frequency**: Daily (after price ingest)
-      **Source**: fct_transactions filtered to contribution-type transactions
+      **Source**: fct_transactions filtered to CONTRIBUTION and TRANSFER transaction types
 
-      Useful for tracking ISA and SIPP allowance usage year-on-year.
+      Distinguishes between new-money contributions (which count against the ISA/SIPP annual
+      allowance) and transfers-in from other accounts (which do not consume allowance).
     columns:
       - name: account_name
         description: "ISA or SIPP."
         tests:
           - not_null
       - name: financial_year
-        description: "UK financial year label, e.g. FY24 (April 2023 – March 2024)."
+        description: "UK financial year label, e.g. 2023/24 (April 2023 – March 2024)."
         tests:
           - not_null
       - name: contributions_gbp
-        description: "Total amount contributed to this account in this financial year."
+        description: "New-money deposited into this account in this financial year (CONTRIBUTION type only). Counts against the annual ISA/SIPP allowance."
+        tests:
+          - not_null
+      - name: transfers_gbp
+        description: "Cash transferred in from another ISA or SIPP in this financial year (TRANSFER type only). Does not count against the annual allowance."
         tests:
           - not_null
     tests:

@@ -35,7 +35,7 @@ monthly_contributions as (
     from {{ ref('fct_transactions') }} ft
     inner join {{ ref('dim_transaction_type') }} dtt on dtt.transaction_type_key = ft.transaction_type_key
     inner join {{ ref('dim_date') }} dd on dd.date_key = ft.trade_date_key
-    where dtt.contribution_indicator = 'Contribution'
+    where dtt.contribution_indicator in ('Contribution', 'Transfer')
     group by ft.account_key, dd.year_month
 ),
 

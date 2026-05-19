@@ -101,8 +101,12 @@ class IngestLogEntry(BaseModel):
 
 class FinancialYearContribution(BaseModel):
     financial_year: str
-    isa_gbp: float
-    sipp_gbp: float
+    isa_contributions_gbp: float
+    isa_transfers_gbp: float
+    sipp_contributions_gbp: float
+    sipp_transfers_gbp: float
+    total_contributions_gbp: float
+    total_transfers_gbp: float
     total_gbp: float
 
 

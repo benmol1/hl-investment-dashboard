@@ -4,7 +4,7 @@ with daily_movements as (
         ft.account_key,
         sum(case when dtt.trade_indicator        = 'Trade'
                  then ft.value_gbp else 0 end)                                               as trade_cash_net_gbp,
-        sum(case when dtt.contribution_indicator = 'Contribution'
+        sum(case when dtt.contribution_indicator in ('Contribution', 'Transfer')
                  then ft.value_gbp else 0 end)                                               as contributions_gbp,
         sum(case when dtt.trade_indicator        = 'Non-Trade'
                   and dtt.contribution_indicator = 'Non-Contribution'

@@ -12,6 +12,8 @@ select
     transaction_type,
     transaction_subtype,
     case when is_trade        then 'Trade'        else 'Non-Trade'        end as trade_indicator,
-    case when is_contribution then 'Contribution' else 'Non-Contribution' end as contribution_indicator
+    case when transaction_type = 'CONTRIBUTION' then 'Contribution'
+         when transaction_type = 'TRANSFER'     then 'Transfer'
+         else                                        'Non-Contribution' end as contribution_indicator
 
 from distinct_types
