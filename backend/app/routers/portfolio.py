@@ -8,7 +8,7 @@ from app.db import get_db
 from app.models import (
     TimeSeriesPoint,
     AllocationItem,
-    ContributionPoint,
+    InflowPoint,
     PerformancePoint,
     PortfolioPerformanceResponse,
     SharpeRatios,
@@ -104,8 +104,8 @@ def portfolio_allocation(
     ]
 
 
-@router.get("/contributions", response_model=list[ContributionPoint])
-def contributions_vs_growth(
+@router.get("/inflows", response_model=list[InflowPoint])
+def inflows_vs_growth(
     from_date: date = Query(date(2017, 1, 1), alias="from"),
     to_date: date = Query(default_factory=date.today, alias="to"),
     account: Optional[Literal["ISA", "SIPP"]] = None,
@@ -118,11 +118,11 @@ def contributions_vs_growth(
 
     sql = f"""
     SELECT
-        valuation_date                                                        AS date,
-        SUM(portfolio_value_gbp)                                             AS portfolio_value,
-        SUM(cumulative_contributions_gbp)                                    AS cumulative_contributions,
-        ROUND(SUM(portfolio_value_gbp) - SUM(cumulative_contributions_gbp), 2) AS growth
-    FROM mart_portfolio_contributions_daily
+        valuation_date                                                    AS date,
+        SUM(portfolio_value_gbp)                                         AS portfolio_value,
+        SUM(cumulative_inflows_gbp)                                      AS cumulative_inflows,
+        ROUND(SUM(portfolio_value_gbp) - SUM(cumulative_inflows_gbp), 2) AS growth
+    FROM mart_portfolio_inflows_daily
     WHERE valuation_date BETWEEN ? AND ?
     {account_filter}
     GROUP BY valuation_date
@@ -130,10 +130,10 @@ def contributions_vs_growth(
     """
     rows = con.execute(sql, params).fetchall()
     return [
-        ContributionPoint(
+        InflowPoint(
             date=r[0],
             portfolio_value=r[1],
-            cumulative_contributions=r[2],
+            cumulative_inflows=r[2],
             growth=r[3],
         )
         for r in rows
@@ -149,7 +149,7 @@ def contributions_by_financial_year(con: duckdb.DuckDBPyConnection = Depends(get
         financial_year,
         SUM(CASE WHEN account_name = 'ISA'  THEN contributions_gbp ELSE 0 END) AS isa_gbp,
         SUM(CASE WHEN account_name = 'SIPP' THEN contributions_gbp ELSE 0 END) AS sipp_gbp,
-        SUM(contributions_gbp) AS total_gbp
+        SUM(contributions_gbp)                                                  AS total_gbp
     FROM mart_contributions_by_financial_year
     GROUP BY financial_year
     ORDER BY financial_year
@@ -171,7 +171,7 @@ def portfolio_performance(
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
     """
-    Portfolio investment return (Modified Dietz, contribution-adjusted) indexed to 100
+    Portfolio investment return (Modified Dietz, inflow-adjusted) indexed to 100
     at from_date, plus all three benchmark indices indexed to 100 at the same start date.
     Both series use calendar month-end dates.
     """
@@ -186,9 +186,9 @@ def portfolio_performance(
     SELECT
         month_end_date,
         CASE
-            WHEN SUM(prev_month_end_value_gbp + 0.5 * month_contributions_gbp) = 0 THEN 0
-            ELSE SUM(monthly_return * (prev_month_end_value_gbp + 0.5 * month_contributions_gbp))
-                 / SUM(prev_month_end_value_gbp + 0.5 * month_contributions_gbp)
+            WHEN SUM(prev_month_end_value_gbp + 0.5 * month_inflows_gbp) = 0 THEN 0
+            ELSE SUM(monthly_return * (prev_month_end_value_gbp + 0.5 * month_inflows_gbp))
+                 / SUM(prev_month_end_value_gbp + 0.5 * month_inflows_gbp)
         END AS monthly_return
     FROM mart_portfolio_returns_monthly
     WHERE month_end_date BETWEEN ? AND ?

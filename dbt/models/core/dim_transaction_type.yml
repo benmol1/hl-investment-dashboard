@@ -33,12 +33,12 @@ models:
               arguments:
                 values: ['Trade', 'Non-Trade']
       - name: contribution_indicator
-        description: "Human-readable contribution flag: 'Contribution' for CONTRIBUTION and TRANSFER; 'Non-Contribution' otherwise."
+        description: "Three-way inflow flag: 'Contribution' for new-money deposits (CONTRIBUTION type), 'Transfer' for account-to-account transfers (TRANSFER type), 'Non-Contribution' otherwise."
         tests:
           - not_null
           - accepted_values:
               arguments:
-                values: ['Contribution', 'Non-Contribution']
+                values: ['Contribution', 'Transfer', 'Non-Contribution']
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

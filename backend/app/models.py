@@ -18,10 +18,10 @@ class AllocationItem(BaseModel):
     percentage: float
 
 
-class ContributionPoint(BaseModel):
+class InflowPoint(BaseModel):
     date: date
     portfolio_value: float
-    cumulative_contributions: float
+    cumulative_inflows: float
     growth: float
 
 

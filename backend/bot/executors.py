@@ -71,7 +71,7 @@ def _execute_get_portfolio_value(inputs: dict) -> Any:
     return _summarise_series(points, "date")
 
 
-def _execute_get_contributions(inputs: dict) -> Any:
+def _execute_get_inflows(inputs: dict) -> Any:
     params = {
         k: v
         for k, v in {
@@ -81,7 +81,7 @@ def _execute_get_contributions(inputs: dict) -> Any:
         }.items()
         if v is not None
     }
-    points = _api_get("/portfolio/contributions", params)
+    points = _api_get("/portfolio/inflows", params)
     monthly = _summarise_series(points, "date")
     # First point for context + last 23 months
     return (monthly[:1] + monthly[-23:]) if len(monthly) > 24 else monthly
@@ -506,7 +506,7 @@ def _execute_query_database(inputs: dict) -> Any:
 _EXECUTORS = {
     "get_holdings": _execute_get_holdings,
     "get_portfolio_value": _execute_get_portfolio_value,
-    "get_contributions": _execute_get_contributions,
+    "get_inflows": _execute_get_inflows,
     "get_contributions_by_financial_year": _execute_get_contributions_by_financial_year,
     "get_portfolio_performance": _execute_get_portfolio_performance,
     "get_portfolio_allocation": _execute_get_portfolio_allocation,

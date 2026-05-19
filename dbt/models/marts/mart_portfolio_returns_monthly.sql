@@ -8,7 +8,7 @@ monthly_inputs as (
         month_end_date,
         month_end_value_gbp                                                         as emv,
         lag(month_end_value_gbp) over (partition by account_name order by year_month) as bmv,
-        monthly_contributions_gbp                                                    as cf
+        monthly_inflows_gbp                                                          as cf
     from {{ ref('mart_portfolio_snapshot_monthly') }}
 ),
 
@@ -40,7 +40,7 @@ trailing_returns as (
         month_end_date,
         emv as month_end_value_gbp,
         bmv as prev_month_end_value_gbp,
-        cf  as month_contributions_gbp,
+        cf  as month_inflows_gbp,
         monthly_return,
         case
             when count(*) over (
@@ -130,7 +130,7 @@ select
     month_end_date,
     month_end_value_gbp,
     prev_month_end_value_gbp,
-    month_contributions_gbp,
+    month_inflows_gbp,
     monthly_return,
     trailing_12m_return,
     trailing_36m_return_annualised,

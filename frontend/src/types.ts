@@ -13,10 +13,10 @@ export interface AllocationItem {
   percentage: number
 }
 
-export interface ContributionPoint {
+export interface InflowPoint {
   date: string
   portfolio_value: number
-  cumulative_contributions: number
+  cumulative_inflows: number
   growth: number
 }
 

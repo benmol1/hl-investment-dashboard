@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: mart_portfolio_inflows_daily
+    description: >
+      Daily portfolio value alongside cumulative inflows (contributions + transfers) per account.
+
+      **Grain**: One row per (account_name, valuation_date)
+      **Update Frequency**: Daily (after price ingest)
+      **Source**: mart_portfolio_value_daily; inflows derived inline from fct_transactions
+
+      The difference between portfolio_value_gbp and cumulative_inflows_gbp
+      is the return attributable to investment performance rather than capital deployed.
+      Non-inflow dates carry forward the cumulative inflow total via LEFT JOIN + COALESCE.
+    columns:
+      - name: account_name
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: valuation_date
+        description: "Price date."
+        tests:
+          - not_null
+      - name: portfolio_value_gbp
+        description: "Total market value of the portfolio on this date."
+        tests:
+          - not_null
+      - name: inflows_gbp
+        description: "Total inflows (contributions + transfers) on this date. Zero on non-inflow dates."
+        tests:
+          - not_null
+      - name: cumulative_inflows_gbp
+        description: >
+          Running total of all inflows (contributions + transfers) to this account up to and
+          including this date. Zero on dates before the first inflow.
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [account_name, valuation_date]

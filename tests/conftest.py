@@ -57,11 +57,11 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
         )
     """)
     con.execute("""
-        CREATE TABLE mart_portfolio_contributions_daily (
-            valuation_date               DATE,
-            account_name                 VARCHAR,
-            portfolio_value_gbp          DOUBLE,
-            cumulative_contributions_gbp DOUBLE
+        CREATE TABLE mart_portfolio_inflows_daily (
+            valuation_date          DATE,
+            account_name            VARCHAR,
+            portfolio_value_gbp     DOUBLE,
+            cumulative_inflows_gbp  DOUBLE
         )
     """)
     con.execute("""
@@ -77,7 +77,7 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
             account_name                VARCHAR,
             monthly_return              DOUBLE,
             prev_month_end_value_gbp    DOUBLE,
-            month_contributions_gbp     DOUBLE,
+            month_inflows_gbp           DOUBLE,
             trailing_12m_sharpe         DOUBLE,
             trailing_36m_sharpe         DOUBLE
         )
@@ -179,7 +179,7 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
         (2, 1, 2, 'Fund',  52.0, 52.0, 2704.0)
     """)
     con.execute("""
-        INSERT INTO mart_portfolio_contributions_daily VALUES
+        INSERT INTO mart_portfolio_inflows_daily VALUES
         ('2024-01-31', 'ISA',  10000.0, 8000.0),
         ('2024-01-31', 'SIPP',  5000.0, 4500.0),
         ('2024-02-29', 'ISA',  10500.0, 8500.0),
@@ -194,10 +194,10 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     """)
     con.execute("""
         INSERT INTO mart_portfolio_returns_monthly VALUES
-        ('2024-01-31', 'ISA',  0.01,  9900.0, 0.0,   0.5,  0.4),
-        ('2024-01-31', 'SIPP', 0.015, 4900.0, 0.0,   0.4,  0.3),
+        ('2024-01-31', 'ISA',  0.01,  9900.0,  0.0,   0.5,  0.4),
+        ('2024-01-31', 'SIPP', 0.015, 4900.0,  0.0,   0.4,  0.3),
         ('2024-02-29', 'ISA',  0.02,  10000.0, 100.0, 0.6,  NULL),
-        ('2024-02-29', 'SIPP', 0.01,  5000.0,  50.0,  0.5,  NULL)
+        ('2024-02-29', 'SIPP', 0.01,  5000.0,   50.0, 0.5,  NULL)
     """)
     con.execute("""
         INSERT INTO mart_benchmarks_monthly VALUES

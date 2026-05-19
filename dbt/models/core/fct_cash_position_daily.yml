@@ -12,7 +12,7 @@ models:
 
       Cash movements are split into three buckets:
       trade_cash_net_gbp (net of buys and sells — switches net to zero),
-      contributions_gbp (CONTRIBUTION and TRANSFER inflows),
+      inflows_gbp (CONTRIBUTION and TRANSFER inflows),
       and fees_and_other_gbp (FEE, INTEREST, REBATE, and other non-trade rows).
       net_cash_movement_gbp is the sum of all three.
     tests:
@@ -43,12 +43,12 @@ models:
           Negative when net purchases exceed net sales.
         tests:
           - not_null
-      - name: contributions_gbp
+      - name: inflows_gbp
         description: "Cash inflows from CONTRIBUTION and TRANSFER transactions."
         tests:
           - not_null
       - name: fees_and_other_gbp
-        description: "Cash movements from FEE, INTEREST, REBATE, and other non-trade non-contribution rows."
+        description: "Cash movements from FEE, INTEREST, REBATE, and other non-trade non-inflow rows."
         tests:
           - not_null
       - name: net_cash_movement_gbp
@@ -57,7 +57,7 @@ models:
           - not_null
           - dbt_utils.expression_is_true:
               arguments:
-                expression: "= trade_cash_net_gbp + contributions_gbp + fees_and_other_gbp"
+                expression: "= trade_cash_net_gbp + inflows_gbp + fees_and_other_gbp"
       - name: cash_balance_gbp
         description: "Running cumulative sum of net_cash_movement_gbp per account, ordered by trade_date. Represents the total cash held in the account at the end of this day."
         tests:

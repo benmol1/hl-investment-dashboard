@@ -31,8 +31,8 @@ models:
         description: "Total market value of the portfolio on the month-end date (EMV)."
       - name: prev_month_end_value_gbp
         description: "Portfolio value at the end of the prior month (BMV)."
-      - name: month_contributions_gbp
-        description: "External cash flows into the account during the month (CF). Fund switches are excluded as they are internal movements."
+      - name: month_inflows_gbp
+        description: "External cash inflows into the account during the month (CF): new-money contributions + transfers-in. Fund switches are excluded as they are internal movements."
       - name: monthly_return
         description: >
           Modified Dietz return for the month: (EMV - BMV - CF) / (BMV + 0.5 * CF).

@@ -72,11 +72,11 @@ def _monthly_summary() -> str:
         rows = con.execute("""
             WITH ranked AS (
                 SELECT account_name, month_end_date, month_end_value_gbp,
-                       monthly_contributions_gbp,
+                       monthly_inflows_gbp,
                        LAG(month_end_value_gbp) OVER (PARTITION BY account_name ORDER BY month_end_date) AS prev_value
                 FROM mart_portfolio_snapshot_monthly
             )
-            SELECT account_name, month_end_date, month_end_value_gbp, prev_value, monthly_contributions_gbp
+            SELECT account_name, month_end_date, month_end_value_gbp, prev_value, monthly_inflows_gbp
             FROM ranked
             WHERE month_end_date = (SELECT MAX(month_end_date) FROM mart_portfolio_snapshot_monthly)
             ORDER BY account_name
@@ -89,14 +89,14 @@ def _monthly_summary() -> str:
         month_end_date = rows[0][1]
         total = sum(r[2] for r in rows)
         total_prev = sum(r[3] for r in rows if r[3] is not None) or None
-        total_contributions = sum(r[4] for r in rows if r[4] is not None)
+        total_inflows = sum(r[4] for r in rows if r[4] is not None)
 
         lines = [
             f"📊 <b>Monthly portfolio summary ({_fmt_date(month_end_date)})</b>",
             "",
             f"Total:         <b>£{total:,.0f}</b>",
             f"Change:        {_delta_str(total, total_prev)}",
-            f"Contributions: £{total_contributions:,.0f}",
+            f"Inflows:       £{total_inflows:,.0f}",
             "",
         ]
         for account_name, _, value, prev, _ in rows:

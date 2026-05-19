@@ -43,11 +43,11 @@ TOOLS = [
         },
     },
     {
-        "name": "get_contributions",
+        "name": "get_inflows",
         "description": (
-            "Get cumulative contributions vs portfolio value over time. Shows total invested, "
-            "current value, and total growth (value minus contributions). Use for questions about "
-            "how much has been invested, total growth, or money-weighted return."
+            "Get cumulative inflows (contributions + transfers) vs portfolio value over time. "
+            "Shows total capital deployed, current value, and total growth (value minus inflows). "
+            "Use for questions about how much has been invested, total growth, or money-weighted return."
         ),
         "input_schema": {
             "type": "object",
@@ -204,10 +204,11 @@ TOOLS = [
     {
         "name": "get_contributions_by_financial_year",
         "description": (
-            "Get contributions broken down by UK financial year (April–March), showing ISA, SIPP, "
-            "and combined totals for each year. Use for questions about how much was contributed "
-            "in a specific tax year, ISA allowance usage, year-on-year contribution trends, or "
-            "comparing ISA vs SIPP contributions over time."
+            "Get new-money contributions broken down by UK financial year (April–March), showing "
+            "ISA, SIPP, and combined totals for each year. Transfers-in are excluded — only "
+            "contributions that count against the annual ISA/SIPP allowance are included. Use for "
+            "questions about allowance usage, how much new money was added in a tax year, or "
+            "year-on-year ISA vs SIPP contribution trends."
         ),
         "input_schema": {
             "type": "object",

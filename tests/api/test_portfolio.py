@@ -41,12 +41,12 @@ def test_portfolio_allocation_account_filter(client):
     assert data[0]["fund_id"] == "FUND_A"
 
 
-def test_contributions(client):
-    r = client.get("/portfolio/contributions")
+def test_inflows(client):
+    r = client.get("/portfolio/inflows")
     assert r.status_code == 200
     data = r.json()
     assert len(data) == 2
-    assert "cumulative_contributions" in data[0]
+    assert "cumulative_inflows" in data[0]
     assert "growth" in data[0]
 
 
