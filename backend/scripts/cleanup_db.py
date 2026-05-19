@@ -1,0 +1,100 @@
+"""
+Identify and interactively drop orphaned tables from hl_dashboard.duckdb.
+
+A table is considered orphaned if it is not:
+  - a current dbt model (derived from `dbt ls`)
+  - a raw source table managed by setup_db.py / ingest scripts
+
+Usage (run from the repo root):
+    python backend/scripts/cleanup_db.py
+"""
+
+import subprocess
+import sys
+from pathlib import Path
+
+import duckdb
+
+ROOT = Path(__file__).resolve().parents[2]
+DB_PATH = ROOT / "data" / "hl_dashboard.duckdb"
+DBT_DIR = ROOT / "dbt"
+
+# Raw source tables that are not dbt models and should never be dropped.
+SOURCE_TABLES = {
+    "accounts",
+    "benchmarks",
+    "funds",
+    "ingest_log",
+    "prices",
+    "transaction_type_mapping",
+    "transactions",
+}
+
+
+def get_dbt_models() -> set[str]:
+    dbt = Path(sys.executable).parent / "dbt"
+    result = subprocess.run(
+        [str(dbt), "ls", "--profiles-dir", ".", "--output", "name"],
+        cwd=DBT_DIR,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print("ERROR: dbt ls failed:")
+        print(result.stderr)
+        sys.exit(1)
+    return {line.strip().split(".")[-1] for line in result.stdout.splitlines() if line.strip()}
+
+
+def get_db_tables(con: duckdb.DuckDBPyConnection) -> list[str]:
+    rows = con.execute("SHOW TABLES").fetchall()
+    return [r[0] for r in rows]
+
+
+def main() -> None:
+    print(f"Database: {DB_PATH}\n")
+
+    print("Fetching current dbt models...")
+    dbt_models = get_dbt_models()
+    print(f"  {len(dbt_models)} models found.\n")
+
+    con = duckdb.connect(str(DB_PATH))
+    db_tables = get_db_tables(con)
+    print(f"Tables in DuckDB: {len(db_tables)}\n")
+
+    kept = SOURCE_TABLES | dbt_models
+    orphans = [t for t in db_tables if t not in kept]
+
+    if not orphans:
+        print("No orphaned tables found. Nothing to do.")
+        con.close()
+        return
+
+    print(f"Orphaned tables ({len(orphans)}):")
+    for name in orphans:
+        print(f"  - {name}")
+
+    print()
+    dropped, skipped = [], []
+
+    for name in orphans:
+        answer = input(f"Drop table '{name}'? [y/N] ").strip().lower()
+        if answer == "y":
+            con.execute(f'DROP TABLE IF EXISTS "{name}"')
+            print(f"  Dropped '{name}'.")
+            dropped.append(name)
+        else:
+            print(f"  Skipped '{name}'.")
+            skipped.append(name)
+
+    con.close()
+
+    print(f"\nDone. Dropped: {len(dropped)}, Skipped: {len(skipped)}.")
+    if dropped:
+        print("Dropped tables:", ", ".join(dropped))
+    if skipped:
+        print("Skipped tables:", ", ".join(skipped))
+
+
+if __name__ == "__main__":
+    main()
