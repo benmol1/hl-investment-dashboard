@@ -204,11 +204,11 @@ TOOLS = [
     {
         "name": "get_contributions_by_financial_year",
         "description": (
-            "Get inflows broken down by UK financial year (April–March), separating new-money "
-            "contributions (which count against the ISA/SIPP annual allowance) from transfers-in "
-            "(which do not consume allowance). Returns per-account and combined totals for each "
-            "year. Use for questions about ISA allowance usage, how much new money was added in a "
-            "tax year, whether any transfers-in occurred, or year-on-year ISA vs SIPP breakdown."
+            "Get new-money contributions broken down by UK financial year (April–March), showing "
+            "ISA, SIPP, and combined totals for each year. Transfers-in are excluded — only "
+            "contributions that count against the annual ISA/SIPP allowance are included. Use for "
+            "questions about allowance usage, how much new money was added in a tax year, or "
+            "year-on-year ISA vs SIPP contribution trends."
         ),
         "input_schema": {
             "type": "object",
