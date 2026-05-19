@@ -202,6 +202,19 @@ TOOLS = [
         },
     },
     {
+        "name": "get_contributions_by_financial_year",
+        "description": (
+            "Get contributions broken down by UK financial year (April–March), showing ISA, SIPP, "
+            "and combined totals for each year. Use for questions about how much was contributed "
+            "in a specific tax year, ISA allowance usage, year-on-year contribution trends, or "
+            "comparing ISA vs SIPP contributions over time."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
         "name": "generate_chart",
         "description": (
             "Render a chart as an image and send it to the user. Call this AFTER fetching data "

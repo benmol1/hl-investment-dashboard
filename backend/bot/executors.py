@@ -174,6 +174,10 @@ def _execute_get_fund_performance(inputs: dict) -> Any:
     }
 
 
+def _execute_get_contributions_by_financial_year(_inputs: dict) -> Any:
+    return _api_get("/portfolio/contributions/financial-year")
+
+
 def _execute_list_transactions(inputs: dict) -> Any:
     params = {
         k: v
@@ -503,6 +507,7 @@ _EXECUTORS = {
     "get_holdings": _execute_get_holdings,
     "get_portfolio_value": _execute_get_portfolio_value,
     "get_contributions": _execute_get_contributions,
+    "get_contributions_by_financial_year": _execute_get_contributions_by_financial_year,
     "get_portfolio_performance": _execute_get_portfolio_performance,
     "get_portfolio_allocation": _execute_get_portfolio_allocation,
     "list_funds": _execute_list_funds,
