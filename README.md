@@ -146,7 +146,7 @@ All endpoints are read-only (GET). Interactive docs at `http://localhost:8000/do
 | `GET /portfolio/allocation` | Current fund allocation |
 | `GET /portfolio/inflows` | Portfolio value vs cumulative inflows (contributions + transfers) |
 | `GET /portfolio/performance` | Portfolio + benchmarks indexed to 100 |
-| `GET /portfolio/contributions/financial-year` | Inflows split by type per UK tax year (ISA, SIPP, combined) |
+| `GET /portfolio/contributions/financial-year` | New-money contributions per UK tax year (ISA, SIPP, combined; excludes transfers) |
 | `GET /portfolio/holdings` | Holdings with cost basis and unrealised gain/loss |
 | `GET /funds` | List all funds |
 | `GET /funds/{id}/performance` | Fund indexed to 100 + benchmark overlay |
