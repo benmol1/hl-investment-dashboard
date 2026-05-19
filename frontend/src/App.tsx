@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Overview from './pages/Overview'
-import Contributions from './pages/Contributions'
+import Inflows from './pages/Inflows'
 import FundList from './pages/FundList'
 import FundPerformance from './pages/FundPerformance'
 import Benchmarks from './pages/Benchmarks'
@@ -16,7 +16,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Overview />} />
-          <Route path="contributions" element={<Contributions />} />
+          <Route path="inflows" element={<Inflows />} />
           <Route path="funds" element={<FundList />} />
           <Route path="funds/:id" element={<FundPerformance />} />
           <Route path="benchmarks" element={<Benchmarks />} />

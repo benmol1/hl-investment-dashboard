@@ -9,7 +9,7 @@ Runs on a Raspberry Pi on the home network, accessible via browser or Telegram f
 ## Features
 
 - **Portfolio Overview** — total value over time + current allocation (donut + table)
-- **Contributions vs Growth** — stacked area chart separating invested capital from returns
+- **Inflows vs Growth** — stacked area chart separating invested capital from returns
 - **Fund Performance** — per-fund indexed line chart rebased to 100 at first purchase, with benchmark overlay
 - **Benchmark Comparison** — portfolio vs FTSE 100, S&P 500, and Nasdaq, all indexed to a common start
 - **Holdings Table** — units, price, value, cost basis, unrealised gain/loss; sortable columns; cash rows included
@@ -144,9 +144,9 @@ All endpoints are read-only (GET). Interactive docs at `http://localhost:8000/do
 |---|---|
 | `GET /portfolio/value` | Daily total portfolio value |
 | `GET /portfolio/allocation` | Current fund allocation |
-| `GET /portfolio/contributions` | Portfolio value vs cumulative contributions |
+| `GET /portfolio/inflows` | Portfolio value vs cumulative inflows (contributions + transfers) |
 | `GET /portfolio/performance` | Portfolio + benchmarks indexed to 100 |
-| `GET /portfolio/contributions/financial-year` | Contributions per UK tax year (ISA, SIPP, combined) |
+| `GET /portfolio/contributions/financial-year` | Inflows split by type per UK tax year (ISA, SIPP, combined) |
 | `GET /portfolio/holdings` | Holdings with cost basis and unrealised gain/loss |
 | `GET /funds` | List all funds |
 | `GET /funds/{id}/performance` | Fund indexed to 100 + benchmark overlay |
@@ -165,6 +165,6 @@ Raw source tables (`accounts`, `funds`, `transactions`, `prices`, `benchmarks`) 
 | `base` | `base__hl_transactions`, `base__hl_prices`, `base__hl_benchmarks` | Typed, renamed views over raw tables |
 | `core` | `dim_fund`, `dim_account`, `dim_date`, `dim_transaction_type`, `fct_transactions`, `fct_holdings_daily`, `fct_cash_position_daily`, `fct_fund_prices_daily`, `fct_benchmarks_monthly` | Kimball-style dims and facts |
 | `intermediate` | `int_fund_values_daily`, `int_cash_values_daily` | Pre-aggregated inputs for marts |
-| `marts` | `mart_portfolio_value_daily`, `mart_holdings_latest`, `mart_portfolio_contributions_daily`, `mart_portfolio_returns_monthly`, `mart_benchmarks_monthly`, `mart_portfolio_snapshot_monthly`, `mart_contributions_by_financial_year` | API-ready aggregates |
+| `marts` | `mart_portfolio_value_daily`, `mart_holdings_latest`, `mart_portfolio_inflows_daily`, `mart_portfolio_returns_monthly`, `mart_benchmarks_monthly`, `mart_portfolio_snapshot_monthly`, `mart_contributions_by_financial_year` | API-ready aggregates |
 
 Key conventions: `value_gbp` is negative for debits (buys, fees) and positive for credits (contributions, sells). Fund prices are stored in pence (`price_pence`) to match HL's raw format.

@@ -5,7 +5,7 @@ with daily_movements as (
         sum(case when dtt.trade_indicator        = 'Trade'
                  then ft.value_gbp else 0 end)                                               as trade_cash_net_gbp,
         sum(case when dtt.contribution_indicator in ('Contribution', 'Transfer')
-                 then ft.value_gbp else 0 end)                                               as contributions_gbp,
+                 then ft.value_gbp else 0 end)                                               as inflows_gbp,
         sum(case when dtt.trade_indicator        = 'Non-Trade'
                   and dtt.contribution_indicator = 'Non-Contribution'
                  then ft.value_gbp else 0 end)                                               as fees_and_other_gbp,
@@ -23,7 +23,7 @@ select
     date_key,
     account_key,
     trade_cash_net_gbp,
-    contributions_gbp,
+    inflows_gbp,
     fees_and_other_gbp,
     net_cash_movement_gbp,
     sum(net_cash_movement_gbp) over (

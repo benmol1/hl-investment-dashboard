@@ -5,7 +5,7 @@ import { fetchFreshness } from '../api/portfolio'
 
 const navItems = [
   { to: '/', label: 'Overview', exact: true },
-  { to: '/contributions', label: 'Contributions' },
+  { to: '/inflows', label: 'Inflows' },
   { to: '/tax-year-contributions', label: 'Tax Year Contributions' },
   { to: '/funds', label: 'Fund Performance' },
   { to: '/benchmarks', label: 'Benchmarks' },

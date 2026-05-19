@@ -43,11 +43,11 @@ TOOLS = [
         },
     },
     {
-        "name": "get_contributions",
+        "name": "get_inflows",
         "description": (
-            "Get cumulative contributions vs portfolio value over time. Shows total invested, "
-            "current value, and total growth (value minus contributions). Use for questions about "
-            "how much has been invested, total growth, or money-weighted return."
+            "Get cumulative inflows (contributions + transfers) vs portfolio value over time. "
+            "Shows total capital deployed, current value, and total growth (value minus inflows). "
+            "Use for questions about how much has been invested, total growth, or money-weighted return."
         ),
         "input_schema": {
             "type": "object",

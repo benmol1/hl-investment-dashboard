@@ -26,12 +26,12 @@ month_end_values as (
     group by fdh.account_key, dd.year_month, dd.date
 ),
 
--- Cash contributions received within each month.
-monthly_contributions as (
+-- Cash inflows (contributions + transfers) received within each month.
+monthly_inflows as (
     select
         ft.account_key,
         dd.year_month,
-        sum(ft.value_gbp) as month_total_contributions_gbp
+        sum(ft.value_gbp) as month_total_inflows_gbp
     from {{ ref('fct_transactions') }} ft
     inner join {{ ref('dim_transaction_type') }} dtt on dtt.transaction_type_key = ft.transaction_type_key
     inner join {{ ref('dim_date') }} dd on dd.date_key = ft.trade_date_key
@@ -61,15 +61,15 @@ select
     ams.financial_year,
     mev.month_end_date,
     mev.month_end_value_gbp,
-    coalesce(mc.month_total_contributions_gbp, 0)        as monthly_contributions_gbp,
-    coalesce(mfp.net_fund_purchases_gbp, 0)              as monthly_net_fund_purchases_gbp
+    coalesce(mi.month_total_inflows_gbp, 0)          as monthly_inflows_gbp,
+    coalesce(mfp.net_fund_purchases_gbp, 0)           as monthly_net_fund_purchases_gbp
 from account_month_spine ams
 left join month_end_values mev
     on  mev.account_key = ams.account_key
     and mev.year_month  = ams.year_month
-left join monthly_contributions mc
-    on  mc.account_key  = ams.account_key
-    and mc.year_month   = ams.year_month
+left join monthly_inflows mi
+    on  mi.account_key  = ams.account_key
+    and mi.year_month   = ams.year_month
 left join monthly_fund_purchases mfp
     on  mfp.account_key = ams.account_key
     and mfp.year_month  = ams.year_month
