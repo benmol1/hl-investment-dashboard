@@ -121,11 +121,14 @@ Dashboard: [http://localhost:5173](http://localhost:5173) — API proxied to `:8
 ```bash
 # On the Pi — first time
 cd /srv/hl-dashboard/app
-cp .env.example .env   # fill in TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, ANTHROPIC_API_KEY
+cp .env.example .env   # fill in TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, etc
 docker compose up -d --build
 
 # Redeploy after a git pull
 docker compose up -d --build
+
+# Manually trigger a dbt build
+docker compose exec -w /app/dbt cron /app/.venv/bin/dbt run --profiles-dir .
 ```
 
 **Access:**
