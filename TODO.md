@@ -254,5 +254,7 @@ Two motivations: (1) a demo/dummy dataset so the app can be shown to others with
 - [ ] Update the Readme file with the improved data model naming convention
 - [ ] Update the custom Kimball-style dbt skill so that new models it generates automatically follow the underscore suffix naming convention for frequency.
 - [ ] Set up dotfiles repo on Windows PC — clone `~/.dotfiles`, run `mklink /D %USERPROFILE%\.claude %USERPROFILE%\.dotfiles\claude` in an elevated cmd prompt (or enable Developer Mode to avoid needing elevation).
+- [ ] Add a git pre-commit hook (`.git/hooks/pre-commit`) that runs `uv run pytest --tb=short -q` and aborts the commit if tests fail.
+- [ ] Add a GitHub Actions workflow (`.github/workflows/test.yml`) that runs the test suite on every push as a CI safety net.
 
 ---
