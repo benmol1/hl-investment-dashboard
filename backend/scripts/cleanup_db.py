@@ -46,9 +46,13 @@ def get_dbt_models() -> set[str]:
     return {line.strip().split(".")[-1] for line in result.stdout.splitlines() if line.strip()}
 
 
-def get_db_tables(con: duckdb.DuckDBPyConnection) -> list[str]:
-    rows = con.execute("SHOW TABLES").fetchall()
-    return [r[0] for r in rows]
+def get_db_tables(con: duckdb.DuckDBPyConnection) -> dict[str, str]:
+    rows = con.execute("""
+        SELECT table_name, table_type
+        FROM information_schema.tables
+        WHERE table_schema = 'main'
+    """).fetchall()
+    return {r[0]: r[1] for r in rows}  # name -> 'BASE TABLE' or 'VIEW'
 
 
 def main() -> None:
@@ -60,27 +64,28 @@ def main() -> None:
 
     con = duckdb.connect(str(DB_PATH))
     db_tables = get_db_tables(con)
-    print(f"Tables in DuckDB: {len(db_tables)}\n")
+    print(f"Objects in DuckDB: {len(db_tables)}\n")
 
     kept = SOURCE_TABLES | dbt_models
-    orphans = [t for t in db_tables if t not in kept]
+    orphans = {name: kind for name, kind in db_tables.items() if name not in kept}
 
     if not orphans:
-        print("No orphaned tables found. Nothing to do.")
+        print("No orphaned objects found. Nothing to do.")
         con.close()
         return
 
-    print(f"Orphaned tables ({len(orphans)}):")
-    for name in orphans:
-        print(f"  - {name}")
+    print(f"Orphaned objects ({len(orphans)}):")
+    for name, kind in orphans.items():
+        print(f"  - {name} ({kind.lower()})")
 
     print()
     dropped, skipped = [], []
 
-    for name in orphans:
-        answer = input(f"Drop table '{name}'? [y/N] ").strip().lower()
+    for name, kind in orphans.items():
+        answer = input(f"Drop {kind.lower()} '{name}'? [y/N] ").strip().lower()
         if answer == "y":
-            con.execute(f'DROP TABLE IF EXISTS "{name}"')
+            drop_cmd = "VIEW" if kind == "VIEW" else "TABLE"
+            con.execute(f'DROP {drop_cmd} IF EXISTS "{name}"')
             print(f"  Dropped '{name}'.")
             dropped.append(name)
         else:
