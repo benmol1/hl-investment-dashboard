@@ -24,12 +24,20 @@ models:
         description: "Regulatory product category: ISA, SIPP, GIA, etc. Use this column (not account_name) when filtering or grouping by product type across multiple providers."
         tests:
           - not_null
-      - name: provider_id
-        description: "Investment platform where the account is held (e.g. HL, VANGUARD). Foreign key to the providers source table."
+      - name: user_id
+        description: "Natural key of the owning user. Stored as an attribute; use user_key for joins to dim_user."
         tests:
           - not_null
-      - name: user_id
-        description: "Owner of the account. Foreign key to the users table. Used to isolate data per user once authentication is enabled."
+      - name: provider_id
+        description: "Natural key of the investment platform. Stored as an attribute; use provider_key for joins to dim_provider."
+        tests:
+          - not_null
+      - name: user_key
+        description: "Surrogate FK to dim_user. Use this to join dim_account to dim_user."
+        tests:
+          - not_null
+      - name: provider_key
+        description: "Surrogate FK to dim_provider. Use this to join dim_account to dim_provider."
         tests:
           - not_null
       - name: account_open_date

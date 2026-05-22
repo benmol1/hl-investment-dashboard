@@ -15,12 +15,30 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
         )
     """)
     con.execute("""
+        CREATE TABLE dim_user (
+            user_key     VARCHAR PRIMARY KEY,
+            user_id      VARCHAR,
+            username     VARCHAR,
+            role         VARCHAR,
+            display_name VARCHAR
+        )
+    """)
+    con.execute("""
+        CREATE TABLE dim_provider (
+            provider_key  VARCHAR PRIMARY KEY,
+            provider_id   VARCHAR,
+            provider_name VARCHAR
+        )
+    """)
+    con.execute("""
         CREATE TABLE dim_account (
             account_key  INTEGER PRIMARY KEY,
             account_name VARCHAR,
             account_type VARCHAR,
+            user_id      VARCHAR,
             provider_id  VARCHAR,
-            user_id      VARCHAR
+            user_key     VARCHAR,
+            provider_key VARCHAR
         )
     """)
     con.execute("""
@@ -153,9 +171,17 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
         (2, '2024-02-29', 'Month End')
     """)
     con.execute("""
+        INSERT INTO dim_user VALUES
+        ('user_key_owner', 'owner', 'owner', 'owner', NULL)
+    """)
+    con.execute("""
+        INSERT INTO dim_provider VALUES
+        ('provider_key_hl', 'HL', 'Hargreaves Lansdown')
+    """)
+    con.execute("""
         INSERT INTO dim_account VALUES
-        (1, 'ISA',  'ISA',  'HL', 'owner'),
-        (2, 'SIPP', 'SIPP', 'HL', 'owner')
+        (1, 'ISA',  'ISA',  'owner', 'HL', 'user_key_owner', 'provider_key_hl'),
+        (2, 'SIPP', 'SIPP', 'owner', 'HL', 'user_key_owner', 'provider_key_hl')
     """)
     con.execute("""
         INSERT INTO dim_fund VALUES

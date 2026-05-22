@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: dim_user
+    description: >
+      User dimension. One row per registered user of the dashboard.
+
+      **Table type**: Dimension
+      **Grain**: One row per user_id
+      **Update Frequency**: Static — users are added infrequently
+      **Source**: hl_dashboard.users
+    columns:
+      - name: user_key
+        description: "Hash surrogate key generated via dbt_utils.generate_surrogate_key(['u.id']). Use this for all joins between fact tables and dim_user."
+        tests:
+          - not_null
+          - unique
+      - name: user_id
+        description: "Natural/business key (e.g. 'owner', 'demo'). Stored as an attribute, not used for joins."
+        tests:
+          - not_null
+          - unique
+      - name: username
+        description: "Login username."
+        tests:
+          - not_null
+          - unique
+      - name: role
+        description: "Access role governing what the user can see and do: owner (full access and data owner), viewer (read-only access to real data), demo (read-only access to synthetic data only)."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['owner', 'viewer', 'demo']
+      - name: display_name
+        description: "Optional human-readable name shown in the UI. NULL if not set."

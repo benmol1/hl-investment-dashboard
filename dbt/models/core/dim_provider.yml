@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: dim_provider
+    description: >
+      Provider dimension. One row per investment platform (broker or fund supermarket).
+
+      **Table type**: Dimension
+      **Grain**: One row per provider_id
+      **Update Frequency**: Static — providers are added when new platforms are integrated
+      **Source**: hl_dashboard.providers
+    columns:
+      - name: provider_key
+        description: "Hash surrogate key generated via dbt_utils.generate_surrogate_key(['p.id']). Use this for all joins between fact tables and dim_provider."
+        tests:
+          - not_null
+          - unique
+      - name: provider_id
+        description: "Natural/business key (e.g. 'HL', 'VANGUARD', 'TRADING212'). Stored as an attribute, not used for joins."
+        tests:
+          - not_null
+          - unique
+      - name: provider_name
+        description: "Human-readable name of the investment platform (e.g. 'Hargreaves Lansdown')."
+        tests:
+          - not_null

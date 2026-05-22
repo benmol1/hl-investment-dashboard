@@ -100,6 +100,37 @@ sources:
             tests:
               - not_null
 
+      - name: users
+        description: "One row per registered dashboard user."
+        columns:
+          - name: id
+            description: "Natural key (e.g. 'owner', 'demo'). Aliased as user_id in dim_user."
+            tests:
+              - not_null
+              - unique
+          - name: username
+            tests:
+              - not_null
+              - unique
+          - name: role
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['owner', 'viewer', 'demo']
+
+      - name: providers
+        description: "One row per investment platform (broker or fund supermarket)."
+        columns:
+          - name: id
+            description: "Natural key (e.g. 'HL', 'VANGUARD'). Aliased as provider_id in dim_provider."
+            tests:
+              - not_null
+              - unique
+          - name: name
+            tests:
+              - not_null
+
       - name: funds
         description: "Fund reference data — ISIN, name, Morningstar code."
         columns:
