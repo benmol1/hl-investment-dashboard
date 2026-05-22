@@ -9,6 +9,9 @@ with account_open_dates as (
 select
     {{ dbt_utils.generate_surrogate_key(['a.id']) }} as account_key,
     a.id                                             as account_name,
+    a.account_type,
+    a.provider_id,
+    a.user_id,
     aod.account_open_date
 
 from {{ source('hl_dashboard', 'accounts') }} a

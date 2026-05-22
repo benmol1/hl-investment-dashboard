@@ -16,13 +16,22 @@ models:
           - not_null
           - unique
       - name: account_name
-        description: "Account identifier (ISA or SIPP). Natural/business key — stored as an attribute, not used for joins."
+        description: "Unique account identifier (e.g. ISA, SIPP). Natural/business key — stored as an attribute, not used for joins."
         tests:
           - not_null
           - unique
-          - accepted_values:
-              arguments:
-                values: [ISA, SIPP]
+      - name: account_type
+        description: "Regulatory product category: ISA, SIPP, GIA, etc. Use this column (not account_name) when filtering or grouping by product type across multiple providers."
+        tests:
+          - not_null
+      - name: provider_id
+        description: "Investment platform where the account is held (e.g. HL, VANGUARD). Foreign key to the providers source table."
+        tests:
+          - not_null
+      - name: user_id
+        description: "Owner of the account. Foreign key to the users table. Used to isolate data per user once authentication is enabled."
+        tests:
+          - not_null
       - name: account_open_date
         description: "Date of the account's first transaction, derived from base__hl_transactions. Null if no transactions have been recorded for the account."
         tests:

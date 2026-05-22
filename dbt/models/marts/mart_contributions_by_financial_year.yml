@@ -12,7 +12,11 @@ models:
       **Source**: fct_transactions filtered to contribution_indicator = 'Contribution'
     columns:
       - name: account_name
-        description: "ISA or SIPP."
+        description: "Unique account identifier (e.g. ISA, SIPP). Use account_type to group by product category across multiple providers."
+        tests:
+          - not_null
+      - name: account_type
+        description: "Regulatory product category (ISA, SIPP, GIA, etc.). Use this column when comparing contributions across providers of the same product type."
         tests:
           - not_null
       - name: financial_year
@@ -26,4 +30,4 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [account_name, financial_year]
+            combination_of_columns: [account_name, account_type, financial_year]

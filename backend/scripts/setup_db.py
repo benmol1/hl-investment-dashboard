@@ -26,13 +26,38 @@ def run_migrations(con: duckdb.DuckDBPyConnection) -> None:
         con.execute(sql_file.read_text(encoding="utf-8"))
 
 
-def seed_accounts(con: duckdb.DuckDBPyConnection) -> None:
+def seed_users(con: duckdb.DuckDBPyConnection) -> None:
     rows = [
-        ("ISA", "Stocks & Shares ISA"),
-        ("SIPP", "Self-Invested Personal Pension"),
+        ("owner", "owner", None, "owner", None),
+        ("demo",  "demo",  None, "demo",  "Demo User"),
     ]
     for row in rows:
-        con.execute("INSERT OR IGNORE INTO accounts VALUES (?, ?)", row)
+        con.execute(
+            "INSERT OR IGNORE INTO users (id, username, hashed_password, role, display_name) VALUES (?, ?, ?, ?, ?)",
+            row,
+        )
+    print(f"  Seeded {len(rows)} users")
+
+
+def seed_providers(con: duckdb.DuckDBPyConnection) -> None:
+    rows = [
+        ("HL", "Hargreaves Lansdown"),
+    ]
+    for row in rows:
+        con.execute("INSERT OR IGNORE INTO providers VALUES (?, ?)", row)
+    print(f"  Seeded {len(rows)} providers")
+
+
+def seed_accounts(con: duckdb.DuckDBPyConnection) -> None:
+    rows = [
+        ("ISA",  "Stocks & Shares ISA",           "owner", "HL", "ISA"),
+        ("SIPP", "Self-Invested Personal Pension", "owner", "HL", "SIPP"),
+    ]
+    for row in rows:
+        con.execute(
+            "INSERT OR IGNORE INTO accounts (id, name, user_id, provider_id, account_type) VALUES (?, ?, ?, ?, ?)",
+            row,
+        )
     print(f"  Seeded {len(rows)} accounts")
 
 
@@ -84,6 +109,8 @@ def main() -> None:
     run_migrations(con)
 
     print("Seeding reference data...")
+    seed_users(con)
+    seed_providers(con)
     seed_accounts(con)
     seed_funds(con)
 

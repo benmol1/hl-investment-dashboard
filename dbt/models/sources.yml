@@ -80,16 +80,25 @@ sources:
                 combination_of_columns: [index_id, date]
 
       - name: accounts
-        description: "Two-row lookup: ISA and SIPP."
+        description: "One row per account. Each account belongs to a user and a provider, and carries a regulatory product type (account_type)."
         columns:
           - name: id
-            description: "Account identifier (ISA or SIPP). Aliased as account_id in dim_account."
+            description: "Unique account identifier (e.g. ISA, SIPP, VANGUARD_ISA). Aliased as account_name in dim_account."
             tests:
               - not_null
               - unique
-              - accepted_values:
-                  arguments:
-                    values: [ISA, SIPP]
+          - name: user_id
+            description: "Owner of the account. References the users table."
+            tests:
+              - not_null
+          - name: provider_id
+            description: "Investment platform (e.g. HL, VANGUARD). References the providers table."
+            tests:
+              - not_null
+          - name: account_type
+            description: "Regulatory product category: ISA, SIPP, GIA, etc."
+            tests:
+              - not_null
 
       - name: funds
         description: "Fund reference data — ISIN, name, Morningstar code."

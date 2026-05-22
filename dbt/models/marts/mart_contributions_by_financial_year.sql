@@ -1,5 +1,6 @@
 select
     da.account_name,
+    da.account_type,
     dd.financial_year,
     sum(ft.value_gbp) as contributions_gbp
 
@@ -10,4 +11,4 @@ inner join {{ ref('dim_date') }}             dd  on dd.date_key              = f
 
 where dtt.contribution_indicator = 'Contribution'
 
-group by da.account_name, dd.financial_year
+group by da.account_name, da.account_type, dd.financial_year

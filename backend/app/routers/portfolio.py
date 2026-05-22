@@ -147,8 +147,8 @@ def contributions_by_financial_year(con: duckdb.DuckDBPyConnection = Depends(get
     sql = """
     SELECT
         financial_year,
-        SUM(CASE WHEN account_name = 'ISA'  THEN contributions_gbp ELSE 0 END) AS isa_gbp,
-        SUM(CASE WHEN account_name = 'SIPP' THEN contributions_gbp ELSE 0 END) AS sipp_gbp,
+        SUM(CASE WHEN account_type = 'ISA'  THEN contributions_gbp ELSE 0 END) AS isa_gbp,
+        SUM(CASE WHEN account_type = 'SIPP' THEN contributions_gbp ELSE 0 END) AS sipp_gbp,
         SUM(contributions_gbp)                                                  AS total_gbp
     FROM mart_contributions_by_financial_year
     GROUP BY financial_year

@@ -1,7 +1,9 @@
+import os
 import duckdb
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parents[2] / "data" / "hl_dashboard.duckdb"
+_default = Path(__file__).resolve().parents[2] / "data" / "hl_dashboard.duckdb"
+DB_PATH = Path(os.environ.get("HL_DB_PATH", str(_default)))
 
 
 def get_db():

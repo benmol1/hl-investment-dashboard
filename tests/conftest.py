@@ -17,7 +17,10 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
         CREATE TABLE dim_account (
             account_key  INTEGER PRIMARY KEY,
-            account_name VARCHAR
+            account_name VARCHAR,
+            account_type VARCHAR,
+            provider_id  VARCHAR,
+            user_id      VARCHAR
         )
     """)
     con.execute("""
@@ -66,8 +69,9 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
     """)
     con.execute("""
         CREATE TABLE mart_contributions_by_financial_year (
-            financial_year    VARCHAR,
             account_name      VARCHAR,
+            account_type      VARCHAR,
+            financial_year    VARCHAR,
             contributions_gbp DOUBLE
         )
     """)
@@ -150,8 +154,8 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     """)
     con.execute("""
         INSERT INTO dim_account VALUES
-        (1, 'ISA'),
-        (2, 'SIPP')
+        (1, 'ISA',  'ISA',  'HL', 'owner'),
+        (2, 'SIPP', 'SIPP', 'HL', 'owner')
     """)
     con.execute("""
         INSERT INTO dim_fund VALUES
@@ -187,10 +191,10 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     """)
     con.execute("""
         INSERT INTO mart_contributions_by_financial_year VALUES
-        ('2023/24', 'ISA',  5000.0),
-        ('2023/24', 'SIPP', 3000.0),
-        ('2024/25', 'ISA',  2000.0),
-        ('2024/25', 'SIPP', 1500.0)
+        ('ISA',  'ISA',  '2023/24', 5000.0),
+        ('SIPP', 'SIPP', '2023/24', 3000.0),
+        ('ISA',  'ISA',  '2024/25', 2000.0),
+        ('SIPP', 'SIPP', '2024/25', 1500.0)
     """)
     con.execute("""
         INSERT INTO mart_portfolio_returns_monthly VALUES

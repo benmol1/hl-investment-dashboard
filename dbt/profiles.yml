@@ -12,3 +12,8 @@ hl_dashboard:
       path: "../data/hl_dashboard.duckdb"
       schema: main
       threads: 4
+    demo:
+      type: duckdb
+      path: "../data/hl_demo.duckdb"
+      schema: main
+      threads: 4
