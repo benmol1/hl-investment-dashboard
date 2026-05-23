@@ -4,6 +4,7 @@ from typing import Optional, Literal
 from fastapi import APIRouter, Depends, Query
 import duckdb
 
+from app.auth import get_user_accounts, build_account_filter
 from app.db import get_db
 from app.models import Transaction, TransactionPage
 
@@ -42,15 +43,20 @@ def list_transactions(
     tx_type: Optional[str] = Query(None, alias="type"),
     from_date: Optional[date] = Query(None, alias="from"),
     to_date: Optional[date] = Query(None, alias="to"),
+    user_accounts: frozenset[str] = Depends(get_user_accounts),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
     """Paginated transaction log with optional filters. Results are ordered most-recent first."""
-    filters = []
+    filters: list[str] = []
     params: list = []
 
-    if account:
-        filters.append("da.account_name = ?")
-        params.append(account)
+    # Always scope to the user's permitted accounts, intersected with any explicit filter.
+    account_condition, account_params = build_account_filter(
+        user_accounts, account, column="da.account_name"
+    )
+    filters.append(account_condition)
+    params.extend(account_params)
+
     if fund_id:
         filters.append("df.fund_id = ?")
         params.append(fund_id)

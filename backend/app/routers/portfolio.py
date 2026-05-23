@@ -4,6 +4,7 @@ from typing import Optional, Literal
 from fastapi import APIRouter, Depends, Query
 import duckdb
 
+from app.auth import CurrentUser, get_current_user, get_user_accounts, build_account_filter
 from app.db import get_db
 from app.models import (
     TimeSeriesPoint,
@@ -26,22 +27,19 @@ def portfolio_value(
     from_date: date = Query(date(2017, 1, 1), alias="from"),
     to_date: date = Query(default_factory=date.today, alias="to"),
     account: Optional[Literal["ISA", "SIPP"]] = None,
+    user_accounts: frozenset[str] = Depends(get_user_accounts),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
-    account_filter = "AND account_name = ?" if account else ""
-    params: list = [from_date, to_date]
-    if account:
-        params.append(account)
-
+    condition, cparams = build_account_filter(user_accounts, account)
     sql = f"""
     SELECT valuation_date AS date, SUM(portfolio_value_gbp) AS value_gbp
     FROM mart_portfolio_value_daily
     WHERE valuation_date BETWEEN ? AND ?
-    {account_filter}
+      AND {condition}
     GROUP BY valuation_date
     ORDER BY valuation_date
     """
-    rows = con.execute(sql, params).fetchall()
+    rows = con.execute(sql, [from_date, to_date] + cparams).fetchall()
     return [TimeSeriesPoint(date=r[0], value_gbp=r[1]) for r in rows]
 
 
@@ -51,6 +49,7 @@ def portfolio_allocation(
         None, description="Date to calculate allocation (defaults to latest price date)"
     ),
     account: Optional[Literal["ISA", "SIPP"]] = None,
+    user_accounts: frozenset[str] = Depends(get_user_accounts),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
     if as_of is None:
@@ -59,7 +58,7 @@ def portfolio_allocation(
         ).fetchone()
         as_of = result[0] if result and result[0] else date.today()
 
-    account_filter = "AND da.account_name = ?" if account else ""
+    condition, cparams = build_account_filter(user_accounts, account, column="da.account_name")
 
     sql = f"""
     WITH target_date AS (
@@ -83,13 +82,11 @@ def portfolio_allocation(
     INNER JOIN dim_account da  ON da.account_key = fdh.account_key
     WHERE fdh.holding_type = 'Fund'
       AND fdh.units_held >= 0.01
-      {account_filter}
+      AND {condition}
     GROUP BY df.fund_id, df.fund_name, df.fund_short_name
     ORDER BY value_gbp DESC
     """
-    params = [as_of] + ([account] if account else [])
-
-    rows = con.execute(sql, params).fetchall()
+    rows = con.execute(sql, [as_of] + cparams).fetchall()
     return [
         AllocationItem(
             fund_id=r[0],
@@ -109,13 +106,10 @@ def inflows_vs_growth(
     from_date: date = Query(date(2017, 1, 1), alias="from"),
     to_date: date = Query(default_factory=date.today, alias="to"),
     account: Optional[Literal["ISA", "SIPP"]] = None,
+    user_accounts: frozenset[str] = Depends(get_user_accounts),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
-    account_filter = "AND account_name = ?" if account else ""
-    params: list = [from_date, to_date]
-    if account:
-        params.append(account)
-
+    condition, cparams = build_account_filter(user_accounts, account)
     sql = f"""
     SELECT
         valuation_date                                                    AS date,
@@ -124,11 +118,11 @@ def inflows_vs_growth(
         ROUND(SUM(portfolio_value_gbp) - SUM(cumulative_inflows_gbp), 2) AS growth
     FROM mart_portfolio_inflows_daily
     WHERE valuation_date BETWEEN ? AND ?
-    {account_filter}
+      AND {condition}
     GROUP BY valuation_date
     ORDER BY valuation_date
     """
-    rows = con.execute(sql, params).fetchall()
+    rows = con.execute(sql, [from_date, to_date] + cparams).fetchall()
     return [
         InflowPoint(
             date=r[0],
@@ -143,18 +137,23 @@ def inflows_vs_growth(
 @router.get(
     "/contributions/financial-year", response_model=list[FinancialYearContribution]
 )
-def contributions_by_financial_year(con: duckdb.DuckDBPyConnection = Depends(get_db)):
-    sql = """
+def contributions_by_financial_year(
+    user_accounts: frozenset[str] = Depends(get_user_accounts),
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    condition, cparams = build_account_filter(user_accounts)
+    sql = f"""
     SELECT
         financial_year,
         SUM(CASE WHEN account_type = 'ISA'  THEN contributions_gbp ELSE 0 END) AS isa_gbp,
         SUM(CASE WHEN account_type = 'SIPP' THEN contributions_gbp ELSE 0 END) AS sipp_gbp,
         SUM(contributions_gbp)                                                  AS total_gbp
     FROM mart_contributions_by_financial_year
+    WHERE {condition}
     GROUP BY financial_year
     ORDER BY financial_year
     """
-    rows = con.execute(sql).fetchall()
+    rows = con.execute(sql, cparams).fetchall()
     return [
         FinancialYearContribution(
             financial_year=r[0], isa_gbp=r[1], sipp_gbp=r[2], total_gbp=r[3]
@@ -168,6 +167,7 @@ def portfolio_performance(
     from_date: date = Query(date(2017, 1, 1), alias="from"),
     to_date: date = Query(default_factory=date.today, alias="to"),
     account: Optional[Literal["ISA", "SIPP"]] = None,
+    user_accounts: frozenset[str] = Depends(get_user_accounts),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
     """
@@ -175,10 +175,7 @@ def portfolio_performance(
     at from_date, plus all three benchmark indices indexed to 100 at the same start date.
     Both series use calendar month-end dates.
     """
-    account_filter = "AND account_name = ?" if account else ""
-    params: list = [from_date, to_date]
-    if account:
-        params.append(account)
+    condition, cparams = build_account_filter(user_accounts, account)
 
     # Compound monthly Modified Dietz returns from mart_portfolio_returns_monthly.
     # Aggregate across accounts (sum weighted by BMV) when no account filter is applied.
@@ -192,11 +189,11 @@ def portfolio_performance(
         END AS monthly_return
     FROM mart_portfolio_returns_monthly
     WHERE month_end_date BETWEEN ? AND ?
-    {account_filter}
+      AND {condition}
     GROUP BY month_end_date
     ORDER BY month_end_date
     """
-    return_rows = con.execute(returns_sql, params).fetchall()
+    return_rows = con.execute(returns_sql, [from_date, to_date] + cparams).fetchall()
 
     portfolio_series: list[PerformancePoint] = []
     start_date = from_date
@@ -225,8 +222,7 @@ def portfolio_performance(
             for r in rows
         ]
 
-    # Latest Sharpe ratios — trailing windows are independent of the chart start date,
-    # so we take the most recent row up to to_date.
+    # Latest Sharpe ratios — trailing windows are independent of the chart start date.
     portfolio_sharpe_sql = f"""
     SELECT
         SUM(trailing_12m_sharpe * prev_month_end_value_gbp)
@@ -235,10 +231,9 @@ def portfolio_performance(
             / NULLIF(SUM(CASE WHEN trailing_36m_sharpe IS NOT NULL THEN prev_month_end_value_gbp END), 0)
     FROM mart_portfolio_returns_monthly
     WHERE month_end_date = (SELECT MAX(month_end_date) FROM mart_portfolio_returns_monthly WHERE month_end_date <= ?)
-    {account_filter}
+      AND {condition}
     """
-    sharpe_params = [to_date] + ([account] if account else [])
-    ps = con.execute(portfolio_sharpe_sql, sharpe_params).fetchone()
+    ps = con.execute(portfolio_sharpe_sql, [to_date] + cparams).fetchone()
 
     bench_sharpe_rows = con.execute(
         """SELECT index_id, trailing_12m_sharpe, trailing_36m_sharpe
@@ -271,14 +266,12 @@ def portfolio_performance(
 @router.get("/holdings", response_model=list[HoldingItem])
 def portfolio_holdings(
     account: Optional[Literal["ISA", "SIPP"]] = None,
+    user_accounts: frozenset[str] = Depends(get_user_accounts),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
-    account_filter = "WHERE mhl.account_name = ?" if account else ""
-    params: list = [account] if account else []
-
-    # TODO: Double-check whether the GROUP BY is necessary in this query. I suspect it is not because MHL has the grain of
-    # one row per fund per account
-
+    fund_condition, fund_params = build_account_filter(
+        user_accounts, account, column="mhl.account_name"
+    )
     fund_sql = f"""
     SELECT
         df.fund_id,
@@ -295,19 +288,20 @@ def portfolio_holdings(
              ELSE 0.0 END                                                                  AS unrealised_gain_pct
     FROM mart_holdings_latest mhl
     INNER JOIN dim_fund df ON df.fund_name = mhl.fund_name
-    {account_filter}
+    WHERE {fund_condition}
     GROUP BY df.fund_id, mhl.fund_name, df.fund_short_name
     ORDER BY SUM(mhl.value_gbp) DESC
     """
-    fund_rows = con.execute(fund_sql, params).fetchall()
+    fund_rows = con.execute(fund_sql, fund_params).fetchall()
 
-    cash_account_filter = "AND da.account_name = ?" if account else ""
-    cash_params: list = [account] if account else []
+    cash_condition, cash_params = build_account_filter(
+        user_accounts, account, column="da.account_name"
+    )
     cash_sql = f"""
     SELECT da.account_name, cp.cash_balance_gbp
     FROM fct_cash_position_daily cp
     INNER JOIN dim_account da ON da.account_key = cp.account_key
-    WHERE 1=1 {cash_account_filter}
+    WHERE 1=1 AND {cash_condition}
     QUALIFY ROW_NUMBER() OVER (PARTITION BY cp.account_key ORDER BY cp.date_key DESC) = 1
     ORDER BY da.account_name
     """
@@ -359,7 +353,10 @@ def portfolio_holdings(
 
 
 @router.get("/freshness", response_model=DataFreshness)
-def portfolio_freshness(con: duckdb.DuckDBPyConnection = Depends(get_db)):
+def portfolio_freshness(
+    _: CurrentUser = Depends(get_current_user),
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+):
     tx = con.execute(
         "SELECT MAX(run_at) FROM ingest_log WHERE source = 'transactions' AND status = 'success' AND rows_inserted > 0"
     ).fetchone()
@@ -373,7 +370,10 @@ def portfolio_freshness(con: duckdb.DuckDBPyConnection = Depends(get_db)):
 
 
 @router.get("/ingest-log", response_model=list[IngestLogEntry])
-def ingest_log_summary(con: duckdb.DuckDBPyConnection = Depends(get_db)):
+def ingest_log_summary(
+    _: CurrentUser = Depends(get_current_user),
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+):
     def _log_stats(source: str):
         last_successful = con.execute(
             "SELECT MAX(run_at) FROM ingest_log WHERE source = ? AND status = 'success'",

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useApi } from '../hooks/useApi'
 import { fetchFreshness } from '../api/portfolio'
+import { useAuth } from '../AuthContext'
 
 const navItems = [
   { to: '/', label: 'Overview', exact: true },
@@ -25,6 +26,7 @@ const fmtDate = (iso: string | null) => {
 export default function Layout() {
   const [open, setOpen] = useState(() => window.innerWidth >= 768)
   const { data: freshness } = useApi(fetchFreshness, [])
+  const { logout } = useAuth()
 
   return (
     <div className="flex min-h-screen bg-gray-950">
@@ -99,6 +101,13 @@ export default function Layout() {
               <span>Transactions last updated: <span className="text-gray-400">{fmtDate(freshness.transaction_date)}</span></span>
             </div>
           )}
+          <button
+            onClick={logout}
+            className="ml-4 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            aria-label="Sign out"
+          >
+            Sign out
+          </button>
         </header>
 
         <main className="flex-1 p-6 overflow-auto">

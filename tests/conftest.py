@@ -1,9 +1,16 @@
+import os
 import pytest
 import duckdb
 from fastapi.testclient import TestClient
 
+# Set JWT_SECRET before importing anything from the app so auth.py can be
+# imported without raising RuntimeError.  The tests override the auth
+# dependencies entirely, so this value is never used for real signing.
+os.environ.setdefault("JWT_SECRET", "test-secret-for-testing-only")
+
 from app.main import app
 from app.db import get_db
+from app.auth import CurrentUser, get_current_user, get_user_accounts
 
 
 def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
@@ -282,6 +289,10 @@ def client(db):
     def _get_db_override():
         yield db
 
+    # Bypass JWT authentication — tests use a fixed owner identity with
+    # access to both ISA and SIPP accounts, matching the seed data above.
     app.dependency_overrides[get_db] = _get_db_override
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser("owner", "owner")
+    app.dependency_overrides[get_user_accounts] = lambda: frozenset(["ISA", "SIPP"])
     yield TestClient(app)
     app.dependency_overrides.clear()

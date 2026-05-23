@@ -1,9 +1,11 @@
 from datetime import date
 from typing import Optional
+from itertools import groupby
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 import duckdb
 
+from app.auth import CurrentUser, get_current_user
 from app.db import get_db
 from app.models import Fund, FundPerformanceResponse, PerformancePoint
 
@@ -13,6 +15,7 @@ router = APIRouter()
 @router.get("", response_model=list[Fund])
 def list_funds(
     active_only: bool = Query(False),
+    _: CurrentUser = Depends(get_current_user),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
     """List all funds, optionally filtered to currently active (held) ones."""
@@ -46,6 +49,7 @@ def fund_performance(
         None, alias="from", description="Defaults to first purchase date"
     ),
     to_date: date = Query(default_factory=date.today, alias="to"),
+    _: CurrentUser = Depends(get_current_user),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
     """
@@ -66,7 +70,6 @@ def fund_performance(
     if from_date is None:
         from_date = fund_row[3] if fund_row[3] else date(2017, 1, 1)
 
-    # Monthly fund price at each calendar month-end date
     fund_sql = """
     SELECT dd.date, idv.fund_price_gbp
     FROM int_fund_values_daily idv
@@ -87,7 +90,9 @@ def fund_performance(
             fund_short_name=fund_short_name,
             start_date=from_date,
             fund=[],
-            benchmark=[],
+            FTSE100=[],
+            SP500=[],
+            NASDAQ=[],
         )
 
     base_price = fund_rows[0][1]
@@ -111,7 +116,6 @@ def fund_performance(
         "SP500": [],
         "NASDAQ": [],
     }
-    from itertools import groupby
 
     for index_id, rows in groupby(bench_rows, key=lambda r: r[0]):
         row_list = list(rows)
