@@ -64,6 +64,35 @@ def _delta_str(value: float, prev: float | None) -> str:
     return f"{sign}£{change:,.0f} / {sign}{pct:.1f}%"
 
 
+def _get_refresh_stats() -> tuple[int, int]:
+    """
+    Read the rows_inserted counts from the most recent successful ingest_log
+    entries for 'prices' and 'transactions'. Returns (price_rows, tx_rows).
+    """
+    try:
+        import duckdb
+
+        con = duckdb.connect(str(_DB_PATH), read_only=True)
+        price_row = con.execute("""
+            SELECT rows_inserted FROM ingest_log
+            WHERE source = 'prices' AND status = 'success'
+            ORDER BY run_at DESC LIMIT 1
+        """).fetchone()
+        tx_row = con.execute("""
+            SELECT rows_inserted FROM ingest_log
+            WHERE source = 'transactions' AND status = 'success'
+            ORDER BY run_at DESC LIMIT 1
+        """).fetchone()
+        con.close()
+        return (
+            price_row[0] if price_row else 0,
+            tx_row[0] if tx_row else 0,
+        )
+    except Exception as exc:
+        logger.warning("Could not read refresh stats from ingest_log: %s", exc)
+        return 0, 0
+
+
 def _monthly_summary() -> str:
     try:
         import duckdb
@@ -147,8 +176,10 @@ def daily_refresh() -> None:
 
     # Success notification — silent (no banner/sound)
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    price_rows, tx_rows = _get_refresh_stats()
     notify(
-        f"✅ <b>HL Dashboard refresh complete</b> ({now})\nAll steps passed.",
+        f"✅ <b>HL Dashboard refresh complete</b> ({now})\n"
+        f"Prices added: {price_rows:,}  |  Transactions added: {tx_rows:,}",
         silent=True,
     )
 
