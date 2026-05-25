@@ -3,6 +3,7 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ReferenceLine,
 } from 'recharts'
 import { useApi } from '../hooks/useApi'
+import { useChartHeight } from '../hooks/useChartHeight'
 import { fetchPortfolioPerformance } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
@@ -46,6 +47,7 @@ export default function Benchmarks() {
   )
 
   const merged = data ? mergeData(data) : []
+  const chartHeight = useChartHeight(240, 400)
 
   const xTicks = merged
     .filter(d => ['03','06','09','12'].includes(d.date.slice(5,7)))
@@ -112,9 +114,9 @@ export default function Benchmarks() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-white">Benchmark Comparison</h1>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-start sm:items-end gap-2">
           <AccountFilter value={account} onChange={setAccount} />
           <div className="flex items-center gap-2 text-sm">
             <span className="text-gray-500">Start date:</span>
@@ -129,7 +131,7 @@ export default function Benchmarks() {
       </div>
 
       {data && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {SERIES.map(({ key, label, colour }) => {
             const ret = getReturn(key)
             const ann = getAnnualisedReturn(key)
@@ -164,7 +166,7 @@ export default function Benchmarks() {
         {loading || error || !merged.length ? (
           <StatusMessage loading={loading} error={error} empty={!merged.length} />
         ) : (
-          <ResponsiveContainer width="100%" height={400}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
             <LineChart data={merged}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
               <XAxis dataKey="date" ticks={xTicks} tickFormatter={fmtXTick} tick={{ fill: '#6b7280', fontSize: 11 }} />
@@ -208,6 +210,7 @@ export default function Benchmarks() {
 
       {annualReturns.length > 0 && (
         <Card title="Annual Returns">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-gray-500 text-xs uppercase">
@@ -243,12 +246,14 @@ export default function Benchmarks() {
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
 
       {data && (
         <Card title="Sharpe Ratios (annualised, risk-free rate = 0)">
           <p className="text-xs text-gray-500 mb-4">Trailing windows ending today — fixed, not affected by the start date picker.</p>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-gray-500 text-xs uppercase">
@@ -284,6 +289,7 @@ export default function Benchmarks() {
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
     </div>

@@ -20,14 +20,15 @@ function SortIcon({ col, sortCol, sortDir }: { col: SortCol; sortCol: SortCol; s
 }
 
 function SortableHeader({
-  col, label, align = 'right', sortCol, sortDir, onSort,
+  col, label, align = 'right', sortCol, sortDir, onSort, className = '',
 }: {
   col: SortCol; label: string; align?: 'left' | 'right'
   sortCol: SortCol; sortDir: SortDir; onSort: (col: SortCol) => void
+  className?: string
 }) {
   return (
     <th
-      className={`pb-3 text-${align} cursor-pointer select-none hover:text-gray-300 transition-colors whitespace-nowrap`}
+      className={`pb-3 text-${align} cursor-pointer select-none hover:text-gray-300 transition-colors whitespace-nowrap ${className}`}
       onClick={() => onSort(col)}
     >
       {label}<SortIcon col={col} sortCol={sortCol} sortDir={sortDir} />
@@ -77,7 +78,7 @@ export default function Holdings() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-white">Current Holdings</h1>
         <AccountFilter value={account} onChange={setAccount} />
       </div>
@@ -107,13 +108,13 @@ export default function Holdings() {
               <thead>
                 <tr className="text-gray-500 text-xs uppercase border-b border-gray-800">
                   <SortableHeader col="fund_short_name" label="Fund" align="left" {...sharedHeaderProps} />
-                  <SortableHeader col="units_held" label="Units" {...sharedHeaderProps} />
-                  <SortableHeader col="price_gbp" label="Price" {...sharedHeaderProps} />
+                  <SortableHeader col="units_held" label="Units" className="hidden sm:table-cell" {...sharedHeaderProps} />
+                  <SortableHeader col="price_gbp" label="Price" className="hidden sm:table-cell" {...sharedHeaderProps} />
                   <SortableHeader col="value_gbp" label="Value" {...sharedHeaderProps} />
-                  <SortableHeader col="cost_basis_gbp" label="Cost Basis" {...sharedHeaderProps} />
+                  <SortableHeader col="cost_basis_gbp" label="Cost Basis" className="hidden sm:table-cell" {...sharedHeaderProps} />
                   <SortableHeader col="unrealised_gain_gbp" label="Gain / Loss" {...sharedHeaderProps} />
                   <SortableHeader col="unrealised_gain_pct" label="Return" {...sharedHeaderProps} />
-                  <SortableHeader col="percentage" label="Weight" {...sharedHeaderProps} />
+                  <SortableHeader col="percentage" label="Weight" className="hidden sm:table-cell" {...sharedHeaderProps} />
                   <th className="pb-3"></th>
                 </tr>
               </thead>
@@ -125,17 +126,17 @@ export default function Holdings() {
               <tfoot>
                 <tr className="border-t-2 border-gray-700 text-gray-300 font-semibold">
                   <td className="py-3">Total</td>
-                  <td className="py-3 text-right tabular-nums"><span className="text-gray-700">—</span></td>
-                  <td className="py-3 text-right tabular-nums"><span className="text-gray-700">—</span></td>
+                  <td className="py-3 text-right tabular-nums hidden sm:table-cell"><span className="text-gray-700">—</span></td>
+                  <td className="py-3 text-right tabular-nums hidden sm:table-cell"><span className="text-gray-700">—</span></td>
                   <td className="py-3 text-right tabular-nums text-gray-200">{fmtGBP.format(totalValue)}</td>
-                  <td className="py-3 text-right tabular-nums text-gray-400">{fmtGBP.format(totalCost)}</td>
+                  <td className="py-3 text-right tabular-nums text-gray-400 hidden sm:table-cell">{fmtGBP.format(totalCost)}</td>
                   <td className={`py-3 text-right tabular-nums ${totalGain >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {totalGain >= 0 ? '+' : ''}{fmtGBP.format(totalGain)}
                   </td>
                   <td className={`py-3 text-right tabular-nums ${totalGainPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {totalGainPct >= 0 ? '+' : ''}{totalGainPct.toFixed(1)}%
                   </td>
-                  <td className="py-3 text-right tabular-nums text-gray-500">100.0%</td>
+                  <td className="py-3 text-right tabular-nums text-gray-500 hidden sm:table-cell">100.0%</td>
                   <td />
                 </tr>
               </tfoot>
@@ -156,14 +157,14 @@ function HoldingRow({ h }: { h: HoldingItem }) {
           ? <span className="text-sky-400">{h.fund_short_name}</span>
           : h.fund_short_name}
       </td>
-      <td className="py-3 text-right text-gray-400 tabular-nums">
+      <td className="py-3 text-right text-gray-400 tabular-nums hidden sm:table-cell">
         {h.units_held !== null ? fmtUnits(h.units_held) : <span className="text-gray-700">—</span>}
       </td>
-      <td className="py-3 text-right text-gray-400 tabular-nums">
+      <td className="py-3 text-right text-gray-400 tabular-nums hidden sm:table-cell">
         {h.price_gbp !== null ? fmtPrice.format(h.price_gbp) : <span className="text-gray-700">—</span>}
       </td>
       <td className="py-3 text-right text-gray-200 tabular-nums font-medium">{fmtGBP.format(h.value_gbp)}</td>
-      <td className="py-3 text-right text-gray-400 tabular-nums">{fmtGBP.format(h.cost_basis_gbp)}</td>
+      <td className="py-3 text-right text-gray-400 tabular-nums hidden sm:table-cell">{fmtGBP.format(h.cost_basis_gbp)}</td>
       <td className={`py-3 text-right tabular-nums font-medium ${h.unrealised_gain_gbp >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
         {isCash
           ? <span className="text-gray-700">—</span>
@@ -174,7 +175,7 @@ function HoldingRow({ h }: { h: HoldingItem }) {
           ? <span className="text-gray-700">—</span>
           : <>{h.unrealised_gain_pct >= 0 ? '+' : ''}{h.unrealised_gain_pct.toFixed(1)}%</>}
       </td>
-      <td className="py-3 text-right text-gray-500">{h.percentage.toFixed(1)}%</td>
+      <td className="py-3 text-right text-gray-500 hidden sm:table-cell">{h.percentage.toFixed(1)}%</td>
       <td className="py-3 text-right">
         {!isCash && h.fund_id && (
           <Link to={`/funds/${h.fund_id}`} className="text-indigo-400 hover:text-indigo-300 text-xs">

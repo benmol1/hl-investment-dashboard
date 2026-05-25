@@ -3,6 +3,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from 'recharts'
 import { useApi } from '../hooks/useApi'
+import { useChartHeight } from '../hooks/useChartHeight'
 import { fetchFinancialYearContributions } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
@@ -14,6 +15,7 @@ const SELECT = 'bg-gray-900 border border-gray-700 text-gray-200 rounded px-2 py
 export default function FinancialYearContributions() {
   const [fromYear, setFromYear] = useState('')
   const [toYear, setToYear] = useState('')
+  const chartHeight = useChartHeight(220, 340)
 
   const { data, loading, error } = useApi(fetchFinancialYearContributions, [])
 
@@ -36,7 +38,7 @@ export default function FinancialYearContributions() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-white">Tax Year Contributions</h1>
         {years.length > 0 && (
           <div className="flex items-center gap-2 text-sm">
@@ -66,7 +68,7 @@ export default function FinancialYearContributions() {
       </div>
 
       {filteredData.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { label: 'Total ISA Contributions', value: totalIsa, colour: 'text-cyan-400' },
             { label: 'Total SIPP Contributions', value: totalSipp, colour: 'text-indigo-400' },
@@ -84,7 +86,7 @@ export default function FinancialYearContributions() {
         {loading || error || !filteredData.length ? (
           <StatusMessage loading={loading} error={error} empty={!data?.length} />
         ) : (
-          <ResponsiveContainer width="100%" height={340}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
             <BarChart data={filteredData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
               <XAxis dataKey="financial_year" tick={{ fill: '#6b7280', fontSize: 11 }} />

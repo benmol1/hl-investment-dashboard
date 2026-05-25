@@ -3,6 +3,7 @@ import { useApi } from '../hooks/useApi'
 import { fetchTransactions } from '../api/transactions'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
+import DateDisplay from '../components/DateDisplay'
 import type { Account } from '../types'
 
 const TX_TYPES = ['BUY', 'SELL', 'SWITCH_IN', 'SWITCH_OUT', 'CONTRIBUTION', 'FEE', 'INTEREST', 'REBATE', 'TRANSFER', 'OTHER']
@@ -33,7 +34,7 @@ export default function Transactions() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">Transaction Log</h1>
+      <h1 className="text-2xl font-bold text-white">Transactions</h1>
 
       <div className="flex flex-wrap gap-3 items-center">
         <div className="flex gap-2 text-sm">
@@ -83,31 +84,33 @@ export default function Transactions() {
                 <thead>
                   <tr className="text-gray-500 text-xs uppercase border-b border-gray-800">
                     <th className="text-left pb-3">Date</th>
-                    <th className="text-left pb-3">Account</th>
+                    <th className="text-left pb-3 hidden sm:table-cell">Account</th>
                     <th className="text-left pb-3">Type</th>
                     <th className="text-left pb-3">Fund</th>
-                    <th className="text-right pb-3">Units</th>
-                    <th className="text-right pb-3">Unit Price</th>
+                    <th className="text-right pb-3 hidden sm:table-cell">Units</th>
+                    <th className="text-right pb-3 hidden sm:table-cell">Unit Price</th>
                     <th className="text-right pb-3">Value</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800">
                   {data.items.map((tx) => (
                     <tr key={tx.id} className="hover:bg-gray-800/40 transition-colors">
-                      <td className="py-2.5 text-gray-400 tabular-nums">{tx.trade_date}</td>
-                      <td className="py-2.5 text-gray-500 text-xs">{tx.account_id}</td>
+                      <td className="py-2.5 text-gray-400 tabular-nums whitespace-nowrap">
+                        <DateDisplay iso={tx.trade_date} />
+                      </td>
+                      <td className="py-2.5 text-gray-500 text-xs hidden sm:table-cell">{tx.account_id}</td>
                       <td className="py-2.5">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${TYPE_COLOURS[tx.transaction_type] ?? 'bg-gray-800 text-gray-400'}`}>
                           {tx.transaction_type}
                         </span>
                       </td>
-                      <td className="py-2.5 text-gray-300 max-w-[200px] truncate" title={tx.fund_name ?? undefined}>
+                      <td className="py-2.5 text-gray-300 max-w-[140px] sm:max-w-[200px] truncate" title={tx.fund_name ?? undefined}>
                         {tx.fund_name ?? <span className="text-gray-600">—</span>}
                       </td>
-                      <td className="py-2.5 text-right text-gray-400 tabular-nums">
+                      <td className="py-2.5 text-right text-gray-400 tabular-nums hidden sm:table-cell">
                         {tx.quantity != null ? tx.quantity.toLocaleString('en-GB', { maximumFractionDigits: 4 }) : '—'}
                       </td>
-                      <td className="py-2.5 text-right text-gray-400 tabular-nums">
+                      <td className="py-2.5 text-right text-gray-400 tabular-nums hidden sm:table-cell">
                         {tx.unit_cost_pence != null ? `${(tx.unit_cost_pence / 100).toFixed(4)}p` : '—'}
                       </td>
                       <td className={`py-2.5 text-right tabular-nums font-medium ${tx.value_gbp >= 0 ? 'text-gray-200' : 'text-red-400'}`}>
