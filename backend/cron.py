@@ -38,7 +38,8 @@ def notify(message: str, silent: bool = False) -> None:
         logger.warning("Telegram notification failed: %s", exc)
 
 
-def _run(label: str, cmd: list[str], cwd: Path | None = None) -> bool:
+def _run(label: str, cmd: list[str], cwd: Path | None = None) -> tuple[bool, str]:
+    """Run a subprocess. Returns (success, stdout)."""
     logger.info("%s starting", label)
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
     if result.returncode != 0:
@@ -46,9 +47,20 @@ def _run(label: str, cmd: list[str], cwd: Path | None = None) -> bool:
         notify(
             f"❌ <b>HL Dashboard — {label} failed</b>\n\n<pre>{result.stderr[-1000:]}</pre>"
         )
-        return False
+        return False, ""
     logger.info("%s completed OK", label)
-    return True
+    return True, result.stdout
+
+
+def _parse_inserted(stdout: str) -> int:
+    """Extract the count from an 'INSERTED: N' summary line in a script's stdout."""
+    for line in stdout.splitlines():
+        if line.startswith("INSERTED:"):
+            try:
+                return int(line.split(":", 1)[1].strip())
+            except ValueError:
+                pass
+    return 0
 
 
 def _fmt_date(d) -> str:
@@ -62,35 +74,6 @@ def _delta_str(value: float, prev: float | None) -> str:
     pct = change / prev * 100
     sign = "+" if change >= 0 else ""
     return f"{sign}£{change:,.0f} / {sign}{pct:.1f}%"
-
-
-def _get_refresh_stats() -> tuple[int, int]:
-    """
-    Read the rows_inserted counts from the most recent successful ingest_log
-    entries for 'prices' and 'transactions'. Returns (price_rows, tx_rows).
-    """
-    try:
-        import duckdb
-
-        con = duckdb.connect(str(_DB_PATH), read_only=True)
-        price_row = con.execute("""
-            SELECT rows_inserted FROM ingest_log
-            WHERE source = 'prices' AND status = 'success'
-            ORDER BY run_at DESC LIMIT 1
-        """).fetchone()
-        tx_row = con.execute("""
-            SELECT rows_inserted FROM ingest_log
-            WHERE source = 'transactions' AND status = 'success'
-            ORDER BY run_at DESC LIMIT 1
-        """).fetchone()
-        con.close()
-        return (
-            price_row[0] if price_row else 0,
-            tx_row[0] if tx_row else 0,
-        )
-    except Exception as exc:
-        logger.warning("Could not read refresh stats from ingest_log: %s", exc)
-        return 0, 0
 
 
 def _monthly_summary() -> str:
@@ -143,10 +126,11 @@ def weekly_download() -> None:
     # Skipped silently if HL_USERNAME is not configured.
     if not os.environ.get("HL_USERNAME"):
         return
-    if not _run(
+    ok, _ = _run(
         "download_transactions.py",
         [sys.executable, str(_SCRIPTS_DIR / "download_transactions.py")],
-    ):
+    )
+    if not ok:
         return  # failure notification already sent
 
 
@@ -154,21 +138,24 @@ def daily_refresh() -> None:
     today = date.today()
     failures = []
 
-    if not _run(
+    ok, tx_stdout = _run(
         "ingest_transactions.py",
         [sys.executable, str(_SCRIPTS_DIR / "ingest_transactions.py")],
-    ):
+    )
+    if not ok:
         failures.append("ingest_transactions.py")
 
-    if not _run(
+    ok, price_stdout = _run(
         "fetch_prices.py", [sys.executable, str(_SCRIPTS_DIR / "fetch_prices.py")]
-    ):
+    )
+    if not ok:
         failures.append("fetch_prices.py")
 
     _dbt = str(Path(sys.executable).parent / "dbt")
-    if not _run(
+    ok, _ = _run(
         "dbt build", [_dbt, "build", "--profiles-dir", "."], cwd=_DBT_PROJECT_DIR
-    ):
+    )
+    if not ok:
         failures.append("dbt build")
 
     if failures:
@@ -176,7 +163,8 @@ def daily_refresh() -> None:
 
     # Success notification — silent (no banner/sound)
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    price_rows, tx_rows = _get_refresh_stats()
+    tx_rows = _parse_inserted(tx_stdout)
+    price_rows = _parse_inserted(price_stdout)
     notify(
         f"✅ <b>HL Dashboard refresh complete</b> ({now})\n"
         f"Prices added: {price_rows:,}  |  Transactions added: {tx_rows:,}",

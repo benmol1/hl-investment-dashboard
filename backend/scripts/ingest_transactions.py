@@ -386,6 +386,7 @@ def main() -> None:
         raise
     finally:
         con.close()
+    print(f"INSERTED: {total_inserted}")
     print("\nDone.")
 
 
