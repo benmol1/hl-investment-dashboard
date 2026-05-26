@@ -167,7 +167,8 @@ def daily_refresh() -> None:
     price_rows = _parse_inserted(price_stdout)
     notify(
         f"✅ <b>HL Dashboard refresh complete</b> ({now})\n"
-        f"Prices added: {price_rows:,}  |  Transactions added: {tx_rows:,}",
+        f"Prices added: {price_rows:,}\n"
+        f"Transactions added: {tx_rows:,}",
         silent=True,
     )
 
