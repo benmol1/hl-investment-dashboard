@@ -12,6 +12,16 @@ models:
       Both trailing returns are null until sufficient history exists for the account.
       Trailing 12- and 36-month annualised Sharpe ratios are also included, calculated as
       (mean monthly return / stddev_samp of monthly returns) * sqrt(12), with risk-free rate = 0.
+    example_query: |
+      -- Most recent 12 months of returns for one account
+      SELECT account_name, year_month, month_end_date,
+             ROUND(monthly_return * 100, 2)      AS monthly_return_pct,
+             ROUND(trailing_12m_return * 100, 2) AS trailing_12m_pct,
+             ROUND(trailing_12m_sharpe, 2)       AS sharpe_12m
+      FROM mart_portfolio_returns_monthly
+      WHERE account_name = 'ISA'
+      ORDER BY year_month DESC
+      LIMIT 12
     columns:
       - name: account_name
         description: "ISA or SIPP."

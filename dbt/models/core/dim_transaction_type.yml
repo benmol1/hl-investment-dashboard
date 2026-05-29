@@ -9,6 +9,12 @@ models:
       **Grain**: One row per (transaction_type, transaction_subtype) combination
       **Update Frequency**: Static in practice — only changes if new transaction types are introduced
       **Source**: Derived from distinct values in base__hl_transactions
+    example_query: |
+      -- All transaction type combinations (useful for understanding indicator values)
+      SELECT transaction_type, transaction_subtype,
+             trade_indicator, contribution_indicator
+      FROM dim_transaction_type
+      ORDER BY transaction_type, transaction_subtype
     columns:
       - name: transaction_type_key
         description: "Surrogate primary key, generated from (transaction_type, transaction_subtype)."

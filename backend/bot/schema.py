@@ -67,4 +67,10 @@ def get_model_schema(name: str) -> str:
     else:
         lines.append("(no column definitions in YAML)")
 
+    example = (model.get("example_query") or "").strip()
+    if example:
+        lines.append("")
+        lines.append("**Example query:**")
+        lines.append(f"```sql\n{example}\n```")
+
     return "\n".join(lines)

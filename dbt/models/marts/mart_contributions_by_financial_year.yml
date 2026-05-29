@@ -10,6 +10,17 @@ models:
       **Grain**: One row per (account_name, financial_year)
       **Update Frequency**: Daily (after price ingest)
       **Source**: fct_transactions filtered to contribution_indicator = 'Contribution'
+    example_query: |
+      -- All years, both accounts, newest first
+      SELECT financial_year, account_name, contributions_gbp
+      FROM mart_contributions_by_financial_year
+      ORDER BY financial_year DESC, account_name
+
+      -- Combined ISA + SIPP total per year
+      SELECT financial_year, SUM(contributions_gbp) AS total_contributions_gbp
+      FROM mart_contributions_by_financial_year
+      GROUP BY financial_year
+      ORDER BY financial_year DESC
     columns:
       - name: account_name
         description: "ISA or SIPP."

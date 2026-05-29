@@ -17,6 +17,20 @@ models:
       ratios are computed as (mean monthly return / stddev_samp of monthly returns)
       * sqrt(12), with risk-free rate assumed zero. Both trailing metrics are null
       until sufficient history exists.
+    example_query: |
+      -- Trailing 12-month return and Sharpe for all three benchmarks, most recent month
+      SELECT index_id, year_month,
+             ROUND(trailing_12m_return * 100, 2) AS trailing_12m_pct,
+             ROUND(trailing_12m_sharpe, 2)       AS sharpe_12m
+      FROM mart_benchmarks_monthly
+      WHERE year_month = (SELECT MAX(year_month) FROM mart_benchmarks_monthly)
+
+      -- Historical monthly returns for one index
+      SELECT year_month, ROUND(monthly_return * 100, 2) AS monthly_return_pct
+      FROM mart_benchmarks_monthly
+      WHERE index_id = 'FTSE100'
+      ORDER BY year_month DESC
+      LIMIT 24
     columns:
       - name: index_id
         description: "Benchmark identifier: FTSE100, SP500, or NASDAQ."

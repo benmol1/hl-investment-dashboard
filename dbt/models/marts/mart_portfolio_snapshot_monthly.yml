@@ -17,6 +17,14 @@ models:
       **Grain**: One row per (account_name, year_month)
       **Update Frequency**: Daily
       **Sources**: fct_holdings_daily, fct_transactions, dim_account, dim_date, dim_transaction_type
+    example_query: |
+      -- Last 24 months of monthly summaries for one account
+      SELECT account_name, year_month, financial_year,
+             month_end_value_gbp, monthly_inflows_gbp, monthly_net_fund_purchases_gbp
+      FROM mart_portfolio_snapshot_monthly
+      WHERE account_name = 'ISA'
+      ORDER BY year_month DESC
+      LIMIT 24
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

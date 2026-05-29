@@ -12,6 +12,15 @@ models:
       The difference between portfolio_value_gbp and cumulative_inflows_gbp
       is the return attributable to investment performance rather than capital deployed.
       Non-inflow dates carry forward the cumulative inflow total via LEFT JOIN + COALESCE.
+    example_query: |
+      -- Portfolio value vs cumulative capital deployed, with growth derived
+      SELECT account_name, valuation_date,
+             portfolio_value_gbp,
+             cumulative_inflows_gbp,
+             portfolio_value_gbp - cumulative_inflows_gbp AS investment_growth_gbp
+      FROM mart_portfolio_inflows_daily
+      WHERE account_name = 'ISA'
+      ORDER BY valuation_date
     columns:
       - name: account_name
         description: "ISA or SIPP."

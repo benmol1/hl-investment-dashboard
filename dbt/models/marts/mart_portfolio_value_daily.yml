@@ -12,6 +12,19 @@ models:
 
       The API queries this with an optional account_name filter and a date range;
       for the "All accounts" view it sums across both ISA and SIPP.
+    example_query: |
+      -- Single account over a date range
+      SELECT valuation_date, portfolio_value_gbp
+      FROM mart_portfolio_value_daily
+      WHERE account_name = 'ISA'
+        AND valuation_date >= '2024-01-01'
+      ORDER BY valuation_date
+
+      -- Combined value across both accounts on each date
+      SELECT valuation_date, SUM(portfolio_value_gbp) AS total_value_gbp
+      FROM mart_portfolio_value_daily
+      GROUP BY valuation_date
+      ORDER BY valuation_date
     columns:
       - name: account_name
         description: "ISA or SIPP."

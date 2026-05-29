@@ -13,6 +13,13 @@ models:
       Cost basis is calculated as total buy cost (BUY + SWITCH_IN) minus total sell
       proceeds (SELL + SWITCH_OUT), floored at zero.  Unrealised gain is market value
       minus cost basis.  weight_pct is each fund's share of the account total.
+    example_query: |
+      -- Current holdings for one account, ranked by value
+      SELECT account_name, fund_name, value_gbp, cost_basis_gbp,
+             unrealised_gain_gbp, unrealised_gain_pct, weight_pct
+      FROM mart_holdings_latest
+      WHERE account_name = 'ISA'   -- omit WHERE to see both accounts
+      ORDER BY value_gbp DESC
     columns:
       - name: account_name
         description: "ISA or SIPP."

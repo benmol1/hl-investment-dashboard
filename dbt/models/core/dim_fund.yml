@@ -9,6 +9,18 @@ models:
       **Grain**: One row per fund_id (ISIN)
       **Update Frequency**: Updated when new funds are added to the portfolio
       **Source**: hl_dashboard.funds
+    example_query: |
+      -- All currently held funds
+      SELECT fund_id, fund_name, fund_short_name, first_investment_date
+      FROM dim_fund
+      WHERE investment_status_indicator = 'Holding'
+      ORDER BY fund_name
+
+      -- All funds ever held (including exited positions)
+      SELECT fund_id, fund_name, investment_status_indicator,
+             first_investment_date, last_position_date
+      FROM dim_fund
+      ORDER BY first_investment_date
     columns:
       - name: fund_key
         description: "Hash surrogate key generated via dbt_utils.generate_surrogate_key(['fund_id']). Use this for all joins between fact tables and dim_fund."
