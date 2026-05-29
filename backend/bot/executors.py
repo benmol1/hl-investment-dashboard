@@ -9,190 +9,24 @@ import duckdb
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
-import requests
 
-matplotlib.use(
-    "Agg"
-)  # non-interactive backend; must be set before any other pyplot import
+matplotlib.use("Agg")  # non-interactive backend; must be set before any other pyplot import
 
-from .config import BACKEND_URL, DB_PATH
+from .config import DB_PATH
+from .schema import get_model_schema
 
-# Charts rendered during a request are stored here until the handler retrieves them.
-# Safe for single-user sequential use; not thread-safe across concurrent requests.
 _pending_charts: dict[str, bytes] = {}
 
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# HTTP helper
+# Schema tool executor
 # ---------------------------------------------------------------------------
 
 
-def _api_get(path: str, params: dict | None = None) -> Any:
-    url = f"{BACKEND_URL}{path}"
-    resp = requests.get(url, params=params, timeout=15)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def _summarise_series(points: list[dict], date_key: str) -> list[dict]:
-    """Downsample a daily time series to monthly (last point per month)."""
-    seen: dict[str, dict] = {}
-    for p in points:
-        month = str(p[date_key])[:7]  # YYYY-MM
-        seen[month] = p
-    return list(seen.values())
-
-
-# ---------------------------------------------------------------------------
-# Named API tool executors
-# ---------------------------------------------------------------------------
-
-
-def _execute_get_holdings(inputs: dict) -> Any:
-    params = {}
-    if inputs.get("account"):
-        params["account"] = inputs["account"]
-    return _api_get("/portfolio/holdings", params)
-
-
-def _execute_get_portfolio_value(inputs: dict) -> Any:
-    params = {
-        k: v
-        for k, v in {
-            "from": inputs.get("from_date"),
-            "to": inputs.get("to_date"),
-            "account": inputs.get("account"),
-        }.items()
-        if v is not None
-    }
-    points = _api_get("/portfolio/value", params)
-    return _summarise_series(points, "date")
-
-
-def _execute_get_inflows(inputs: dict) -> Any:
-    params = {
-        k: v
-        for k, v in {
-            "from": inputs.get("from_date"),
-            "to": inputs.get("to_date"),
-            "account": inputs.get("account"),
-        }.items()
-        if v is not None
-    }
-    points = _api_get("/portfolio/inflows", params)
-    monthly = _summarise_series(points, "date")
-    # First point for context + last 23 months
-    return (monthly[:1] + monthly[-23:]) if len(monthly) > 24 else monthly
-
-
-def _execute_get_portfolio_performance(inputs: dict) -> Any:
-    params = {
-        k: v
-        for k, v in {
-            "from": inputs.get("from_date"),
-            "to": inputs.get("to_date"),
-            "account": inputs.get("account"),
-        }.items()
-        if v is not None
-    }
-    data = _api_get("/portfolio/performance", params)
-
-    if inputs.get("full_series"):
-        # Return complete series for charting; downsample to monthly to keep payload manageable
-        def monthly(series: list[dict]) -> list[dict]:
-            seen: dict[str, dict] = {}
-            for p in series:
-                seen[str(p.get("date", ""))[:7]] = p
-            return list(seen.values())
-
-        return {
-            "start_date": data.get("start_date"),
-            "portfolio": monthly(data.get("portfolio", [])),
-            "FTSE100": monthly(data.get("FTSE100", [])),
-            "SP500": monthly(data.get("SP500", [])),
-            "NASDAQ": monthly(data.get("NASDAQ", [])),
-            "sharpe": data.get("sharpe"),
-        }
-
-    def compress(series: list[dict]) -> dict | None:
-        if not series:
-            return None
-        return {"start": series[0], "end": series[-1], "points": len(series)}
-
-    return {
-        "start_date": data.get("start_date"),
-        "portfolio": compress(data.get("portfolio", [])),
-        "FTSE100": compress(data.get("FTSE100", [])),
-        "SP500": compress(data.get("SP500", [])),
-        "NASDAQ": compress(data.get("NASDAQ", [])),
-        "sharpe": data.get("sharpe"),
-    }
-
-
-def _execute_get_portfolio_allocation(inputs: dict) -> Any:
-    params = {
-        k: v
-        for k, v in {
-            "as_of": inputs.get("as_of"),
-            "account": inputs.get("account"),
-        }.items()
-        if v is not None
-    }
-    return _api_get("/portfolio/allocation", params)
-
-
-def _execute_list_funds(inputs: dict) -> Any:
-    params = {}
-    if inputs.get("active_only"):
-        params["active_only"] = "true"
-    return _api_get("/funds", params)
-
-
-def _execute_get_fund_performance(inputs: dict) -> Any:
-    fund_id = inputs["fund_id"]
-    params = {
-        k: v
-        for k, v in {
-            "from": inputs.get("from_date"),
-            "to": inputs.get("to_date"),
-        }.items()
-        if v is not None
-    }
-    data = _api_get(f"/funds/{fund_id}/performance", params)
-    fund_series = data.get("fund", [])
-    return {
-        "fund_id": data.get("fund_id"),
-        "fund_name": data.get("fund_name"),
-        "start_date": data.get("start_date"),
-        "fund_start": fund_series[0] if fund_series else None,
-        "fund_end": fund_series[-1] if fund_series else None,
-        "FTSE100_end": data.get("FTSE100", [{}])[-1] if data.get("FTSE100") else None,
-        "SP500_end": data.get("SP500", [{}])[-1] if data.get("SP500") else None,
-        "NASDAQ_end": data.get("NASDAQ", [{}])[-1] if data.get("NASDAQ") else None,
-    }
-
-
-def _execute_get_contributions_by_financial_year(_inputs: dict) -> Any:
-    return _api_get("/portfolio/contributions/financial-year")
-
-
-def _execute_list_transactions(inputs: dict) -> Any:
-    params = {
-        k: v
-        for k, v in {
-            "account": inputs.get("account"),
-            "fund_id": inputs.get("fund_id"),
-            "type": inputs.get("tx_type"),
-            "from": inputs.get("from_date"),
-            "to": inputs.get("to_date"),
-            "page": inputs.get("page"),
-            "per_page": inputs.get("per_page"),
-        }.items()
-        if v is not None
-    }
-    return _api_get("/transactions", params)
+def _execute_get_model_schema(inputs: dict) -> Any:
+    return get_model_schema(inputs["name"])
 
 
 # ---------------------------------------------------------------------------
@@ -390,21 +224,18 @@ def _execute_generate_chart(inputs: dict) -> Any:
     y_format = inputs.get("y_format", "number")
 
     if not data:
-        return {"error": "data array is empty — fetch data first with another tool."}
+        return {"error": "data array is empty — fetch data first with query_database."}
 
     try:
         if chart_type == "line":
             x_key = inputs.get("x_key")
             if not x_key:
                 return {"error": "x_key is required for a line chart."}
-            # Accept either series array or legacy single y_key
             raw_series = inputs.get("series")
             if not raw_series:
                 y_key = inputs.get("y_key")
                 if not y_key:
-                    return {
-                        "error": "Either 'series' or 'y_key' is required for a line chart."
-                    }
+                    return {"error": "Either 'series' or 'y_key' is required for a line chart."}
                 raw_series = [{"label": "", "y_key": y_key}]
             buf = _render_line_chart(
                 title,
@@ -427,14 +258,10 @@ def _execute_generate_chart(inputs: dict) -> Any:
             label_key = inputs.get("label_key")
             value_key = inputs.get("value_key")
             if not label_key or not value_key:
-                return {
-                    "error": "label_key and value_key are required for a donut chart."
-                }
+                return {"error": "label_key and value_key are required for a donut chart."}
             buf = _render_donut_chart(title, data, label_key, value_key, caption)
         else:
-            return {
-                "error": f"Unknown chart_type '{chart_type}'. Use 'line', 'bar', or 'donut'."
-            }
+            return {"error": f"Unknown chart_type '{chart_type}'. Use 'line', 'bar', or 'donut'."}
     except (KeyError, ValueError, TypeError) as exc:
         return {"error": f"Chart rendering failed: {exc}"}
 
@@ -455,7 +282,7 @@ def pop_pending_charts() -> list[bytes]:
 
 
 # ---------------------------------------------------------------------------
-# DuckDB fallback executor
+# DuckDB executor
 # ---------------------------------------------------------------------------
 
 _ALLOWED_TABLE_PATTERN = re.compile(r"\b(mart_\w+|dim_\w+)\b", re.IGNORECASE)
@@ -471,30 +298,25 @@ def _execute_query_database(inputs: dict) -> Any:
         return {"error": "Only SELECT statements are permitted."}
 
     if _DISALLOWED_TABLE_PATTERN.search(sql):
-        return {
-            "error": "Query references tables outside the allowed mart_/dim_ scope."
-        }
+        return {"error": "Query references tables outside the allowed mart_/dim_ scope."}
 
     if not _ALLOWED_TABLE_PATTERN.search(sql):
-        return {
-            "error": "No mart_ or dim_ tables found in query. Only those tables may be queried."
-        }
+        return {"error": "No mart_ or dim_ tables found in query. Only those tables may be queried."}
 
     def _run() -> dict:
         con = duckdb.connect(str(DB_PATH), read_only=True)
         rows = con.execute(sql).fetchall()
         cols = [desc[0] for desc in con.description]
         con.close()
-        return {"columns": cols, "rows": rows[:200]}
+        # Return rows as list-of-dicts so Claude can reference columns by name
+        return {"columns": cols, "rows": [dict(zip(cols, row)) for row in rows[:200]]}
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
         future = pool.submit(_run)
         try:
             return future.result(timeout=30)
         except concurrent.futures.TimeoutError:
-            return {
-                "error": "Query timed out after 30 seconds. Try a more targeted query."
-            }
+            return {"error": "Query timed out after 30 seconds. Try a more targeted query."}
         except Exception as exc:
             return {"error": str(exc)}
 
@@ -504,15 +326,7 @@ def _execute_query_database(inputs: dict) -> Any:
 # ---------------------------------------------------------------------------
 
 _EXECUTORS = {
-    "get_holdings": _execute_get_holdings,
-    "get_portfolio_value": _execute_get_portfolio_value,
-    "get_inflows": _execute_get_inflows,
-    "get_contributions_by_financial_year": _execute_get_contributions_by_financial_year,
-    "get_portfolio_performance": _execute_get_portfolio_performance,
-    "get_portfolio_allocation": _execute_get_portfolio_allocation,
-    "list_funds": _execute_list_funds,
-    "get_fund_performance": _execute_get_fund_performance,
-    "list_transactions": _execute_list_transactions,
+    "get_model_schema": _execute_get_model_schema,
     "generate_chart": _execute_generate_chart,
     "query_database": _execute_query_database,
 }
@@ -524,9 +338,5 @@ def execute_tool(name: str, tool_input: dict) -> Any:
         return {"error": f"Unknown tool: {name}"}
     try:
         return fn(tool_input)
-    except requests.HTTPError as exc:
-        return {
-            "error": f"API error {exc.response.status_code}: {exc.response.text[:200]}"
-        }
     except Exception as exc:
         return {"error": str(exc)}

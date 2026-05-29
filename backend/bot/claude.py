@@ -10,7 +10,10 @@ import anthropic
 
 from .config import CLAUDE_MODEL, SYSTEM_PROMPT_TEMPLATE
 from .executors import execute_tool, pop_pending_charts
+from .schema import build_schema_index
 from .tools import TOOLS
+
+_SCHEMA_INDEX = build_schema_index()
 
 
 @dataclass
@@ -36,7 +39,7 @@ def _round_currency(text: str) -> str:
 
 async def run_claude_loop(user_text: str, on_tool_call=None) -> BotResponse:
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(today=date.today())
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(today=date.today(), schema_index=_SCHEMA_INDEX)
     messages: list[dict] = [{"role": "user", "content": user_text}]
 
     tools_called: list[str] = []
