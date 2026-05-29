@@ -20,6 +20,32 @@ models:
 
       Fund rows only exist for dates where a price is available and the account holds a
       positive unit balance.
+    example_query: |
+      -- Fund holdings on the latest available date, with names resolved
+      SELECT dd.date        AS valuation_date,
+             da.account_name,
+             df.fund_name,
+             fhd.units_held,
+             fhd.fund_price_gbp,
+             fhd.value_gbp
+      FROM fct_holdings_daily fhd
+      JOIN dim_date         dd ON dd.date_key    = fhd.date_key
+      JOIN dim_account      da ON da.account_key = fhd.account_key
+      LEFT JOIN dim_fund    df ON df.fund_key    = fhd.fund_key   -- NULL for Cash rows
+      WHERE fhd.date_key = (SELECT MAX(date_key) FROM fct_holdings_daily)
+        AND fhd.holding_type = 'Fund'
+      ORDER BY da.account_name, fhd.value_gbp DESC
+
+      -- Total portfolio value (funds + cash) per account on each date
+      SELECT dd.date AS valuation_date,
+             da.account_name,
+             SUM(fhd.value_gbp) AS total_value_gbp
+      FROM fct_holdings_daily fhd
+      JOIN dim_date    dd ON dd.date_key    = fhd.date_key
+      JOIN dim_account da ON da.account_key = fhd.account_key
+      GROUP BY dd.date, da.account_name
+      ORDER BY dd.date DESC, da.account_name
+      LIMIT 20
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

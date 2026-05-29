@@ -285,9 +285,9 @@ def pop_pending_charts() -> list[bytes]:
 # DuckDB executor
 # ---------------------------------------------------------------------------
 
-_ALLOWED_TABLE_PATTERN = re.compile(r"\b(mart_\w+|dim_\w+)\b", re.IGNORECASE)
+_ALLOWED_TABLE_PATTERN = re.compile(r"\b(mart_\w+|dim_\w+|fct_\w+)\b", re.IGNORECASE)
 _DISALLOWED_TABLE_PATTERN = re.compile(
-    r"\b(fct_\w+|stg_\w+|int_\w+|raw_\w+|information_schema)\b", re.IGNORECASE
+    r"\b(stg_\w+|int_\w+|raw_\w+|information_schema)\b", re.IGNORECASE
 )
 
 

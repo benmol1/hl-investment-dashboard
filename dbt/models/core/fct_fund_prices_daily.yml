@@ -9,6 +9,24 @@ models:
       **Grain**: One row per fund per day (fund_key, date_key)
       **Update Frequency**: Daily (after price ingest)
       **Source**: base__hl_prices joined to dim_date, dim_fund
+    example_query: |
+      -- Price history for a specific fund (look up fund_id from dim_fund first)
+      SELECT dd.date, df.fund_name, ffp.fund_price_gbp
+      FROM fct_fund_prices_daily ffp
+      JOIN dim_date dd ON dd.date_key = ffp.date_key
+      JOIN dim_fund df ON df.fund_key = ffp.fund_key
+      WHERE df.fund_id = 'GB00B3X7QG63'   -- replace with actual ISIN from dim_fund
+        AND dd.date >= '2024-01-01'
+      ORDER BY dd.date
+
+      -- Latest price for every currently held fund
+      SELECT df.fund_name, df.fund_short_name, ffp.fund_price_gbp, dd.date AS price_date
+      FROM fct_fund_prices_daily ffp
+      JOIN dim_date dd ON dd.date_key = ffp.date_key
+      JOIN dim_fund df ON df.fund_key = ffp.fund_key
+      WHERE ffp.date_key = (SELECT MAX(date_key) FROM fct_fund_prices_daily)
+        AND df.investment_status_indicator = 'Holding'
+      ORDER BY df.fund_name
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

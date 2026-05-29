@@ -10,6 +10,25 @@ models:
       **Grain**: One row per (index_id, year_month)
       **Update Frequency**: Daily (after benchmark price ingest)
       **Source**: base__hl_benchmarks joined to dim_date
+    example_query: |
+      -- Raw month-end levels for all benchmarks (prefer mart_benchmarks_monthly for
+      -- pre-computed returns and Sharpe ratios)
+      SELECT fbm.index_id, fbm.year_month, dd.date AS month_end_date,
+             fbm.month_end_level
+      FROM fct_benchmarks_monthly fbm
+      JOIN dim_date dd ON dd.date_key = fbm.date_key
+      ORDER BY fbm.year_month DESC, fbm.index_id
+      LIMIT 12
+
+      -- All three benchmarks side-by-side for a given month
+      SELECT year_month,
+             MAX(CASE WHEN index_id = 'FTSE100' THEN month_end_level END) AS ftse100,
+             MAX(CASE WHEN index_id = 'SP500'   THEN month_end_level END) AS sp500,
+             MAX(CASE WHEN index_id = 'NASDAQ'  THEN month_end_level END) AS nasdaq
+      FROM fct_benchmarks_monthly
+      GROUP BY year_month
+      ORDER BY year_month DESC
+      LIMIT 12
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

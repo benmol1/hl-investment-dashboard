@@ -23,7 +23,9 @@ TOOLS = [
             "Run a read-only SQL SELECT against the DuckDB database. "
             "This is the primary way to answer data questions. "
             "Call get_model_schema first to verify column names for each model you plan to query. "
-            "Only SELECT statements are permitted; only mart_ and dim_ tables may be referenced."
+            "Only SELECT statements are permitted; mart_, dim_, and fct_ tables may be referenced. "
+            "fct_ tables use surrogate keys — always JOIN to the relevant dim_ tables to get "
+            "human-readable names (see example queries in get_model_schema output)."
         ),
         "input_schema": {
             "type": "object",

@@ -15,6 +15,27 @@ models:
       inflows_gbp (CONTRIBUTION and TRANSFER inflows),
       and fees_and_other_gbp (FEE, INTEREST, REBATE, and other non-trade rows).
       net_cash_movement_gbp is the sum of all three.
+    example_query: |
+      -- Cash balance history for one account, most recent first
+      SELECT dd.date, da.account_name,
+             fcp.cash_balance_gbp,
+             fcp.inflows_gbp,
+             fcp.trade_cash_net_gbp,
+             fcp.fees_and_other_gbp
+      FROM fct_cash_position_daily fcp
+      JOIN dim_date    dd ON dd.date_key    = fcp.date_key
+      JOIN dim_account da ON da.account_key = fcp.account_key
+      WHERE da.account_name = 'ISA'
+      ORDER BY dd.date DESC
+      LIMIT 30
+
+      -- Days on which a contribution was received (inflows_gbp > 0)
+      SELECT dd.date, da.account_name, fcp.inflows_gbp, fcp.cash_balance_gbp
+      FROM fct_cash_position_daily fcp
+      JOIN dim_date    dd ON dd.date_key    = fcp.date_key
+      JOIN dim_account da ON da.account_key = fcp.account_key
+      WHERE fcp.inflows_gbp > 0
+      ORDER BY dd.date DESC
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

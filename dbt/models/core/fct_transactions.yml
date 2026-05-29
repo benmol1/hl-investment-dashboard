@@ -9,6 +9,32 @@ models:
       **Grain**: One row per transaction_id
       **Update Frequency**: Weekly (after ingest_transactions)
       **Source**: base__hl_transactions joined to dim_account and dim_fund
+    example_query: |
+      -- Recent transactions with human-readable names (standard 4-dim join pattern)
+      SELECT dd.date        AS trade_date,
+             da.account_name,
+             df.fund_name,
+             dtt.transaction_type,
+             ft.quantity,
+             ft.value_gbp
+      FROM fct_transactions ft
+      JOIN dim_date             dd  ON dd.date_key              = ft.trade_date_key
+      JOIN dim_account          da  ON da.account_key           = ft.account_key
+      LEFT JOIN dim_fund        df  ON df.fund_key              = ft.fund_key
+      JOIN dim_transaction_type dtt ON dtt.transaction_type_key = ft.transaction_type_key
+      WHERE dtt.transaction_type = 'BUY'
+        AND da.account_name = 'ISA'
+      ORDER BY dd.date DESC
+      LIMIT 20
+
+      -- Total fees paid per account (uses contribution_indicator to isolate fee rows)
+      SELECT da.account_name,
+             ROUND(SUM(ABS(ft.value_gbp)), 2) AS total_fees_gbp
+      FROM fct_transactions ft
+      JOIN dim_account          da  ON da.account_key           = ft.account_key
+      JOIN dim_transaction_type dtt ON dtt.transaction_type_key = ft.transaction_type_key
+      WHERE dtt.transaction_type = 'FEE'
+      GROUP BY da.account_name
     columns:
       - name: transaction_id
         description: "MD5 of (account_id | trade_date | reference | value_gbp). Natural deduplication key — not a sequential integer surrogate."
