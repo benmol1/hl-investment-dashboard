@@ -300,6 +300,24 @@ Replace the bot's 9 specific API-endpoint tools with a `query_database` + `get_m
 
 ---
 
+## Phase 13 — Bot Eval Harness
+
+Automated A/B comparison between the original API-tool bot (main branch) and the
+incremental schema-reveal bot (Phase 12 branch). Run `uv run python -m backend.bot.eval`
+from the repo root. Requires `ANTHROPIC_API_KEY` in the environment or `.env` file.
+
+- [ ] **Review and tweak the 10 ground-truth SQL queries** in `backend/bot/eval.py`
+      (each is marked with a `# TODO:` comment explaining what to check)
+- [ ] Run `uv run python -m backend.bot.eval` on the `main` branch — save the output
+      as the baseline (`eval_results_main.json`)
+- [ ] Checkout `claude/backend-rest-api-check-RYSua` and run the same eval — save as
+      `eval_results_phase12.json`
+- [ ] Compare the two result files across: latency, input+output tokens, tool call count,
+      numeric accuracy score (0–1), Claude-as-judge quality (1–5), accuracy (1–5)
+- [ ] Decide whether to merge Phase 12 into main based on results
+
+---
+
 ## Miscellaneous
 
 - [x] Rename all dbt models to use a consistent convention for frequency of snapshot (e.g. `fct_holdings_daily`, `mart_portfolio_snapshot_monthly`) 
