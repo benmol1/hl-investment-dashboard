@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-05-15 10:57*
+*Last updated: 2026-06-02 11:38*
 
 ---
 
@@ -256,5 +256,6 @@ Two motivations: (1) a demo/dummy dataset so the app can be shown to others with
 - [ ] Set up dotfiles repo on Windows PC — clone `~/.dotfiles`, run `mklink /D %USERPROFILE%\.claude %USERPROFILE%\.dotfiles\claude` in an elevated cmd prompt (or enable Developer Mode to avoid needing elevation).
 - [ ] Add a git pre-commit hook (`.git/hooks/pre-commit`) that runs `uv run pytest --tb=short -q` and aborts the commit if tests fail.
 - [ ] Add a GitHub Actions workflow (`.github/workflows/test.yml`) that runs the test suite on every push as a CI safety net.
+- [ ] Update `mart_holdings_latest` to include cash holdings — currently filters to `holding_type = 'Fund'` only, inconsistent with other marts. Cash rows have no `fund_key`/`units`/`price` so will need separate handling (e.g. UNION with `fct_cash_position_daily`, or coalescing fund-specific columns to null/0 for cash rows).
 
 ---

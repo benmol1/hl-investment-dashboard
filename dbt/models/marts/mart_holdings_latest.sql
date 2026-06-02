@@ -1,3 +1,9 @@
+-- TODO: include cash holdings so this mart is consistent with other marts that show
+-- both fund and cash positions. Currently filtered to holding_type = 'Fund' only.
+-- Cash rows have no fund_key/fund_price/units, so they'll need separate handling
+-- (e.g. a UNION with fct_cash_position_daily, or relaxing the holding_type filter
+-- and coalescing the fund-specific columns to null/0 for cash rows).
+
 with
 -- Most recent date for which fund we have at least 1 fund holding.
 latest_date_key as (

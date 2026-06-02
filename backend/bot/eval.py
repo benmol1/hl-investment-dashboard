@@ -68,24 +68,19 @@ class TestCase:
 TEST_CASES: list[TestCase] = [
     TestCase(
         id="Q01",
-        question="What is my total portfolio value right now?",
+        question="What is my total value in each account right now?",
         difficulty="simple",
-        # TODO: confirm this covers all your holdings correctly.
-        # mart_holdings_latest includes fund positions only (no cash row).
-        # If you want to include cash balances too, join to fct_cash_position_daily
-        # or check whether your mart already rolls up cash.
         ground_truth_sql="""
-            SELECT ROUND(SUM(value_gbp), 0) AS total_value_gbp
+            SELECT account_name, ROUND(SUM(value_gbp), 0) AS total_value_gbp
             FROM mart_holdings_latest
+            GROUP BY account_name
         """,
-        ground_truth_description="Total portfolio market value in GBP across all accounts",
+        ground_truth_description="Portfolio market value per account in GBP",
     ),
     TestCase(
         id="Q02",
         question="What are my current ISA holdings and what percentage of the ISA does each fund represent?",
         difficulty="simple",
-        # TODO: confirm 'ISA' is the exact account_name value in your data
-        # (check: SELECT DISTINCT account_name FROM mart_holdings_latest)
         ground_truth_sql="""
             SELECT fund_name, ROUND(weight_pct, 1) AS weight_pct
             FROM mart_holdings_latest
@@ -96,28 +91,19 @@ TEST_CASES: list[TestCase] = [
     ),
     TestCase(
         id="Q03",
-        question="How much have I contributed to my SIPP this financial year?",
+        question="How much was contributed to my SIPP in FY26?",
         difficulty="simple",
-        # TODO: this picks the most recent row by financial_year label (e.g. '2025/26').
-        # Check that the label ordering works correctly for your data:
-        #   SELECT DISTINCT financial_year FROM mart_contributions_by_financial_year ORDER BY 1
         ground_truth_sql="""
             SELECT contributions_gbp
             FROM mart_contributions_by_financial_year
-            WHERE account_name = 'SIPP'
-            ORDER BY financial_year DESC
-            LIMIT 1
+            WHERE account_name = 'SIPP' and financial_year = 'FY26'
         """,
-        ground_truth_description="SIPP new-money contributions in the most recent financial year (GBP)",
+        ground_truth_description="SIPP new-money contributions in the financial year FY26",
     ),
     TestCase(
         id="Q04",
         question="What was my total portfolio worth a year ago, and how much has it changed since then?",
         difficulty="medium",
-        # TODO: DuckDB supports INTERVAL syntax; verify your valuation_date column is
-        # a DATE type so the arithmetic works. If it's a string, cast it:
-        #   CAST(valuation_date AS DATE) <= ...
-        # Also confirm whether you want ISA+SIPP combined or just one account.
         ground_truth_sql="""
             WITH latest AS (
                 SELECT MAX(valuation_date) AS d FROM mart_portfolio_value_daily
@@ -147,15 +133,11 @@ TEST_CASES: list[TestCase] = [
         id="Q05",
         question="Which of my current holdings has the highest unrealised gain percentage?",
         difficulty="medium",
-        # TODO: this looks across all accounts combined; add 'AND account_name = ...'
-        # if you want per-account. Also verify cost_basis_gbp > 0 correctly excludes
-        # positions where cost basis is zero (fully switched-in with no buy cost recorded).
         ground_truth_sql="""
             SELECT fund_name, account_name,
                    ROUND(unrealised_gain_pct, 1) AS gain_pct,
                    ROUND(unrealised_gain_gbp, 0) AS gain_gbp
             FROM mart_holdings_latest
-            WHERE cost_basis_gbp > 0
             ORDER BY unrealised_gain_pct DESC
             LIMIT 1
         """,
@@ -165,10 +147,6 @@ TEST_CASES: list[TestCase] = [
         id="Q06",
         question="How much of my portfolio's current value is down to investment growth versus money I've actually paid in?",
         difficulty="medium",
-        # TODO: this sums across both ISA and SIPP on the latest date.
-        # mart_portfolio_inflows_daily includes cumulative_inflows_gbp (contributions + transfers).
-        # Verify that 'transfers' should be counted as money you 'paid in' for your purposes —
-        # if not, you may want mart_contributions_by_financial_year instead.
         ground_truth_sql="""
             SELECT
                 ROUND(SUM(portfolio_value_gbp), 0)    AS total_value_gbp,
@@ -181,11 +159,8 @@ TEST_CASES: list[TestCase] = [
     ),
     TestCase(
         id="Q07",
-        question="What has my portfolio returned over the last 12 months compared to the FTSE 100?",
+        question="What has my ISA account returned over the last 12 months compared to the FTSE 100?",
         difficulty="complex",
-        # TODO: this queries ISA only — change account_name if you want SIPP or both.
-        # trailing_12m_return is a decimal (e.g. 0.123 = 12.3%); the query multiplies by 100.
-        # Verify that the most recent year_month in both tables is the same period.
         ground_truth_sql="""
             SELECT
                 ROUND(pr.trailing_12m_return * 100, 1) AS portfolio_12m_pct,
@@ -203,11 +178,8 @@ TEST_CASES: list[TestCase] = [
     ),
     TestCase(
         id="Q08",
-        question="Which financial year did I contribute the most new money across both accounts?",
-        difficulty="complex",
-        # TODO: SUM groups ISA + SIPP together. If you have other account_name values
-        # in the table, they'll be included. Verify with:
-        #   SELECT DISTINCT account_name FROM mart_contributions_by_financial_year
+        question="In which financial year did I make the largest amount of new-money contributions across all accounts?",
+        difficulty="medium",
         ground_truth_sql="""
             SELECT financial_year,
                    ROUND(SUM(contributions_gbp), 0) AS total_contributions_gbp
@@ -216,16 +188,12 @@ TEST_CASES: list[TestCase] = [
             ORDER BY total_contributions_gbp DESC
             LIMIT 1
         """,
-        ground_truth_description="Financial year with the highest combined ISA+SIPP contributions and the total amount",
+        ground_truth_description="Financial year with the highest total contributions and the total amount",
     ),
     TestCase(
         id="Q09",
-        question="What is my trailing 12-month Sharpe ratio, and how does it compare to the S&P 500 and NASDAQ?",
+        question="What is my trailing 12-month Sharpe ratio per account, and how does it compare to the American benchmark indices?",
         difficulty="complex",
-        # TODO: returns one row per account (ISA, SIPP separately).
-        # trailing_12m_sharpe is null until 12 months of history exist — the subquery
-        # filters to the most recent month where it is non-null.
-        # Check whether you want ISA, SIPP, or both in the response.
         ground_truth_sql="""
             SELECT
                 pr.account_name,
@@ -249,27 +217,23 @@ TEST_CASES: list[TestCase] = [
     ),
     TestCase(
         id="Q10",
-        question="How much did I pay in platform fees last year, and on which dates were they charged?",
+        question="How much did I pay in platform fees last calendar year, and in which months were they charged?",
         difficulty="complex",
-        # TODO: 'last year' = previous calendar year (EXTRACT(year) - 1).
-        # If you want the previous UK financial year instead, join to dim_date and
-        # filter on financial_year label (e.g. '2024/25').
-        # Also verify that transaction_type = 'FEE' captures all fee types —
-        # run: SELECT DISTINCT transaction_type FROM dim_transaction_type
         ground_truth_sql="""
             SELECT
                 da.account_name,
-                dd.date                         AS fee_date,
-                ROUND(ABS(ft.value_gbp), 2)     AS fee_gbp
+                dd.year_month                        AS fee_month,
+                ROUND(SUM(ABS(ft.value_gbp)), 2)     AS total_fee_gbp
             FROM fct_transactions ft
             JOIN dim_date             dd  ON dd.date_key              = ft.trade_date_key
             JOIN dim_account          da  ON da.account_key           = ft.account_key
             JOIN dim_transaction_type dtt ON dtt.transaction_type_key = ft.transaction_type_key
             WHERE dtt.transaction_type = 'FEE'
-              AND EXTRACT(year FROM dd.date) = EXTRACT(year FROM current_date) - 1
-            ORDER BY dd.date
+              AND dd.year = EXTRACT(year FROM current_date) - 1
+            GROUP BY da.account_name, dd.year_month
+            ORDER BY dd.year_month
         """,
-        ground_truth_description="Fee transactions from the previous calendar year: account, date, and amount",
+        ground_truth_description="Fee transactions from the previous calendar year grouped by month: account, year_month, and amount",
     ),
 ]
 
