@@ -40,3 +40,7 @@ CLAUDE.md
 
 # Website session data
 data/hl_session.json
+
+# Eval results — output data, not source
+backend/bot/eval_results.json
+backend/bot/eval_results/

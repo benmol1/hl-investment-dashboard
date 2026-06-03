@@ -18,9 +18,10 @@ import asyncio
 import json
 import os
 import re
+import subprocess
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -43,13 +44,48 @@ _load_dotenv()
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "eval-mode")
 os.environ.setdefault("TELEGRAM_CHAT_ID", "0")
 
+import urllib.request
+import urllib.error
+
 import duckdb
 import anthropic as _anthropic
 
 from backend.bot.claude import run_claude_loop
-from backend.bot.config import CLAUDE_MODEL, DB_PATH
+from backend.bot.config import BACKEND_URL, CLAUDE_MODEL, DB_PATH
 
-RESULTS_PATH = Path(__file__).parent / "eval_results.json"
+RESULTS_DIR = Path(__file__).parent / "eval_results"
+
+
+def _results_path() -> Path:
+    RESULTS_DIR.mkdir(exist_ok=True)
+    try:
+        branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True
+        ).strip().replace("/", "-")
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], text=True
+        ).strip()
+    except Exception:
+        branch, commit = "unknown", "unknown"
+    ts = datetime.now().strftime("%Y%m%d_%H%M")
+    return RESULTS_DIR / f"{branch}_{commit}_{ts}.json"
+
+
+def _check_backend() -> None:
+    url = BACKEND_URL.rstrip("/") + "/health"
+    try:
+        with urllib.request.urlopen(url, timeout=3):
+            pass
+    except urllib.error.HTTPError:
+        pass  # non-200 still means the server is up
+    except Exception as exc:
+        raise SystemExit(
+            f"\nCannot reach backend at {BACKEND_URL} ({exc}).\n"
+            "Start it with: PYTHONPATH=backend uv run uvicorn app.main:app --port 8000\n"
+        ) from None
+
+
+_check_backend()
 
 
 # ---------------------------------------------------------------------------
@@ -484,7 +520,7 @@ async def main() -> None:
         print(
             f"          {status}  {result.latency_s:>5.1f}s  "
             f"tok={result.input_tokens}+{result.output_tokens}  "
-            f"tools={result.tool_call_count}  "
+            f"calls={result.tool_call_count}  "
             f"qual={_fmt(result.quality_score)}/5  "
             f"acc={_fmt(result.accuracy_judge_score)}/5"
         )
@@ -494,15 +530,15 @@ async def main() -> None:
             print(f"          ↳ {result.judge_reasoning}")
 
     # Summary table
-    w = 84
+    w = 94
     print(f"\n{'─' * w}")
-    print(f"{'ID':<5} {'Diff':<9} {'Lat':>6} {'In tok':>7} {'Out tok':>8} {'Tools':>6} {'Qual':>5} {'Acc':>5}  Tool sequence")
+    print(f"{'ID':<5} {'Diff':<9} {'Lat':>6} {'In tok':>7} {'Out tok':>8} {'Tool calls':>10} {'Qual':>5} {'Acc':>5}  Tool sequence")
     print(f"{'─' * w}")
     for r in results:
         print(
             f"{r.test_case_id:<5} {r.difficulty:<9} {r.latency_s:>5.1f}s "
             f"{r.input_tokens:>7} {r.output_tokens:>8} "
-            f"{r.tool_call_count:>6}  "
+            f"{r.tool_call_count:>10}  "
             f"{_fmt(r.quality_score):>4}/5 "
             f"{_fmt(r.accuracy_judge_score):>4}/5  "
             f"{' → '.join(r.tools_called) or '—'}"
@@ -516,15 +552,16 @@ async def main() -> None:
             f"{sum(r.latency_s for r in results) / len(results):>5.1f}s "
             f"{sum(r.input_tokens for r in results) // len(results):>7} "
             f"{sum(r.output_tokens for r in results) // len(results):>8} "
-            f"{sum(r.tool_call_count for r in results) / len(results):>6.1f}  "
+            f"{sum(r.tool_call_count for r in results) / len(results):>10.1f}  "
             f"{sum(r.quality_score for r in scored) / len(scored):>4.1f}/5 "
             f"{sum(r.accuracy_judge_score for r in scored) / len(scored):>4.1f}/5"
         )
 
     # Save JSON
     out = [asdict(r) for r in results]
-    RESULTS_PATH.write_text(json.dumps(out, indent=2, default=str))
-    print(f"\n  Results saved → {RESULTS_PATH}\n")
+    results_path = _results_path()
+    results_path.write_text(json.dumps(out, indent=2, default=str))
+    print(f"\n  Results saved → {results_path}\n")
     print(f"{'─' * w}\n")
 
 

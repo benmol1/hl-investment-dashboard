@@ -114,6 +114,11 @@ cd frontend && npm run dev
 
 Dashboard: [http://localhost:5173](http://localhost:5173) — API proxied to `:8000` via Vite.
 
+```bash
+# Bot eval harness (requires backend running first)
+$env:BACKEND_URL="http://localhost:8000"; uv run python -m backend.bot.eval
+```
+
 ---
 
 ## Deployment (Raspberry Pi)
