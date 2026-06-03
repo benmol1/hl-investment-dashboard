@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-06-03 11:05*
+*Last updated: 2026-06-03 11:21*
 
 ---
 
@@ -245,6 +245,76 @@ Two motivations: (1) a demo/dummy dataset so the app can be shown to others with
 ### Deployment
 
 - [ ] Decide whether to expose the app publicly (requires HTTPS — e.g. Caddy reverse proxy with Let's Encrypt) or keep it Tailscale-only (simpler, no public exposure).
+
+---
+
+## Phase 12 — Bot: Incremental Schema Reveal (Experiment Branch)
+
+Replace the bot's 9 specific API-endpoint tools with a `query_database` + `get_model_schema` pattern: Claude gets a lightweight model index in its system prompt and fetches full column detail on demand, rather than receiving the entire dbt YAML context upfront.
+
+### Step 1 — Audit and enrich dbt model descriptions
+
+- [ ] Open every `schema.yml` under `dbt/models/marts/` and `dbt/models/core/` and verify each model has a meaningful `description` field (one clear sentence covering what the model represents and its grain)
+- [ ] Enrich any descriptions that are missing or too vague — these feed directly into the system-prompt index, so quality here matters
+
+### Step 2 — Write `backend/bot/schema.py`
+
+- [ ] Implement `build_schema_index() -> str` — scans `dbt/models/marts/` and `dbt/models/core/` for `*.yml` files, parses each with PyYAML, extracts `name` + `description` for every model block, and returns a compact bullet list formatted for the system prompt, e.g.:
+  ```
+  - mart_holdings_latest: current fund positions with cost basis and unrealised gains, one row per account/fund
+  - mart_portfolio_value_daily: daily total portfolio value by account
+  ...
+  ```
+- [ ] Implement `get_model_schema(name: str) -> str` — given a model name, finds its YAML block and returns a formatted column reference: each column's name, type (if present), and description on one line; raises a clear error if the model is not found
+- [ ] Call `build_schema_index()` once at import time and cache the result — the YAML files don't change at runtime
+
+### Step 3 — Add `get_model_schema` tool definition to `tools.py`
+
+- [ ] Define a new tool with a single `name` (string) parameter
+- [ ] Write the description to instruct Claude: before writing any SQL that references a model it hasn't seen in the current conversation, call this tool first to verify column names and understand the grain
+
+### Step 4 — Add `get_model_schema` executor to `executors.py`
+
+- [ ] Wire the tool name to a call of `schema.get_model_schema(name)`
+- [ ] Return the formatted column reference as the tool result string
+
+### Step 5 — Update the system prompt in `claude.py`
+
+- [ ] Replace any hardcoded schema context with `schema.build_schema_index()` called at startup — inject the resulting index into the system prompt under a `## Available data models` heading
+- [ ] Add an explicit instruction after the index: *"Before writing SQL, call `get_model_schema` for each model you plan to query to confirm column names. Limit queries to mart_ and dim_ tables; all queries must be read-only SELECT statements."*
+- [ ] Remove the now-redundant instruction to use the specific API endpoint tools for common queries
+
+### Step 6 — Remove the 9 specific API endpoint tools
+
+- [ ] Delete the `get_holdings`, `get_portfolio_value`, `get_inflows`, `get_portfolio_performance`, `get_portfolio_allocation`, `get_fund_performance`, `list_funds`, `list_transactions`, and `get_contributions_by_financial_year` tool definitions from `tools.py`
+- [ ] Delete their corresponding executor cases from `executors.py`
+- [ ] Keep `query_database`, `get_model_schema`, and `generate_chart` — these become the complete tool set
+
+### Step 7 — Test end-to-end on the experiment branch
+
+- [ ] Run the bot locally (`python -m backend.bot`) and confirm the system prompt contains the schema index
+- [ ] Ask a simple question (e.g. *"what's my current ISA value?"*) and verify Claude calls `get_model_schema` before `query_database` — check the Telegram "thinking…" updates show both tool calls
+- [ ] Ask a question that spans two models (e.g. *"how do my contributions compare to my gains this year?"*) and verify Claude fetches schema for each model before writing SQL
+- [ ] Ask a chart question (e.g. *"show me my portfolio value over the last 6 months"*) and confirm `generate_chart` still works correctly after the tool-set change
+- [ ] Compare response quality and latency against the `main` branch for a representative set of ~5 questions
+
+---
+
+## Phase 13 — Bot Eval Harness ⏳ IN PROGRESS
+
+Automated A/B comparison between the original API-tool bot (main branch) and the
+incremental schema-reveal bot (Phase 12 branch). Run `uv run python -m backend.bot.eval`
+from the repo root. Requires `ANTHROPIC_API_KEY` in the environment or `.env` file.
+
+- [x] **Review and tweak the 10 ground-truth SQL queries** in `backend/bot/eval.py`
+      (each is marked with a `# TODO:` comment explaining what to check)
+- [x] Run `uv run python -m backend.bot.eval` on the `main` branch — save the output
+      as the baseline (`eval_results_main.json`)
+- [ ] Checkout `claude/backend-rest-api-check-RYSua` and run the same eval — save as
+      `eval_results_phase12.json`
+- [ ] Compare the two result files across: latency, input+output tokens, tool call count,
+      numeric accuracy score (0–1), Claude-as-judge quality (1–5), accuracy (1–5)
+- [ ] Decide whether to merge Phase 12 into main based on results
 
 ---
 
