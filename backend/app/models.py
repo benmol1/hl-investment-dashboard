@@ -81,9 +81,9 @@ class HoldingItem(BaseModel):
     units_held: Optional[float] = None
     price_gbp: Optional[float] = None
     value_gbp: float
-    cost_basis_gbp: float
-    unrealised_gain_gbp: float
-    unrealised_gain_pct: float
+    cost_basis_gbp: Optional[float] = None
+    unrealised_gain_gbp: Optional[float] = None
+    unrealised_gain_pct: Optional[float] = None
     percentage: float
 
 

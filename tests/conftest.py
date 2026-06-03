@@ -95,6 +95,7 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
         CREATE TABLE mart_holdings_latest (
             fund_name           VARCHAR,
+            holding_type        VARCHAR,    
             account_name        VARCHAR,
             units_held          DOUBLE,
             fund_price_gbp      DOUBLE,
@@ -210,8 +211,8 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     """)
     con.execute("""
         INSERT INTO mart_holdings_latest VALUES
-        ('Fund Alpha', 'ISA',  105.0, 52.0, 5460.0, 4500.0, 960.0),
-        ('Fund Alpha', 'SIPP',  52.0, 52.0, 2704.0, 2200.0, 504.0)
+        ('Fund Alpha', 'Fund', 'ISA',  105.0, 52.0, 5460.0, 4500.0, 960.0),
+        ('Fund Alpha', 'Fund', 'SIPP',  52.0, 52.0, 2704.0, 2200.0, 504.0)
     """)
     con.execute("""
         INSERT INTO fct_cash_position_daily VALUES

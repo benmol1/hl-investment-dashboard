@@ -115,12 +115,13 @@ TEST_CASES: list[TestCase] = [
     ),
     TestCase(
         id="Q02",
-        question="What are my current ISA holdings and what percentage of the ISA does each fund represent?",
+        question="What are my current ISA fund holdings and what percentage of the ISA does each fund represent?",
         difficulty="simple",
         ground_truth_sql="""
             SELECT fund_name, ROUND(weight_pct, 1) AS weight_pct
             FROM mart_holdings_latest
             WHERE account_name = 'ISA'
+              AND holding_type = 'Fund'
             ORDER BY value_gbp DESC
         """,
         ground_truth_description="ISA fund names and their weight_pct, ordered by value descending",
@@ -174,6 +175,7 @@ TEST_CASES: list[TestCase] = [
                    ROUND(unrealised_gain_pct, 1) AS gain_pct,
                    ROUND(unrealised_gain_gbp, 0) AS gain_gbp
             FROM mart_holdings_latest
+            WHERE holding_type = 'Fund'
             ORDER BY unrealised_gain_pct DESC
             LIMIT 1
         """,

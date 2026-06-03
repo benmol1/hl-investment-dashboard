@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-06-03 10:07*
+*Last updated: 2026-06-03 11:05*
 
 ---
 
@@ -248,7 +248,7 @@ Two motivations: (1) a demo/dummy dataset so the app can be shown to others with
 
 ---
 
-## Miscellaneous
+## Miscellaneous ⏳ IN PROGRESS
 
 - [x] Rename all dbt models to use a consistent convention for frequency of snapshot (e.g. `fct_holdings_daily`, `mart_portfolio_snapshot_monthly`) 
 - [ ] Update the Readme file with the improved data model naming convention
@@ -256,7 +256,7 @@ Two motivations: (1) a demo/dummy dataset so the app can be shown to others with
 - [ ] Set up dotfiles repo on Windows PC — clone `~/.dotfiles`, run `mklink /D %USERPROFILE%\.claude %USERPROFILE%\.dotfiles\claude` in an elevated cmd prompt (or enable Developer Mode to avoid needing elevation).
 - [ ] Add a git pre-commit hook (`.git/hooks/pre-commit`) that runs `uv run pytest --tb=short -q` and aborts the commit if tests fail.
 - [ ] Add a GitHub Actions workflow (`.github/workflows/test.yml`) that runs the test suite on every push as a CI safety net.
-- [ ] Update `mart_holdings_latest` to include cash holdings — currently filters to `holding_type = 'Fund'` only, inconsistent with other marts. Cash rows have no `fund_key`/`units`/`price` so will need separate handling (e.g. UNION with `fct_cash_position_daily`, or coalescing fund-specific columns to null/0 for cash rows).
+- [x] Update `mart_holdings_latest` to include cash holdings — currently filters to `holding_type = 'Fund'` only, inconsistent with other marts. Cash rows have no `fund_key`/`units`/`price` so will need separate handling (e.g. UNION with `fct_cash_position_daily`, or coalescing fund-specific columns to null/0 for cash rows).
 - [x] Investigate why the eval harness can't connect to the backend service even when it appears to be running locally — root cause: `BACKEND_URL` defaults to `http://backend:8000` (Docker hostname); fix: set `$env:BACKEND_URL="http://localhost:8000"` when running locally (documented in README).
 
 ---
