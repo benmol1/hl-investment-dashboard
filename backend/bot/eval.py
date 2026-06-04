@@ -98,7 +98,7 @@ class TestCase:
     question: str
     difficulty: str  # simple | medium | complex
     ground_truth_sql: str
-    ground_truth_description: str  # used in the judge prompt
+    ground_truth_description: str
 
 
 TEST_CASES: list[TestCase] = [
@@ -171,15 +171,22 @@ TEST_CASES: list[TestCase] = [
         question="Which of my current holdings has the highest unrealised gain percentage?",
         difficulty="medium",
         ground_truth_sql="""
-            SELECT fund_name, account_name,
-                   ROUND(unrealised_gain_pct, 1) AS gain_pct,
-                   ROUND(unrealised_gain_gbp, 0) AS gain_gbp
+            SELECT fund_name,
+                   ROUND(
+                       CASE
+                           WHEN SUM(cost_basis_gbp) > 0
+                           THEN (SUM(value_gbp) - SUM(cost_basis_gbp)) / SUM(cost_basis_gbp) * 100.0
+                           ELSE 0.0
+                       END, 1
+                   ) AS gain_pct,
+                   ROUND(SUM(unrealised_gain_gbp), 0) AS gain_gbp
             FROM mart_holdings_latest
             WHERE holding_type = 'Fund'
-            ORDER BY unrealised_gain_pct DESC
+            GROUP BY fund_name
+            ORDER BY gain_pct DESC
             LIMIT 1
         """,
-        ground_truth_description="Fund with the highest unrealised gain %, its name, account, gain %, and gain £",
+        ground_truth_description="Fund with the highest unrealised gain %, its name, gain %, and gain £",
     ),
     TestCase(
         id="Q06",
@@ -200,16 +207,22 @@ TEST_CASES: list[TestCase] = [
         question="What has my ISA account returned over the last 12 months compared to the FTSE 100?",
         difficulty="complex",
         ground_truth_sql="""
+            WITH latest AS (
+                SELECT MAX(pr.year_month) AS year_month
+                FROM mart_portfolio_returns_monthly pr
+                JOIN mart_benchmarks_monthly bm ON bm.year_month = pr.year_month
+                WHERE pr.trailing_12m_return IS NOT NULL
+                  AND bm.trailing_12m_return IS NOT NULL
+                  AND bm.index_id = 'FTSE100'
+                  AND pr.account_name = 'ISA'
+            )
             SELECT
                 ROUND(pr.trailing_12m_return * 100, 1) AS portfolio_12m_pct,
                 ROUND(bm.trailing_12m_return * 100, 1) AS ftse100_12m_pct
             FROM mart_portfolio_returns_monthly pr
-            CROSS JOIN mart_benchmarks_monthly bm
-            WHERE pr.year_month = (SELECT MAX(year_month) FROM mart_portfolio_returns_monthly
-                                   WHERE trailing_12m_return IS NOT NULL)
-              AND bm.year_month = (SELECT MAX(year_month) FROM mart_benchmarks_monthly
-                                   WHERE trailing_12m_return IS NOT NULL)
-              AND bm.index_id   = 'FTSE100'
+            JOIN mart_benchmarks_monthly bm ON bm.year_month = pr.year_month
+            JOIN latest ON pr.year_month = latest.year_month
+            WHERE bm.index_id   = 'FTSE100'
               AND pr.account_name = 'ISA'
         """,
         ground_truth_description="Trailing 12-month return for ISA portfolio vs FTSE 100, as percentage points",
@@ -358,16 +371,18 @@ Score the response on TWO dimensions:
 
 QUALITY (1–5): Is the response clear, concise, and genuinely useful?
   5 = perfect — accurate, well-phrased, right level of detail
-  4 = good — minor phrasing or detail issue
-  3 = adequate — answers the question but is verbose, unclear, or missing key context
+  4 = good — minor phrasing or detail issue, or includes a small amount of unrequested but correct information
+  3 = adequate — answers the question but is verbose, unclear, missing key context, or noticeably cluttered with unrequested information
   2 = poor — hard to follow, or partially correct at best
   1 = bad — unhelpful, confusing, or does not answer the question
 
 ACCURACY (1–5): Do the figures and facts in the response match the ground truth?
-  5 = all figures correct (rounding differences acceptable)
-  4 = one minor figure off or rounded differently
-  3 = some figures correct, some wrong or missing
-  2 = mostly wrong or missing figures
+  Extra correct information beyond what the ground truth shows does NOT reduce this score.
+  Only penalise for figures that are wrong, missing from the required answer, or clearly fabricated.
+  5 = all required figures correct (rounding differences acceptable)
+  4 = one minor required figure off or all figures rounded differently
+  3 = some required figures correct, some wrong or missing
+  2 = mostly wrong or missing required figures
   1 = no correct figures, or question not answered at all
 
 Reply in EXACTLY this format (no extra text):
