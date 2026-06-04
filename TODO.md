@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-05-29*
+*Last updated: 2026-06-04 14:30*
 
 ---
 
@@ -300,15 +300,15 @@ Replace the bot's 9 specific API-endpoint tools with a `query_database` + `get_m
 
 ---
 
-## Phase 13 — Bot Eval Harness
+## Phase 13 — Bot Eval Harness ⏳ IN PROGRESS
 
 Automated A/B comparison between the original API-tool bot (main branch) and the
 incremental schema-reveal bot (Phase 12 branch). Run `uv run python -m backend.bot.eval`
 from the repo root. Requires `ANTHROPIC_API_KEY` in the environment or `.env` file.
 
-- [ ] **Review and tweak the 10 ground-truth SQL queries** in `backend/bot/eval.py`
+- [x] **Review and tweak the 10 ground-truth SQL queries** in `backend/bot/eval.py`
       (each is marked with a `# TODO:` comment explaining what to check)
-- [ ] Run `uv run python -m backend.bot.eval` on the `main` branch — save the output
+- [x] Run `uv run python -m backend.bot.eval` on the `main` branch — save the output
       as the baseline (`eval_results_main.json`)
 - [ ] Checkout `claude/backend-rest-api-check-RYSua` and run the same eval — save as
       `eval_results_phase12.json`
@@ -318,7 +318,7 @@ from the repo root. Requires `ANTHROPIC_API_KEY` in the environment or `.env` fi
 
 ---
 
-## Miscellaneous
+## Miscellaneous ⏳ IN PROGRESS
 
 - [x] Rename all dbt models to use a consistent convention for frequency of snapshot (e.g. `fct_holdings_daily`, `mart_portfolio_snapshot_monthly`) 
 - [ ] Update the Readme file with the improved data model naming convention
@@ -326,5 +326,7 @@ from the repo root. Requires `ANTHROPIC_API_KEY` in the environment or `.env` fi
 - [ ] Set up dotfiles repo on Windows PC — clone `~/.dotfiles`, run `mklink /D %USERPROFILE%\.claude %USERPROFILE%\.dotfiles\claude` in an elevated cmd prompt (or enable Developer Mode to avoid needing elevation).
 - [ ] Add a git pre-commit hook (`.git/hooks/pre-commit`) that runs `uv run pytest --tb=short -q` and aborts the commit if tests fail.
 - [ ] Add a GitHub Actions workflow (`.github/workflows/test.yml`) that runs the test suite on every push as a CI safety net.
+- [x] Update `mart_holdings_latest` to include cash holdings — currently filters to `holding_type = 'Fund'` only, inconsistent with other marts. Cash rows have no `fund_key`/`units`/`price` so will need separate handling (e.g. UNION with `fct_cash_position_daily`, or coalescing fund-specific columns to null/0 for cash rows).
+- [x] Investigate why the eval harness can't connect to the backend service even when it appears to be running locally — root cause: `BACKEND_URL` defaults to `http://backend:8000` (Docker hostname); fix: set `$env:BACKEND_URL="http://localhost:8000"` when running locally (documented in README).
 
 ---

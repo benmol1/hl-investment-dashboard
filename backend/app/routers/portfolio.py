@@ -276,86 +276,56 @@ def portfolio_holdings(
     account_filter = "WHERE mhl.account_name = ?" if account else ""
     params: list = [account] if account else []
 
-    # TODO: Double-check whether the GROUP BY is necessary in this query. I suspect it is not because MHL has the grain of
-    # one row per fund per account
-
-    fund_sql = f"""
+    sql = f"""
     SELECT
+        mhl.holding_type                                                                        AS holding_type,
         df.fund_id,
-        mhl.fund_name,
-        df.fund_short_name,
-        SUM(mhl.units_held)                                                                AS units_held,
-        MAX(mhl.fund_price_gbp)                                                            AS price_gbp,
-        SUM(mhl.value_gbp)                                                                 AS value_gbp,
-        SUM(mhl.cost_basis_gbp)                                                            AS cost_basis_gbp,
-        SUM(mhl.unrealised_gain_gbp)                                                       AS unrealised_gain_gbp,
-        CASE WHEN SUM(mhl.cost_basis_gbp) > 0
-             THEN ROUND((SUM(mhl.value_gbp) - SUM(mhl.cost_basis_gbp))
-                        / SUM(mhl.cost_basis_gbp) * 100.0, 2)
-             ELSE 0.0 END                                                                  AS unrealised_gain_pct
+        COALESCE(mhl.fund_name, mhl.account_name || ' Cash')                                    AS fund_name,
+        COALESCE(df.fund_short_name, mhl.account_name || ' Cash')                               AS fund_short_name,
+        SUM(mhl.units_held)                                                                     AS units_held,
+        MAX(mhl.fund_price_gbp)                                                                 AS price_gbp,
+        SUM(mhl.value_gbp)                                                                      AS value_gbp,
+        SUM(mhl.cost_basis_gbp)                                                                 AS cost_basis_gbp,
+        SUM(mhl.unrealised_gain_gbp)                                                            AS unrealised_gain_gbp,
+        CASE
+            WHEN mhl.holding_type = 'Cash' THEN NULL
+            WHEN SUM(mhl.cost_basis_gbp) > 0
+                 THEN ROUND((SUM(mhl.value_gbp) - SUM(mhl.cost_basis_gbp))
+                            / SUM(mhl.cost_basis_gbp) * 100.0, 2)
+            ELSE 0.0
+        END                                                                                     AS unrealised_gain_pct
     FROM mart_holdings_latest mhl
-    INNER JOIN dim_fund df ON df.fund_name = mhl.fund_name
+    LEFT JOIN dim_fund df ON df.fund_name = mhl.fund_name
     {account_filter}
-    GROUP BY df.fund_id, mhl.fund_name, df.fund_short_name
-    ORDER BY SUM(mhl.value_gbp) DESC
+    GROUP BY mhl.holding_type, df.fund_id,
+             COALESCE(mhl.fund_name, mhl.account_name || ' Cash'),
+             COALESCE(df.fund_short_name, mhl.account_name || ' Cash')
+    ORDER BY CASE WHEN mhl.holding_type = 'Fund' THEN 0 ELSE 1 END,
+             SUM(mhl.value_gbp) DESC
     """
-    fund_rows = con.execute(fund_sql, params).fetchall()
+    rows = con.execute(sql, params).fetchall()
 
-    cash_account_filter = "AND da.account_name = ?" if account else ""
-    cash_params: list = [account] if account else []
-    cash_sql = f"""
-    SELECT da.account_name, cp.cash_balance_gbp
-    FROM fct_cash_position_daily cp
-    INNER JOIN dim_account da ON da.account_key = cp.account_key
-    WHERE 1=1 {cash_account_filter}
-    QUALIFY ROW_NUMBER() OVER (PARTITION BY cp.account_key ORDER BY cp.date_key DESC) = 1
-    ORDER BY da.account_name
-    """
-    cash_rows = con.execute(cash_sql, cash_params).fetchall()
-
-    total_fund_value = sum(r[5] for r in fund_rows)
-    total_cash_value = sum(r[1] for r in cash_rows if r[1] is not None and r[1] > 0.01)
-    total_value = total_fund_value + total_cash_value
+    total_value = sum(r[6] for r in rows)
 
     def pct(v: float) -> float:
         return round(v / total_value * 100, 2) if total_value > 0 else 0.0
 
-    fund_items = [
+    return [
         HoldingItem(
-            holding_type="fund",
-            fund_id=r[0],
-            fund_name=r[1],
-            fund_short_name=r[2] or r[1],
-            units_held=round(r[3], 4),
-            price_gbp=round(r[4], 4),
-            value_gbp=round(r[5], 2),
-            cost_basis_gbp=round(r[6], 2),
-            unrealised_gain_gbp=round(r[7], 2),
-            unrealised_gain_pct=r[8],
-            percentage=pct(r[5]),
+            holding_type=r[0].lower(),
+            fund_id=r[1],
+            fund_name=r[2],
+            fund_short_name=r[3],
+            units_held=round(r[4], 4) if r[4] is not None else None,
+            price_gbp=round(r[5], 4) if r[5] is not None else None,
+            value_gbp=round(r[6], 2),
+            cost_basis_gbp=r[7],
+            unrealised_gain_gbp=r[8],
+            unrealised_gain_pct=r[9],
+            percentage=pct(r[6]),
         )
-        for r in fund_rows
+        for r in rows
     ]
-
-    cash_items = [
-        HoldingItem(
-            holding_type="cash",
-            fund_id=None,
-            fund_name=f"{r[0]} Cash",
-            fund_short_name=f"{r[0]} Cash",
-            units_held=None,
-            price_gbp=None,
-            value_gbp=round(r[1], 2),
-            cost_basis_gbp=round(r[1], 2),
-            unrealised_gain_gbp=0.0,
-            unrealised_gain_pct=0.0,
-            percentage=pct(r[1]),
-        )
-        for r in cash_rows
-        if r[1] is not None and r[1] > 0.01
-    ]
-
-    return fund_items + cash_items
 
 
 @router.get("/freshness", response_model=DataFreshness)

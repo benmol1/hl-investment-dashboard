@@ -3,10 +3,10 @@ version: 2
 models:
   - name: mart_holdings_latest
     description: >
-      Snapshot of latest holdings per account — fund positions as of the most recent
+      Snapshot of latest holdings per account — fund and cash positions as of the most recent
       price date, with cost basis and unrealised gain.
 
-      **Grain**: One row per (account_name, fund_name)
+      **Grain**: One row per (account_name, holding_type, fund_name)
       **Update Frequency**: Daily (after ingest_prices)
       **Source**: fct_holdings_daily, fct_transactions, dim_account, dim_fund, dim_transaction_type
 
@@ -25,33 +25,36 @@ models:
         description: "ISA or SIPP."
         tests:
           - not_null
-      - name: fund_name
-        description: "Full fund name from dim_fund."
+      - name: holding_type
+        description: "Fund or Cash."
         tests:
           - not_null
+          - accepted_values:
+              arguments:
+                values: [Fund, Cash]
+      - name: fund_name
+        description: "Full fund name from dim_fund. Null for cash rows."
       - name: valuation_date
         description: "Most recent date for which price data exists."
         tests:
           - not_null
       - name: units_held
-        description: "Number of units held as of valuation_date."
-        tests:
-          - not_null
+        description: "Number of units held as of valuation_date. Null for cash rows."
       - name: fund_price_gbp
-        description: "NAV price per unit in GBP as of valuation_date."
+        description: "NAV price per unit in GBP as of valuation_date. Null for cash rows."
       - name: value_gbp
-        description: "Market value of the holding (units_held × fund_price_gbp) in GBP."
+        description: "Market value of the holding in GBP."
         tests:
           - not_null
       - name: cost_basis_gbp
-        description: "Total amount invested minus proceeds from any sales, in GBP. Floored at zero."
+        description: "Total amount invested minus proceeds from any sales, in GBP. Floored at zero. Zero for cash rows."
       - name: unrealised_gain_gbp
-        description: "value_gbp minus cost_basis_gbp."
+        description: "value_gbp minus cost_basis_gbp. Null for cash rows."
       - name: unrealised_gain_pct
-        description: "Unrealised gain as a percentage of cost basis. Zero when cost basis is zero."
+        description: "Unrealised gain as a percentage of cost basis. Zero when cost basis is zero. Null for cash rows."
       - name: weight_pct
-        description: "Holding value as a percentage of the account's total portfolio value."
+        description: "Holding value as a percentage of the account's total portfolio value (including cash)."
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [account_name, fund_name]
+            combination_of_columns: [account_name, holding_type, fund_name]
