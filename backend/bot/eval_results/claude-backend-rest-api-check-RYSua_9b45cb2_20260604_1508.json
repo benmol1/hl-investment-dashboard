@@ -1,0 +1,403 @@
+[
+  {
+    "test_case_id": "Q01",
+    "question": "What is my total value in each account right now?",
+    "difficulty": "simple",
+    "response_text": "\ud83e\udd16 `<tool: get_model_schema, query_database>`\n\nHere are your current account values as of *2 June 2026*:\n\n- *ISA:* \u00a3134,690\n- *SIPP:* \u00a3127,967\n- *Total:* \u00a3262,657",
+    "tools_called": [
+      "get_model_schema",
+      "query_database"
+    ],
+    "tool_call_count": 2,
+    "latency_s": 7.16,
+    "input_tokens": 8295,
+    "output_tokens": 215,
+    "ground_truth_rows": [
+      {
+        "account_name": "ISA",
+        "total_value_gbp": 134690.0
+      },
+      {
+        "account_name": "SIPP",
+        "total_value_gbp": 127967.0
+      }
+    ],
+    "accuracy_numeric": 1.0,
+    "quality_score": 5,
+    "accuracy_judge_score": 5,
+    "judge_reasoning": "The response directly answers the question with clear formatting, includes both requested account values with correct figures, provides a helpful total sum, and adds a timestamp for useful context without being excessive.",
+    "error": null
+  },
+  {
+    "test_case_id": "Q02",
+    "question": "What are my current ISA fund holdings and what percentage of the ISA does each fund represent?",
+    "difficulty": "simple",
+    "response_text": "\ud83e\udd16 `<tool: get_model_schema, query_database>`\n\nHere are your current ISA fund holdings:\n\n| *Fund* | *Value* | *Weight* |\n|---|---|---|\n| L&G Global 100 Index C Acc | \u00a322,790 | 16.9% |\n| Vanguard LifeStrategy 100% Equity Acc | \u00a322,561 | 16.7% |\n| Aviva International Index Tracking 2 Acc | \u00a322,528 | 16.7% |\n| Fidelity Index World P Acc | \u00a322,374 | 16.6% |\n| Invesco Global ex-UK Enhanced Index Z Acc | \u00a322,362 | 16.6% |\n| Ranmore Global Equity Investor Acc | \u00a321,575 | 16.0% |\n\nThe ISA is split very evenly across six funds, each representing roughly *16\u201317%* of the portfolio. The total fund value is approximately *\u00a3134,189*.",
+    "tools_called": [
+      "get_model_schema",
+      "query_database"
+    ],
+    "tool_call_count": 2,
+    "latency_s": 9.68,
+    "input_tokens": 8523,
+    "output_tokens": 391,
+    "ground_truth_rows": [
+      {
+        "fund_name": "Legal & General Global 100 Index Class C - Accumulation",
+        "weight_pct": 16.9
+      },
+      {
+        "fund_name": "Vanguard LifeStrategy 100% Equity Accumulation",
+        "weight_pct": 16.8
+      },
+      {
+        "fund_name": "Aviva Investors International Index Tracking Class 2 - Accumulation",
+        "weight_pct": 16.7
+      },
+      {
+        "fund_name": "Fidelity Index World Class P - Accumulation",
+        "weight_pct": 16.6
+      },
+      {
+        "fund_name": "Invesco Global ex-UK Enhanced Index Class Z - Accumulation",
+        "weight_pct": 16.6
+      },
+      {
+        "fund_name": "Ranmore Global Equity Investor - Accumulation",
+        "weight_pct": 16.0
+      }
+    ],
+    "accuracy_numeric": 0.83,
+    "quality_score": 4,
+    "accuracy_judge_score": 2,
+    "judge_reasoning": "The response is well-formatted and easy to read, but contains accuracy issues: the Vanguard fund weight is stated as 16.7% when it should be 16.8%, and the monetary values (\u00a322,790, \u00a322,561, etc.) and total ISA value (\u00a3134,189) are not provided in the ground truth and appear to be fabricated rather than retrieved from the database.",
+    "error": null
+  },
+  {
+    "test_case_id": "Q03",
+    "question": "How much was contributed to my SIPP in FY26?",
+    "difficulty": "simple",
+    "response_text": "\ud83e\udd16 `<tool: get_model_schema, query_database>`\n\n*\u00a313,870* was contributed to your SIPP in FY26 (April 2025 \u2013 March 2026).",
+    "tools_called": [
+      "get_model_schema",
+      "query_database"
+    ],
+    "tool_call_count": 4,
+    "latency_s": 10.35,
+    "input_tokens": 14110,
+    "output_tokens": 349,
+    "ground_truth_rows": [
+      {
+        "contributions_gbp": 13870.0
+      }
+    ],
+    "accuracy_numeric": 1.0,
+    "quality_score": 5,
+    "accuracy_judge_score": 5,
+    "judge_reasoning": "The response directly answers the question with the correct figure (\u00a313,870), presents it clearly and prominently, and helpfully clarifies the FY26 date range without unnecessary verbosity.",
+    "error": null
+  },
+  {
+    "test_case_id": "Q04",
+    "question": "What was my total portfolio worth a year ago, and how much has it changed since then?",
+    "difficulty": "medium",
+    "response_text": "\ud83e\udd16 `<tool: get_model_schema, query_database>`\n\nHere's your portfolio summary:\n\n- *A year ago (4 Jun 2025):* \u00a3159,876\n- *Today (2 Jun 2026):* \u00a3262,657\n\nThat's an increase of *\u00a3102,781* (+*64%*) over the past year.\n\n> Note: this includes any new contributions made during the period, not just investment growth.",
+    "tools_called": [
+      "get_model_schema",
+      "query_database"
+    ],
+    "tool_call_count": 2,
+    "latency_s": 8.84,
+    "input_tokens": 7945,
+    "output_tokens": 312,
+    "ground_truth_rows": [
+      {
+        "current_value_gbp": 262657.0,
+        "year_ago_value_gbp": 158377.0,
+        "change_gbp": 104280.0
+      }
+    ],
+    "accuracy_numeric": 1.0,
+    "quality_score": 4,
+    "accuracy_judge_score": 2,
+    "judge_reasoning": "The response is clear and well-formatted with helpful context about contributions, but contains multiple inaccurate figures: year-ago value should be \u00a3158,377 (not \u00a3159,876), change should be \u00a3104,280 (not \u00a3102,781), and the percentage should be ~65.8% (not 64%), representing meaningful discrepancies rather than acceptable rounding.",
+    "error": null
+  },
+  {
+    "test_case_id": "Q05",
+    "question": "Which of my current holdings has the highest unrealised gain percentage?",
+    "difficulty": "medium",
+    "response_text": "\ud83e\udd16 `<tool: get_model_schema, query_database>`\n\nYour best-performing holding is:\n\n*Legal & General Global 100 Index (ISA)*\nUnrealised gain: *+66%* (\u00a39,029 gain on a current value of \u00a322,790)",
+    "tools_called": [
+      "get_model_schema",
+      "query_database"
+    ],
+    "tool_call_count": 2,
+    "latency_s": 7.16,
+    "input_tokens": 8347,
+    "output_tokens": 232,
+    "ground_truth_rows": [
+      {
+        "fund_name": "Legal & General Global 100 Index Class C - Accumulation",
+        "gain_pct": 43.6,
+        "gain_gbp": 13393.0
+      }
+    ],
+    "accuracy_numeric": 0.0,
+    "quality_score": 4,
+    "accuracy_judge_score": 1,
+    "judge_reasoning": "The response is clear and well-formatted with useful context, but contains significant factual errors: the gain percentage is stated as +66% when the ground truth shows 43.6%, the gain amount is \u00a39,029 when it should be \u00a313,393, and the fund name includes \"(ISA)\" which doesn't match the ground truth name.",
+    "error": null
+  },
+  {
+    "test_case_id": "Q06",
+    "question": "How much of my portfolio's current value is down to investment growth versus money I've actually paid in?",
+    "difficulty": "medium",
+    "response_text": "\ud83e\udd16 `<tool: get_model_schema, query_database>`\n\nHere's the breakdown of your portfolio's current value across both accounts:\n\n*ISA*\n\u2014 Total value: \u00a3134,690\n\u2014 Money paid in: \u00a399,681 (74%)\n\u2014 Investment growth: \u00a335,009 (26%)\n\n*SIPP*\n\u2014 Total value: \u00a3127,967\n\u2014 Money paid in: \u00a3101,823 (80%)\n\u2014 Investment growth: \u00a326,144 (20%)\n\n*Combined*\n\u2014 Total value: \u00a3262,657\n\u2014 Money paid in: \u00a3201,504 (77%)\n\u2014 Investment growth: \u00a361,153 (23%)\n\nJust over three-quarters of your portfolio is capital you've put in, with the remaining 23% \u2014 \u00a361,153 \u2014 being pure investment growth. Your ISA has grown proportionally more than your SIPP.",
+    "tools_called": [
+      "get_model_schema",
+      "query_database"
+    ],
+    "tool_call_count": 4,
+    "latency_s": 11.94,
+    "input_tokens": 13755,
+    "output_tokens": 504,
+    "ground_truth_rows": [
+      {
+        "total_value_gbp": 262657.0,
+        "total_invested_gbp": 201504.0,
+        "growth_gbp": 61153.0
+      }
+    ],
+    "accuracy_numeric": 1.0,
+    "quality_score": 2,
+    "accuracy_judge_score": 2,
+    "judge_reasoning": "While the combined totals are correct, the bot has fabricated detailed breakdowns for ISA and SIPP accounts that do not exist in the ground truth database, making the response misleading and only partially answering the user's actual question with verifiable data.",
+    "error": null
+  },
+  {
+    "test_case_id": "Q07",
+    "question": "What has my ISA account returned over the last 12 months compared to the FTSE 100?",
+    "difficulty": "complex",
+    "response_text": "\ud83e\udd16 `<tool: get_model_schema, query_database, generate_chart>`\n\nHere's the summary:\n\n*Trailing 12-month return (to May 2026)*\n\u2014 *ISA:* +23.7%\n\u2014 *FTSE 100:* +17.0%\n\nYour ISA has *outperformed the FTSE 100 by 6.7 percentage points* over the last 12 months. \ud83c\udf89\n\nA few highlights from the monthly breakdown:\n- Your ISA led strongly through mid-2025 and again in April\u2013May 2026\n- The FTSE pulled ahead briefly in Feb 2026, but your ISA recovered well after the March sell-off (-5.7% vs -6.7%), and outperformed sharply in April (+6.6% vs +2.0%)",
+    "tools_called": [
+      "get_model_schema",
+      "query_database",
+      "generate_chart"
+    ],
+    "tool_call_count": 7,
+    "latency_s": 43.07,
+    "input_tokens": 24329,
+    "output_tokens": 1575,
+    "ground_truth_rows": [
+      {
+        "portfolio_12m_pct": 23.7,
+        "ftse100_12m_pct": 17.0
+      }
+    ],
+    "accuracy_numeric": 1.0,
+    "quality_score": 2,
+    "accuracy_judge_score": 2,
+    "judge_reasoning": "While the core figures (23.7%, 17.0%, 6.7 percentage point outperformance) are correct, the response fabricates detailed monthly breakdowns (\"mid-2025,\" \"Feb 2026,\" \"March sell-off of -5.7%,\" etc.) that do not exist in the ground truth, making it misleading and unreliable despite answering the main question.",
+    "error": null
+  },
+  {
+    "test_case_id": "Q08",
+    "question": "In which financial year did I make the largest amount of new-money contributions across all accounts?",
+    "difficulty": "medium",
+    "response_text": "\ud83e\udd16 `<tool: get_model_schema, query_database>`\n\nYour largest year for new-money contributions was *FY26* (April 2025 \u2013 March 2026), with a total of *\u00a333,870* across all accounts.",
+    "tools_called": [
+      "get_model_schema",
+      "query_database"
+    ],
+    "tool_call_count": 2,
+    "latency_s": 17.89,
+    "input_tokens": 7913,
+    "output_tokens": 213,
+    "ground_truth_rows": [
+      {
+        "financial_year": "FY26",
+        "total_contributions_gbp": 33870.0
+      }
+    ],
+    "accuracy_numeric": 1.0,
+    "quality_score": 5,
+    "accuracy_judge_score": 5,
+    "judge_reasoning": "The response directly answers the question with the correct financial year and contribution amount, includes helpful context (the date range for FY26), and presents the information clearly and concisely without unnecessary clutter.",
+    "error": null
+  },
+  {
+    "test_case_id": "Q09",
+    "question": "What is my trailing 12-month Sharpe ratio per account, and how does it compare to the American benchmark indices?",
+    "difficulty": "complex",
+    "response_text": "\ud83e\udd16 `<tool: get_model_schema, query_database>`\n\nHere's the trailing 12-month Sharpe ratio comparison as of May 2026 (risk-free rate = 0):\n\n| | *Sharpe Ratio* |\n|---|---|\n| *SIPP* | 2.26 |\n| *ISA* | 1.92 |\n| S&P 500 | 1.83 |\n| NASDAQ | 1.78 |\n\nBoth accounts are *beating* both American benchmarks on a risk-adjusted basis. Your SIPP leads the pack with a notably strong 2.26, while your ISA at 1.92 also comfortably clears the S&P 500 (1.83) and NASDAQ (1.78). The higher the Sharpe, the more return you're earning per unit of volatility \u2014 so this is a solid result across the board.",
+    "tools_called": [
+      "get_model_schema",
+      "query_database"
+    ],
+    "tool_call_count": 5,
+    "latency_s": 20.44,
+    "input_tokens": 12037,
+    "output_tokens": 638,
+    "ground_truth_rows": [
+      {
+        "account_name": "ISA",
+        "portfolio_sharpe": 1.92,
+        "sp500_sharpe": 1.83,
+        "nasdaq_sharpe": 1.78
+      },
+      {
+        "account_name": "SIPP",
+        "portfolio_sharpe": 2.26,
+        "sp500_sharpe": 1.83,
+        "nasdaq_sharpe": 1.78
+      }
+    ],
+    "accuracy_numeric": 1.0,
+    "quality_score": 4,
+    "accuracy_judge_score": 5,
+    "judge_reasoning": "The response is clear, well-organized, and includes helpful context about Sharpe ratios; all required figures match the ground truth exactly, though the \"as of May 2026\" date and \"risk-free rate = 0\" are additional assumptions not in the database.",
+    "error": null
+  },
+  {
+    "test_case_id": "Q10",
+    "question": "How much did I pay in platform fees last calendar year, and in which months were they charged?",
+    "difficulty": "complex",
+    "response_text": "\ud83e\udd16 `<tool: get_model_schema, query_database>`\n\nHere's a summary of platform fees charged in 2025:\n\n*Total fees paid in 2025*\n\u2014 *ISA:* \u00a3229\n\u2014 *SIPP:* \u00a3190\n\u2014 *Combined:* \u00a3419\n\nFees were charged in *every month* of the year. Here's the monthly breakdown:\n\n| Month | ISA | SIPP |\n|---|---|---|\n| January | \u00a355 | \u00a30.45 |\n| February | \u00a320 | \u00a30.38 |\n| March | \u00a318 | \u00a30.54 |\n| April | \u00a319 | \u00a30.51 |\n| May | \u00a33.90 | \u00a373 |\n| June | \u00a30.06 | \u00a314 |\n| July | \u00a30.11 | \u00a314 |\n| August | \u00a374 | \u00a30.32 |\n| September | \u00a321 | \u00a30.30 |\n| October | \u00a318 | \u00a30.30 |\n| November | \u00a30.07 | \u00a30.30 |\n| December | \u00a30.10 | \u00a386 |\n\nYou'll notice some months have notably larger charges \u2014 *January* and *August* for the ISA, and *May* and *December* for the SIPP \u2014 which likely reflect quarterly platform fee collections. The very small amounts in other months are probably minor interest or adjustment entries.",
+    "tools_called": [
+      "get_model_schema",
+      "query_database"
+    ],
+    "tool_call_count": 5,
+    "latency_s": 35.98,
+    "input_tokens": 19370,
+    "output_tokens": 1224,
+    "ground_truth_rows": [
+      {
+        "account_name": "ISA",
+        "fee_month": "2025-01",
+        "total_fee_gbp": 55.06
+      },
+      {
+        "account_name": "SIPP",
+        "fee_month": "2025-01",
+        "total_fee_gbp": 0.45
+      },
+      {
+        "account_name": "SIPP",
+        "fee_month": "2025-02",
+        "total_fee_gbp": 0.38
+      },
+      {
+        "account_name": "ISA",
+        "fee_month": "2025-02",
+        "total_fee_gbp": 20.33
+      },
+      {
+        "account_name": "SIPP",
+        "fee_month": "2025-03",
+        "total_fee_gbp": 0.54
+      },
+      {
+        "account_name": "ISA",
+        "fee_month": "2025-03",
+        "total_fee_gbp": 17.84
+      },
+      {
+        "account_name": "SIPP",
+        "fee_month": "2025-04",
+        "total_fee_gbp": 0.51
+      },
+      {
+        "account_name": "ISA",
+        "fee_month": "2025-04",
+        "total_fee_gbp": 18.51
+      },
+      {
+        "account_name": "SIPP",
+        "fee_month": "2025-05",
+        "total_fee_gbp": 73.1
+      },
+      {
+        "account_name": "ISA",
+        "fee_month": "2025-05",
+        "total_fee_gbp": 3.9
+      },
+      {
+        "account_name": "SIPP",
+        "fee_month": "2025-06",
+        "total_fee_gbp": 14.31
+      },
+      {
+        "account_name": "ISA",
+        "fee_month": "2025-06",
+        "total_fee_gbp": 0.06
+      },
+      {
+        "account_name": "ISA",
+        "fee_month": "2025-07",
+        "total_fee_gbp": 0.11
+      },
+      {
+        "account_name": "SIPP",
+        "fee_month": "2025-07",
+        "total_fee_gbp": 14.01
+      },
+      {
+        "account_name": "ISA",
+        "fee_month": "2025-08",
+        "total_fee_gbp": 73.5
+      },
+      {
+        "account_name": "SIPP",
+        "fee_month": "2025-08",
+        "total_fee_gbp": 0.32
+      },
+      {
+        "account_name": "SIPP",
+        "fee_month": "2025-09",
+        "total_fee_gbp": 0.3
+      },
+      {
+        "account_name": "ISA",
+        "fee_month": "2025-09",
+        "total_fee_gbp": 21.36
+      },
+      {
+        "account_name": "SIPP",
+        "fee_month": "2025-10",
+        "total_fee_gbp": 0.3
+      },
+      {
+        "account_name": "ISA",
+        "fee_month": "2025-10",
+        "total_fee_gbp": 17.74
+      },
+      {
+        "account_name": "SIPP",
+        "fee_month": "2025-11",
+        "total_fee_gbp": 0.3
+      },
+      {
+        "account_name": "ISA",
+        "fee_month": "2025-11",
+        "total_fee_gbp": 0.07
+      },
+      {
+        "account_name": "ISA",
+        "fee_month": "2025-12",
+        "total_fee_gbp": 0.1
+      },
+      {
+        "account_name": "SIPP",
+        "fee_month": "2025-12",
+        "total_fee_gbp": 85.69
+      }
+    ],
+    "accuracy_numeric": 0.71,
+    "quality_score": 5,
+    "accuracy_judge_score": 5,
+    "judge_reasoning": "The response directly answers both parts of the question (total fees and monthly breakdown), presents the information clearly in an organized table format, provides helpful context about the fee patterns, and all figures match the ground truth data with appropriate rounding.",
+    "error": null
+  }
+]
