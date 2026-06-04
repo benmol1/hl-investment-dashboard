@@ -53,10 +53,21 @@ import anthropic as _anthropic
 from backend.bot.claude import run_claude_loop
 from backend.bot.config import BACKEND_URL, CLAUDE_MODEL, DB_PATH
 
+JUDGE_MODEL = "claude-sonnet-4-6"  # options: "claude-haiku-4-5-20251001", "claude-sonnet-4-6", "claude-opus-4-8"
 RESULTS_DIR = Path(__file__).parent / "eval_results"
 
+def _judge_label(model: str) -> str:
+    m = model.lower()
+    if "haiku" in m:
+        return "haiku"
+    if "sonnet" in m:
+        return "sonnet"
+    if "opus" in m:
+        return "opus"
+    return m.split("-")[1] if "-" in m else m
 
-def _results_path() -> Path:
+
+def _results_path(judge_model: str) -> Path:
     RESULTS_DIR.mkdir(exist_ok=True)
     try:
         branch = subprocess.check_output(
@@ -68,7 +79,8 @@ def _results_path() -> Path:
     except Exception:
         branch, commit = "unknown", "unknown"
     ts = datetime.now().strftime("%Y%m%d_%H%M")
-    return RESULTS_DIR / f"{branch}_{commit}_{ts}.json"
+    label = _judge_label(judge_model)
+    return RESULTS_DIR / f"{ts}_{branch}_{commit}_{label}.json"
 
 
 def _check_backend() -> None:
@@ -402,7 +414,7 @@ def judge_response(
         response=response_text,
     )
     resp = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model=JUDGE_MODEL,
         max_tokens=200,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -576,7 +588,7 @@ async def main() -> None:
 
     # Save JSON
     out = [asdict(r) for r in results]
-    results_path = _results_path()
+    results_path = _results_path(JUDGE_MODEL)
     results_path.write_text(json.dumps(out, indent=2, default=str))
     print(f"\n  Results saved → {results_path}\n")
     print(f"{'─' * w}\n")
