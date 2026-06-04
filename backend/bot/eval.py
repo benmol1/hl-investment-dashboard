@@ -51,7 +51,9 @@ import duckdb
 import anthropic as _anthropic
 
 from backend.bot.claude import run_claude_loop
-from backend.bot.config import BACKEND_URL, CLAUDE_MODEL, DB_PATH
+from backend.bot.config import CLAUDE_MODEL, DB_PATH
+
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
 RESULTS_DIR = Path(__file__).parent / "eval_results"
 

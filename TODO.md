@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-06-04 14:30*
+*Last updated: 2026-06-04 15:00*
 
 ---
 
@@ -248,47 +248,47 @@ Two motivations: (1) a demo/dummy dataset so the app can be shown to others with
 
 ---
 
-## Phase 12 — Bot: Incremental Schema Reveal (Experiment Branch)
+## Phase 12 — Bot: Incremental Schema Reveal (Experiment Branch) ⏳ IN PROGRESS
 
 Replace the bot's 9 specific API-endpoint tools with a `query_database` + `get_model_schema` pattern: Claude gets a lightweight model index in its system prompt and fetches full column detail on demand, rather than receiving the entire dbt YAML context upfront.
 
-### Step 1 — Audit and enrich dbt model descriptions
+### Step 1 — Audit and enrich dbt model descriptions ✅ COMPLETE
 
-- [ ] Open every `schema.yml` under `dbt/models/marts/` and `dbt/models/core/` and verify each model has a meaningful `description` field (one clear sentence covering what the model represents and its grain)
-- [ ] Enrich any descriptions that are missing or too vague — these feed directly into the system-prompt index, so quality here matters
+- [x] Open every `schema.yml` under `dbt/models/marts/` and `dbt/models/core/` and verify each model has a meaningful `description` field (one clear sentence covering what the model represents and its grain)
+- [x] Enrich any descriptions that are missing or too vague — these feed directly into the system-prompt index, so quality here matters
 
-### Step 2 — Write `backend/bot/schema.py`
+### Step 2 — Write `backend/bot/schema.py` ✅ COMPLETE
 
-- [ ] Implement `build_schema_index() -> str` — scans `dbt/models/marts/` and `dbt/models/core/` for `*.yml` files, parses each with PyYAML, extracts `name` + `description` for every model block, and returns a compact bullet list formatted for the system prompt, e.g.:
+- [x] Implement `build_schema_index() -> str` — scans `dbt/models/marts/` and `dbt/models/core/` for `*.yml` files, parses each with PyYAML, extracts `name` + `description` for every model block, and returns a compact bullet list formatted for the system prompt, e.g.:
   ```
   - mart_holdings_latest: current fund positions with cost basis and unrealised gains, one row per account/fund
   - mart_portfolio_value_daily: daily total portfolio value by account
   ...
   ```
-- [ ] Implement `get_model_schema(name: str) -> str` — given a model name, finds its YAML block and returns a formatted column reference: each column's name, type (if present), and description on one line; raises a clear error if the model is not found
-- [ ] Call `build_schema_index()` once at import time and cache the result — the YAML files don't change at runtime
+- [x] Implement `get_model_schema(name: str) -> str` — given a model name, finds its YAML block and returns a formatted column reference: each column's name, type (if present), and description on one line; raises a clear error if the model is not found
+- [x] Call `build_schema_index()` once at import time and cache the result — the YAML files don't change at runtime
 
-### Step 3 — Add `get_model_schema` tool definition to `tools.py`
+### Step 3 — Add `get_model_schema` tool definition to `tools.py` ✅ COMPLETE
 
-- [ ] Define a new tool with a single `name` (string) parameter
-- [ ] Write the description to instruct Claude: before writing any SQL that references a model it hasn't seen in the current conversation, call this tool first to verify column names and understand the grain
+- [x] Define a new tool with a single `name` (string) parameter
+- [x] Write the description to instruct Claude: before writing any SQL that references a model it hasn't seen in the current conversation, call this tool first to verify column names and understand the grain
 
-### Step 4 — Add `get_model_schema` executor to `executors.py`
+### Step 4 — Add `get_model_schema` executor to `executors.py` ✅ COMPLETE
 
-- [ ] Wire the tool name to a call of `schema.get_model_schema(name)`
-- [ ] Return the formatted column reference as the tool result string
+- [x] Wire the tool name to a call of `schema.get_model_schema(name)`
+- [x] Return the formatted column reference as the tool result string
 
-### Step 5 — Update the system prompt in `claude.py`
+### Step 5 — Update the system prompt in `claude.py` ✅ COMPLETE
 
-- [ ] Replace any hardcoded schema context with `schema.build_schema_index()` called at startup — inject the resulting index into the system prompt under a `## Available data models` heading
-- [ ] Add an explicit instruction after the index: *"Before writing SQL, call `get_model_schema` for each model you plan to query to confirm column names. Limit queries to mart_ and dim_ tables; all queries must be read-only SELECT statements."*
-- [ ] Remove the now-redundant instruction to use the specific API endpoint tools for common queries
+- [x] Replace any hardcoded schema context with `schema.build_schema_index()` called at startup — inject the resulting index into the system prompt under a `## Available data models` heading
+- [x] Add an explicit instruction after the index: *"Before writing SQL, call `get_model_schema` for each model you plan to query to confirm column names. Limit queries to mart_ and dim_ tables; all queries must be read-only SELECT statements."*
+- [x] Remove the now-redundant instruction to use the specific API endpoint tools for common queries
 
-### Step 6 — Remove the 9 specific API endpoint tools
+### Step 6 — Remove the 9 specific API endpoint tools ✅ COMPLETE
 
-- [ ] Delete the `get_holdings`, `get_portfolio_value`, `get_inflows`, `get_portfolio_performance`, `get_portfolio_allocation`, `get_fund_performance`, `list_funds`, `list_transactions`, and `get_contributions_by_financial_year` tool definitions from `tools.py`
-- [ ] Delete their corresponding executor cases from `executors.py`
-- [ ] Keep `query_database`, `get_model_schema`, and `generate_chart` — these become the complete tool set
+- [x] Delete the `get_holdings`, `get_portfolio_value`, `get_inflows`, `get_portfolio_performance`, `get_portfolio_allocation`, `get_fund_performance`, `list_funds`, `list_transactions`, and `get_contributions_by_financial_year` tool definitions from `tools.py`
+- [x] Delete their corresponding executor cases from `executors.py`
+- [x] Keep `query_database`, `get_model_schema`, and `generate_chart` — these become the complete tool set
 
 ### Step 7 — Test end-to-end on the experiment branch
 
