@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-06-04 16:01*
+*Last updated: 2026-06-05 14:25*
 
 ---
 
@@ -61,6 +61,7 @@
   - [x] Transaction Log — paginated, filterable by account + type
 - [x] All pages wired to FastAPI endpoints via `/api` Vite proxy
 - [x] ISA / SIPP / All account filter on Overview, Contributions, Benchmarks, Holdings
+- [x] Enhance frontend for mobile viewing
 
 ---
 
