@@ -82,7 +82,14 @@ TOOLS = [
             "properties": {
                 "from_date": {
                     "type": "string",
-                    "description": "Start date YYYY-MM-DD.",
+                    "description": (
+                        "Start date YYYY-MM-DD. The series is indexed to 100 at the first "
+                        "available month-end on or after this date; the computed return runs "
+                        "from that base point to the final data point. For a trailing N-month "
+                        "return, set this to the 1st of the month that is N+1 months before "
+                        "today so the index base falls at the month-end exactly N months back "
+                        "(e.g. for trailing 12 months in June 2026, use 2025-05-01)."
+                    ),
                 },
                 "to_date": {
                     "type": "string",

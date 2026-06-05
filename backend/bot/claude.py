@@ -17,6 +17,7 @@ from .tools import TOOLS
 class BotResponse:
     text: str
     charts: list[bytes] = field(default_factory=list)
+    usage: dict = field(default_factory=dict)  # input_tokens, output_tokens (summed across all loop turns)
 
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,8 @@ async def run_claude_loop(user_text: str, on_tool_call=None) -> BotResponse:
     messages: list[dict] = [{"role": "user", "content": user_text}]
 
     tools_called: list[str] = []
+    total_input_tokens = 0
+    total_output_tokens = 0
 
     while True:
         response = await asyncio.to_thread(
@@ -51,6 +54,9 @@ async def run_claude_loop(user_text: str, on_tool_call=None) -> BotResponse:
             messages=messages,
         )
 
+        total_input_tokens += response.usage.input_tokens
+        total_output_tokens += response.usage.output_tokens
+
         if response.stop_reason == "end_turn":
             body = _round_currency(
                 "\n".join(b.text for b in response.content if hasattr(b, "text"))
@@ -61,7 +67,11 @@ async def run_claude_loop(user_text: str, on_tool_call=None) -> BotResponse:
                 text = f"🤖 `<tool: {tool_label}>`\n\n{body}"
             else:
                 text = f"🤖 {body}"
-            return BotResponse(text=text, charts=pop_pending_charts())
+            return BotResponse(
+                text=text,
+                charts=pop_pending_charts(),
+                usage={"input_tokens": total_input_tokens, "output_tokens": total_output_tokens},
+            )
 
         if response.stop_reason == "tool_use":
             messages.append({"role": "assistant", "content": response.content})
@@ -89,4 +99,7 @@ async def run_claude_loop(user_text: str, on_tool_call=None) -> BotResponse:
             messages.append({"role": "user", "content": tool_results})
         else:
             logger.warning("Unexpected stop_reason: %s", response.stop_reason)
-            return BotResponse(text="Sorry, I couldn't process that request.")
+            return BotResponse(
+                text="Sorry, I couldn't process that request.",
+                usage={"input_tokens": total_input_tokens, "output_tokens": total_output_tokens},
+            )
