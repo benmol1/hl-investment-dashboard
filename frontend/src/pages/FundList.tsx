@@ -11,7 +11,7 @@ export default function FundList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-white">Fund Performance</h1>
         <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
           <input
@@ -28,11 +28,12 @@ export default function FundList() {
         {loading || error || !data?.length ? (
           <StatusMessage loading={loading} error={error} empty={!data?.length} />
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-gray-500 text-xs uppercase border-b border-gray-800">
                 <th className="text-left pb-3">Fund Name</th>
-                <th className="text-left pb-3">ISIN</th>
+                <th className="text-left pb-3 hidden sm:table-cell">ISIN</th>
                 <th className="text-left pb-3">Status</th>
                 <th className="text-right pb-3"></th>
               </tr>
@@ -41,7 +42,7 @@ export default function FundList() {
               {data.map((f) => (
                 <tr key={f.id} className="hover:bg-gray-800/40 transition-colors">
                   <td className="py-3 text-gray-200 font-medium">{f.name}</td>
-                  <td className="py-3 text-gray-500 font-mono text-xs">{f.isin ?? '—'}</td>
+                  <td className="py-3 text-gray-500 font-mono text-xs hidden sm:table-cell">{f.isin ?? '—'}</td>
                   <td className="py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${f.is_active ? 'bg-emerald-900/50 text-emerald-400' : 'bg-gray-800 text-gray-500'}`}>
                       {f.is_active ? 'Active' : 'Closed'}
@@ -59,6 +60,7 @@ export default function FundList() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
     </div>

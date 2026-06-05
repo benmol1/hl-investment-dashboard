@@ -4,6 +4,7 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts'
 import { useApi } from '../hooks/useApi'
+import { useChartHeight } from '../hooks/useChartHeight'
 import { fetchPortfolioValue, fetchAllocation } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
@@ -26,17 +27,20 @@ export default function Overview() {
   const allocation = useApi(() => fetchAllocation(undefined, account), [account])
 
   const latestValue = value.data?.at(-1)?.value_gbp
+  const lineChartHeight = useChartHeight(220, 320)
+  const pieChartHeight = useChartHeight(200, 280)
+  const pieRadius = Math.min(pieChartHeight / 2 - 20, 110)
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Portfolio Overview</h1>
           {latestValue != null && (
             <p className="text-3xl font-semibold text-indigo-400 mt-1">{fmt.format(latestValue)}</p>
           )}
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-start sm:items-end gap-2">
           <AccountFilter value={account} onChange={setAccount} />
           <DateRangeFilter value={dateRange} onChange={setDateRange} />
         </div>
@@ -46,7 +50,7 @@ export default function Overview() {
         {value.loading || value.error || !value.data?.length ? (
           <StatusMessage loading={value.loading} error={value.error} empty={!value.data?.length} />
         ) : (
-          <ResponsiveContainer width="100%" height={320}>
+          <ResponsiveContainer width="100%" height={lineChartHeight}>
             <LineChart data={value.data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
               <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: '#6b7280', fontSize: 11 }} minTickGap={60} />
@@ -68,7 +72,7 @@ export default function Overview() {
           <StatusMessage loading={allocation.loading} error={allocation.error} empty={!allocation.data?.length} />
         ) : (
           <div className="flex flex-col lg:flex-row gap-6 items-center">
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={pieChartHeight}>
               <PieChart>
                 <Pie
                   data={allocation.data}
@@ -76,7 +80,7 @@ export default function Overview() {
                   nameKey="fund_short_name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={110}
+                  outerRadius={pieRadius}
                   label={(props) => `${((props.percent ?? 0) * 100).toFixed(1)}%`}
                   labelLine={false}
                 >

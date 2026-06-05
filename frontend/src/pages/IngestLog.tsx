@@ -2,23 +2,11 @@ import { useApi } from '../hooks/useApi'
 import { fetchIngestLog } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
+import DateDisplay from '../components/DateDisplay'
 
 const SOURCE_LABELS: Record<string, string> = {
   transactions: 'Transactions',
   prices: 'Prices',
-}
-
-const fmtDate = (iso: string | null) => {
-  if (!iso) return <span className="text-gray-600">—</span>
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-const fmtTimestamp = (iso: string | null) => {
-  if (!iso) return <span className="text-gray-600">—</span>
-  const d = new Date(iso)
-  const date = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-  return `${date}, ${time}`
 }
 
 export default function IngestLog() {
@@ -39,9 +27,15 @@ export default function IngestLog() {
               <thead>
                 <tr className="text-gray-500 text-xs uppercase border-b border-gray-800">
                   <th className="text-left pb-3">Source</th>
-                  <th className="text-left pb-3">Latest data date</th>
-                  <th className="text-left pb-3">Last successful run</th>
-                  <th className="text-left pb-3">Last run with rows imported</th>
+                  <th className="text-left pb-3">
+                    <span className="sm:hidden">Latest date</span>
+                    <span className="hidden sm:inline">Latest data date</span>
+                  </th>
+                  <th className="text-left pb-3">
+                    <span className="sm:hidden">Last run</span>
+                    <span className="hidden sm:inline">Last successful run</span>
+                  </th>
+                  <th className="text-left pb-3 hidden sm:table-cell">Last run with rows imported</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
@@ -50,14 +44,14 @@ export default function IngestLog() {
                     <td className="py-3 text-gray-200 font-medium">
                       {SOURCE_LABELS[entry.source] ?? entry.source}
                     </td>
-                    <td className="py-3 text-gray-400 tabular-nums">
-                      {fmtDate(entry.latest_data_date)}
+                    <td className="py-3 text-gray-400 tabular-nums whitespace-nowrap">
+                      <DateDisplay iso={entry.latest_data_date} />
                     </td>
-                    <td className="py-3 text-gray-400 tabular-nums">
-                      {fmtTimestamp(entry.last_successful_at)}
+                    <td className="py-3 text-gray-400 tabular-nums whitespace-nowrap">
+                      <DateDisplay iso={entry.last_successful_at} includeTime />
                     </td>
-                    <td className="py-3 text-gray-400 tabular-nums">
-                      {fmtTimestamp(entry.last_rows_imported_at)}
+                    <td className="py-3 text-gray-400 tabular-nums whitespace-nowrap hidden sm:table-cell">
+                      <DateDisplay iso={entry.last_rows_imported_at} includeTime />
                     </td>
                   </tr>
                 ))}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useApi } from '../hooks/useApi'
 import { fetchFreshness } from '../api/portfolio'
+import DateDisplay from './DateDisplay'
 
 const navItems = [
   { to: '/', label: 'Overview', exact: true },
@@ -13,14 +14,6 @@ const navItems = [
   { to: '/transactions', label: 'Transactions' },
   { to: '/ingest-log', label: 'Data Ingestion Log' },
 ]
-
-const fmtDate = (iso: string | null) => {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  const date = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-  return `${date}, ${time}`
-}
 
 export default function Layout() {
   const [open, setOpen] = useState(() => window.innerWidth >= 768)
@@ -95,13 +88,25 @@ export default function Layout() {
           <span className="text-sm font-semibold text-indigo-400 uppercase tracking-widest">HL Dashboard</span>
           {freshness && (
             <div className="ml-auto flex flex-col items-end gap-0.5 text-xs text-gray-500">
-              <span>Prices last updated: <span className="text-gray-400">{fmtDate(freshness.price_date)}</span></span>
-              <span>Transactions last updated: <span className="text-gray-400">{fmtDate(freshness.transaction_date)}</span></span>
+              <span>
+                <span className="sm:hidden">Prices: </span>
+                <span className="hidden sm:inline">Prices last updated: </span>
+                <span className="text-gray-400">
+                  <DateDisplay iso={freshness.price_date} includeTime />
+                </span>
+              </span>
+              <span>
+                <span className="sm:hidden">Trans: </span>
+                <span className="hidden sm:inline">Transactions last updated: </span>
+                <span className="text-gray-400">
+                  <DateDisplay iso={freshness.transaction_date} includeTime />
+                </span>
+              </span>
             </div>
           )}
         </header>
 
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-3 sm:p-6 overflow-auto">
           <Outlet />
         </main>
       </div>

@@ -3,6 +3,7 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from 'recharts'
 import { useApi } from '../hooks/useApi'
+import { useChartHeight } from '../hooks/useChartHeight'
 import { fetchFundPerformance } from '../api/funds'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
@@ -22,6 +23,7 @@ export default function FundPerformance() {
     () => fetchFundPerformance(id!),
     [id],
   )
+  const chartHeight = useChartHeight(220, 380)
 
   const merged = (() => {
     if (!data) return []
@@ -48,9 +50,9 @@ export default function FundPerformance() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/funds" className="text-gray-500 hover:text-gray-300 text-sm">← Funds</Link>
-        <h1 className="text-2xl font-bold text-white">{data?.fund_name ?? id}</h1>
+      <div className="flex items-center gap-3 min-w-0">
+        <Link to="/funds" className="text-gray-500 hover:text-gray-300 text-sm shrink-0">← Funds</Link>
+        <h1 className="text-xl sm:text-2xl font-bold text-white truncate">{data?.fund_name ?? id}</h1>
       </div>
 
       {gainPct != null && (
@@ -66,7 +68,7 @@ export default function FundPerformance() {
         {loading || error || !merged.length ? (
           <StatusMessage loading={loading} error={error} empty={!merged.length} />
         ) : (
-          <ResponsiveContainer width="100%" height={380}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
             <LineChart data={merged}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
               <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: '#6b7280', fontSize: 11 }} minTickGap={60} />
