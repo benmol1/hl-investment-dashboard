@@ -17,7 +17,7 @@ Runs on a Raspberry Pi on the home network, accessible via browser or Telegram f
 - **ISA / SIPP filter** — every view can be scoped to a single account or combined
 - **Daily refresh** — cron container runs ingest + prices + `dbt build` automatically at 01:00
 - **Telegram notifications** — failure alerts, daily success confirmation, and a monthly portfolio summary
-- **Telegram query bot** — ask natural language questions ("what's my ISA up this year?") and get answers via Claude tool use; falls back to a read-only DuckDB query for anything the API can't answer directly
+- **Telegram query bot** — ask natural language questions ("what's my ISA up this year?") answered via Claude tool use against a curated semantic layer (metrics + dimensions compiled to DuckDB SQL); falls back to a read-only SQL query for anything the semantic layer can't express. Every reply carries a provenance footer showing how the data was obtained. See `semantic.md` for the design.
 
 ---
 
@@ -51,8 +51,13 @@ hl-investment-dashboard/
 │   ├── app/                     # FastAPI app (main.py, db.py, routers/)
 │   ├── bot/                     # Telegram query bot package
 │   │   ├── config.py            # Tokens, system prompt
-│   │   ├── tools.py             # Claude tool definitions (one per API endpoint)
-│   │   ├── executors.py         # Tool call → FastAPI / DuckDB execution
+│   │   ├── semantic/            # Semantic layer (see semantic.md)
+│   │   │   ├── definitions.yml  # Curated semantic models: dimensions + measures
+│   │   │   ├── loader.py        # YAML → validated dataclasses
+│   │   │   ├── compiler.py      # Structured metric query → DuckDB SQL
+│   │   │   └── catalog.py       # Renders the catalogue into the system prompt
+│   │   ├── tools.py             # Claude tool definitions (query_metrics et al)
+│   │   ├── executors.py         # Tool call → semantic layer / DuckDB execution
 │   │   ├── claude.py            # Agentic tool-use loop (Anthropic SDK)
 │   │   ├── handlers.py          # Telegram message handlers
 │   │   └── __main__.py          # Entry point: python -m backend.bot
@@ -176,3 +181,10 @@ Raw source tables (`accounts`, `funds`, `transactions`, `prices`, `benchmarks`) 
 | `marts` | `mart_portfolio_value_daily`, `mart_holdings_latest`, `mart_portfolio_inflows_daily`, `mart_portfolio_returns_monthly`, `mart_benchmarks_monthly`, `mart_portfolio_snapshot_monthly`, `mart_contributions_by_financial_year` | API-ready aggregates |
 
 Key conventions: `value_gbp` is negative for debits (buys, fees) and positive for credits (contributions, sells). Fund prices are stored in pence (`price_pence`) to match HL's raw format.
+
+### Semantic layer
+
+The Telegram bot queries the warehouse through a hand-curated semantic layer
+(`backend/bot/semantic/definitions.yml`): six semantic models over the facts and marts,
+each exposing named dimensions and measures, compiled deterministically into read-only
+DuckDB SQL. Design rationale and trade-offs are documented in `semantic.md`.

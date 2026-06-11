@@ -1,225 +1,112 @@
+from .semantic import GRAINS, load_registry
+
+_REGISTRY = load_registry()
+
 TOOLS = [
     {
-        "name": "get_holdings",
+        "name": "query_metrics",
         "description": (
-            "Get current portfolio holdings: fund name, value, cost basis, unrealised gain/loss, "
-            "and portfolio weight. Also includes cash balances. Use for questions about what is "
-            "currently held, current values, gains or losses."
+            "PRIMARY TOOL — query the semantic layer. Pick a semantic model, the metrics to "
+            "compute, and optionally dimensions to group by, filters, and a date range; the "
+            "layer compiles this into SQL and returns the rows. The full catalogue of models, "
+            "dimensions and metrics is in the system prompt. Time dimensions can be grouped or "
+            "filtered at a grain using a double-underscore suffix, e.g. trade_date__month, "
+            "valuation_date__financial_year. To compare across models (e.g. portfolio vs "
+            "benchmark), call this tool once per model."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "account": {
+                "model": {
                     "type": "string",
-                    "enum": ["ISA", "SIPP"],
-                    "description": "Filter to a single account. Omit for combined view across both accounts.",
-                }
-            },
-        },
-    },
-    {
-        "name": "get_portfolio_value",
-        "description": (
-            "Get total portfolio value over a date range. Returns monthly data points. "
-            "Use for questions about what the portfolio was worth on a given date or over a period."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "from_date": {
-                    "type": "string",
-                    "description": "Start date YYYY-MM-DD. Defaults to 2017-01-01.",
+                    "enum": _REGISTRY.model_names,
+                    "description": "Semantic model to query (see catalogue in system prompt).",
                 },
-                "to_date": {
-                    "type": "string",
-                    "description": "End date YYYY-MM-DD. Defaults to today.",
+                "metrics": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "One or more metric names from the chosen model.",
                 },
-                "account": {
-                    "type": "string",
-                    "enum": ["ISA", "SIPP"],
-                    "description": "Filter to a single account. Omit for combined view.",
-                },
-            },
-        },
-    },
-    {
-        "name": "get_inflows",
-        "description": (
-            "Get cumulative inflows (contributions + transfers) vs portfolio value over time. "
-            "Shows total capital deployed, current value, and total growth (value minus inflows). "
-            "Use for questions about how much has been invested, total growth, or money-weighted return."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "from_date": {
-                    "type": "string",
-                    "description": "Start date YYYY-MM-DD.",
-                },
-                "to_date": {
-                    "type": "string",
-                    "description": "End date YYYY-MM-DD. Defaults to today.",
-                },
-                "account": {
-                    "type": "string",
-                    "enum": ["ISA", "SIPP"],
-                    "description": "Filter to a single account. Omit for combined view.",
-                },
-            },
-        },
-    },
-    {
-        "name": "get_portfolio_performance",
-        "description": (
-            "Get portfolio investment return (Modified Dietz, contribution-adjusted) indexed to 100 "
-            "at the start date, plus FTSE100/S&P500/NASDAQ benchmarks indexed to the same start. "
-            "Also returns trailing 12m and 36m Sharpe ratios. Use for questions about returns, "
-            "performance vs benchmarks, or risk-adjusted performance. "
-            "Set full_series=true when you intend to pass the data to generate_chart."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "from_date": {
-                    "type": "string",
+                "group_by": {
+                    "type": "array",
+                    "items": {"type": "string"},
                     "description": (
-                        "Start date YYYY-MM-DD. The series is indexed to 100 at the first "
-                        "available month-end on or after this date; the computed return runs "
-                        "from that base point to the final data point. For a trailing N-month "
-                        "return, set this to the 1st of the month that is N+1 months before "
-                        "today so the index base falls at the month-end exactly N months back "
-                        "(e.g. for trailing 12 months in June 2026, use 2025-05-01)."
+                        "Dimension names to group by. Time dimensions accept a grain suffix: "
+                        "__" + ", __".join(GRAINS) + ". Omit for a single total row."
                     ),
                 },
-                "to_date": {
-                    "type": "string",
-                    "description": "End date YYYY-MM-DD. Defaults to today.",
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "field": {
+                                "type": "string",
+                                "description": "Dimension name, optionally with a time grain suffix (e.g. trade_date__year).",
+                            },
+                            "op": {
+                                "type": "string",
+                                "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "in", "contains"],
+                            },
+                            "value": {
+                                "description": (
+                                    "Literal to compare against. Use a list for 'in'. Dates as "
+                                    "YYYY-MM-DD strings. Filter values must match the dimension's "
+                                    "exact values (see catalogue, or get_dimension_values)."
+                                ),
+                            },
+                        },
+                        "required": ["field", "op", "value"],
+                    },
                 },
-                "account": {
-                    "type": "string",
-                    "enum": ["ISA", "SIPP"],
-                    "description": "Filter to a single account. Omit for combined view.",
+                "time_range": {
+                    "type": "object",
+                    "properties": {
+                        "start": {"type": "string", "description": "YYYY-MM-DD inclusive."},
+                        "end": {"type": "string", "description": "YYYY-MM-DD inclusive."},
+                    },
+                    "description": (
+                        "Date range on the model's time dimension. For point-in-time values of "
+                        "balance metrics (portfolio value, units), set only 'end' — the latest "
+                        "snapshot on or before that date is used. Omit entirely for current values."
+                    ),
                 },
-                "full_series": {
-                    "type": "boolean",
-                    "description": "If true, return the full monthly series for all lines instead of just start/end summaries. Required when passing data to generate_chart.",
+                "order_by": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "field": {"type": "string", "description": "A selected metric or group_by field."},
+                            "direction": {"type": "string", "enum": ["asc", "desc"]},
+                        },
+                        "required": ["field"],
+                    },
                 },
+                "limit": {"type": "integer", "description": "Max rows (default 200)."},
             },
+            "required": ["model", "metrics"],
         },
     },
     {
-        "name": "get_portfolio_allocation",
+        "name": "get_dimension_values",
         "description": (
-            "Get portfolio allocation by fund as of a given date, showing units held, price, "
-            "value, and percentage weight. Use for questions about fund weights or current allocation."
+            "List the distinct values of a dimension (e.g. exact fund names) so filters can use "
+            "exact matches. Only needed when the catalogue in the system prompt doesn't already "
+            "list the values."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "as_of": {
+                "model": {
                     "type": "string",
-                    "description": "Date YYYY-MM-DD. Defaults to latest available price date.",
+                    "enum": _REGISTRY.model_names,
                 },
-                "account": {
+                "dimension": {
                     "type": "string",
-                    "enum": ["ISA", "SIPP"],
-                    "description": "Filter to a single account. Omit for combined view.",
+                    "description": "Dimension name on that model.",
                 },
             },
-        },
-    },
-    {
-        "name": "list_funds",
-        "description": (
-            "List all funds in the portfolio (including historical ones no longer held). "
-            "Use to look up fund IDs before calling get_fund_performance."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "active_only": {
-                    "type": "boolean",
-                    "description": "If true, only return currently held funds. Default false.",
-                }
-            },
-        },
-    },
-    {
-        "name": "get_fund_performance",
-        "description": (
-            "Get NAV performance for a specific fund indexed to 100 at the start date, "
-            "with FTSE100/S&P500/NASDAQ benchmark overlays. Use for questions about how a "
-            "particular fund has performed. Call list_funds first if the fund ID is unknown."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "fund_id": {
-                    "type": "string",
-                    "description": "Fund ID from list_funds.",
-                },
-                "from_date": {
-                    "type": "string",
-                    "description": "Start date YYYY-MM-DD. Defaults to first investment date.",
-                },
-                "to_date": {
-                    "type": "string",
-                    "description": "End date YYYY-MM-DD. Defaults to today.",
-                },
-            },
-            "required": ["fund_id"],
-        },
-    },
-    {
-        "name": "list_transactions",
-        "description": (
-            "List transactions with optional filters. Use for questions about buys, sells, "
-            "contributions, fees, switches, or transaction history."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "account": {"type": "string", "enum": ["ISA", "SIPP"]},
-                "fund_id": {"type": "string", "description": "Filter by fund ID."},
-                "tx_type": {
-                    "type": "string",
-                    "enum": [
-                        "BUY",
-                        "SELL",
-                        "SWITCH_IN",
-                        "SWITCH_OUT",
-                        "CONTRIBUTION",
-                        "FEE",
-                        "INTEREST",
-                        "REBATE",
-                        "TRANSFER",
-                    ],
-                },
-                "from_date": {
-                    "type": "string",
-                    "description": "Start date YYYY-MM-DD.",
-                },
-                "to_date": {"type": "string", "description": "End date YYYY-MM-DD."},
-                "page": {"type": "integer", "description": "Page number (default 1)."},
-                "per_page": {
-                    "type": "integer",
-                    "description": "Results per page (default 50, max 200).",
-                },
-            },
-        },
-    },
-    {
-        "name": "get_contributions_by_financial_year",
-        "description": (
-            "Get new-money contributions broken down by UK financial year (April–March), showing "
-            "ISA, SIPP, and combined totals for each year. Transfers-in are excluded — only "
-            "contributions that count against the annual ISA/SIPP allowance are included. Use for "
-            "questions about allowance usage, how much new money was added in a tax year, or "
-            "year-on-year ISA vs SIPP contribution trends."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {},
+            "required": ["model", "dimension"],
         },
     },
     {
@@ -300,9 +187,10 @@ TOOLS = [
     {
         "name": "query_database",
         "description": (
-            "LAST RESORT ONLY — run a read-only SQL SELECT against the database when none of the "
-            "other tools can answer the question. Only SELECT statements are permitted. "
-            "Only tables whose names start with 'mart_' or 'dim_' may be referenced."
+            "LAST RESORT ONLY — run a read-only SQL SELECT against the database when the "
+            "semantic layer (query_metrics) cannot express the question. Only SELECT statements "
+            "are permitted. Only tables whose names start with 'mart_' or 'dim_' may be "
+            "referenced. Always try query_metrics first."
         ),
         "input_schema": {
             "type": "object",
@@ -313,7 +201,7 @@ TOOLS = [
                 },
                 "explanation": {
                     "type": "string",
-                    "description": "Why none of the named API tools could answer this question.",
+                    "description": "Why the semantic layer could not answer this question.",
                 },
             },
             "required": ["sql", "explanation"],

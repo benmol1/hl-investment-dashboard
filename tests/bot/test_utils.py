@@ -1,6 +1,4 @@
-from bot.claude import _round_currency
-from bot.executors import _summarise_series
-
+from bot.claude import _provenance_footer, _round_currency
 
 # ---------------------------------------------------------------------------
 # _round_currency
@@ -37,28 +35,64 @@ def test_round_currency_mixed_text():
 
 
 # ---------------------------------------------------------------------------
-# _summarise_series
+# _provenance_footer
 # ---------------------------------------------------------------------------
 
 
-def test_summarise_series_empty():
-    assert _summarise_series([], "date") == []
+def test_footer_empty_when_no_records():
+    assert _provenance_footer([]) == ""
 
 
-def test_summarise_series_short_list_unchanged():
-    points = [{"date": f"2024-{m:02d}-01", "value": m} for m in range(1, 13)]
-    result = _summarise_series(points, "date")
-    assert len(result) == 12
+def test_footer_semantic_record():
+    footer = _provenance_footer([
+        {
+            "source": "semantic",
+            "model": "holdings_latest",
+            "metrics": ["value_gbp", "weight_pct"],
+            "group_by": ["fund_name"],
+            "filters": ["account_name = ISA"],
+            "time_range": None,
+        }
+    ])
+    assert footer == (
+        "📐 `semantic layer · holdings_latest · metrics: value_gbp, weight_pct"
+        " · by: fund_name · filters: account_name = ISA`"
+    )
 
 
-def test_summarise_series_dedupes_by_month():
-    # Two points in the same month — last one should win
-    points = [
-        {"date": "2024-01-15", "value": 1},
-        {"date": "2024-01-31", "value": 2},
-        {"date": "2024-02-28", "value": 3},
-    ]
-    result = _summarise_series(points, "date")
-    assert len(result) == 2
-    assert result[0]["value"] == 2  # last Jan point
-    assert result[1]["value"] == 3
+def test_footer_sql_fallback_record():
+    footer = _provenance_footer(
+        [{"source": "sql_fallback", "tables": ["dim_fund", "mart_holdings_latest"]}]
+    )
+    assert footer == "🛠 `SQL fallback · tables: dim_fund, mart_holdings_latest`"
+
+
+def test_footer_time_range_and_multiple_records():
+    footer = _provenance_footer([
+        {
+            "source": "semantic",
+            "model": "portfolio_value",
+            "metrics": ["portfolio_value_gbp"],
+            "group_by": [],
+            "filters": [],
+            "time_range": "2025-01-01 → 2025-12-31",
+        },
+        {"source": "sql_fallback", "tables": ["mart_benchmarks_monthly"]},
+    ])
+    lines = footer.splitlines()
+    assert len(lines) == 2
+    assert "2025-01-01 → 2025-12-31" in lines[0]
+    assert lines[1].startswith("🛠")
+
+
+def test_footer_dedupes_identical_records():
+    record = {
+        "source": "semantic",
+        "model": "transactions",
+        "metrics": ["fees_gbp"],
+        "group_by": [],
+        "filters": [],
+        "time_range": None,
+    }
+    footer = _provenance_footer([record, dict(record)])
+    assert len(footer.splitlines()) == 1

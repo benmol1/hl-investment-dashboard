@@ -1,0 +1,349 @@
+# ---------------------------------------------------------------------------
+# Semantic layer definitions — the curated source of truth for the query bot.
+#
+# Vocabulary follows dbt MetricFlow: semantic models bound to one warehouse
+# table each, exposing dimensions (categorical + time) and measures, with
+# derived metrics computed over aggregated measures.
+#
+# Everything here is trusted, hand-curated SQL. The compiler only ever
+# interpolates expressions from this file plus escaped literal values, so the
+# LLM can never inject identifiers or SQL of its own. See semantic.md.
+#
+# Conventions:
+#   - `base` is the alias of the model's base table; joins declare their own.
+#   - Measure `agg: last` = value at the latest time point per group (non-null),
+#     for point-in-time statistics such as trailing returns.
+#   - `additivity: semi` = balance-style measure (additive across accounts and
+#     funds, NOT across time): the compiler snapshots to the last available
+#     date per requested time period before aggregating.
+# ---------------------------------------------------------------------------
+
+semantic_models:
+  - name: transactions
+    table: fct_transactions
+    description: >-
+      Every HL transaction: buys, sells, switches, contributions, transfers,
+      fees, interest, rebates. One row per transaction. Use for any question
+      about money movements, trading activity, fees, or contributions —
+      at any date grain including UK financial year.
+    primary_time_dimension: trade_date
+    joins:
+      - table: dim_account
+        alias: acc
+        sql_on: base.account_key = acc.account_key
+      - table: dim_fund
+        alias: fnd
+        sql_on: base.fund_key = fnd.fund_key
+      - table: dim_transaction_type
+        alias: tt
+        sql_on: base.transaction_type_key = tt.transaction_type_key
+      - table: dim_date
+        alias: dd
+        sql_on: base.trade_date_key = dd.date_key
+    dimensions:
+      - name: account_name
+        expr: acc.account_name
+        description: Account the transaction belongs to.
+        values: [ISA, SIPP]
+      - name: fund_name
+        expr: fnd.fund_name
+        description: Fund involved. NULL for non-trade rows (contributions, fees).
+        values_query: SELECT DISTINCT fund_name FROM dim_fund WHERE fund_name IS NOT NULL ORDER BY 1
+      - name: transaction_type
+        expr: tt.transaction_type
+        description: Classified transaction type.
+        values: [BUY, SELL, SWITCH_IN, SWITCH_OUT, CONTRIBUTION, FEE, INTEREST, REBATE, TRANSFER, REJECTED, OTHER]
+      - name: contribution_indicator
+        expr: tt.contribution_indicator
+        description: >-
+          'Contribution' = new money that counts against the annual ISA/SIPP
+          allowance; 'Transfer' = account-to-account transfer in;
+          'Non-Contribution' = everything else.
+        values: [Contribution, Transfer, Non-Contribution]
+      - name: trade_date
+        type: time
+        expr: dd.date
+        description: Trade execution date.
+    measures:
+      - name: net_value_gbp
+        agg: sum
+        expr: base.value_gbp
+        description: >-
+          Net signed cash value in GBP. Negative = debit (buys, fees);
+          positive = credit (sells, contributions, interest).
+      - name: gross_value_gbp
+        agg: sum
+        expr: ABS(base.value_gbp)
+        description: Sum of absolute transaction values — use for "how much was spent/charged/paid".
+      - name: transaction_count
+        agg: count
+        expr: '*'
+        description: Number of transactions.
+      - name: units_traded
+        agg: sum
+        expr: base.quantity
+        description: Units traded. NULL on non-trade rows.
+      - name: contributions_gbp
+        agg: sum
+        expr: base.value_gbp
+        filter: tt.contribution_indicator = 'Contribution'
+        description: >-
+          New-money contributions in GBP (counts against the annual ISA/SIPP
+          allowance; excludes transfers-in). Preferred measure for
+          contribution and allowance questions.
+      - name: inflows_gbp
+        agg: sum
+        expr: base.value_gbp
+        filter: tt.contribution_indicator IN ('Contribution', 'Transfer')
+        description: Total external inflows in GBP — contributions plus transfers-in.
+      - name: fees_gbp
+        agg: sum
+        expr: ABS(base.value_gbp)
+        filter: tt.transaction_type = 'FEE'
+        description: Platform fees paid in GBP (positive number).
+
+  - name: holdings_daily
+    table: fct_holdings_daily
+    description: >-
+      Daily snapshot of every position (funds and cash) per account. Use for
+      historical questions: what was held, or what a fund position or the cash
+      balance was worth, on past dates. For current holdings prefer
+      holdings_latest; for total portfolio value over time prefer
+      portfolio_value.
+    primary_time_dimension: valuation_date
+    joins:
+      - table: dim_account
+        alias: acc
+        sql_on: base.account_key = acc.account_key
+      - table: dim_fund
+        alias: fnd
+        sql_on: base.fund_key = fnd.fund_key
+      - table: dim_date
+        alias: dd
+        sql_on: base.date_key = dd.date_key
+    dimensions:
+      - name: account_name
+        expr: acc.account_name
+        description: ISA or SIPP.
+        values: [ISA, SIPP]
+      - name: fund_name
+        expr: fnd.fund_name
+        description: Fund name. NULL for cash rows.
+        values_query: SELECT DISTINCT fund_name FROM dim_fund WHERE fund_name IS NOT NULL ORDER BY 1
+      - name: holding_type
+        expr: base.holding_type
+        description: "'Fund' for fund positions, 'Cash' for cash balances."
+        values: [Fund, Cash]
+      - name: investment_status
+        expr: fnd.investment_status_indicator
+        description: Whether the fund position is still open ('Holding') or fully sold ('Exited').
+        values: [Holding, Exited]
+      - name: valuation_date
+        type: time
+        expr: dd.date
+        description: Snapshot date (price date).
+    measures:
+      - name: value_gbp
+        agg: sum
+        expr: base.value_gbp
+        additivity: semi
+        description: >-
+          Market value of holdings in GBP. Additive across accounts and funds;
+          across time the latest snapshot in each period is used.
+      - name: units_held
+        agg: sum
+        expr: base.units_held
+        additivity: semi
+        description: Units held (latest snapshot per period). Only meaningful per fund.
+
+  - name: holdings_latest
+    table: mart_holdings_latest
+    description: >-
+      Current holdings (funds and cash) per account as of the most recent
+      price date, with cost basis and unrealised gain/loss. The default model
+      for "what do I hold now / what is it worth / how much is it up".
+    joins: []
+    dimensions:
+      - name: account_name
+        expr: base.account_name
+        description: ISA or SIPP.
+        values: [ISA, SIPP]
+      - name: holding_type
+        expr: base.holding_type
+        description: "'Fund' or 'Cash'."
+        values: [Fund, Cash]
+      - name: fund_name
+        expr: base.fund_name
+        description: Fund name. NULL for cash rows.
+        values_query: SELECT DISTINCT fund_name FROM dim_fund WHERE fund_name IS NOT NULL ORDER BY 1
+    measures:
+      - name: value_gbp
+        agg: sum
+        expr: base.value_gbp
+        description: Current market value in GBP.
+      - name: cost_basis_gbp
+        agg: sum
+        expr: base.cost_basis_gbp
+        description: Amount invested minus sale proceeds, floored at zero. Zero for cash.
+      - name: unrealised_gain_gbp
+        agg: sum
+        expr: base.unrealised_gain_gbp
+        description: value_gbp minus cost_basis_gbp. NULL for cash rows.
+      - name: units_held
+        agg: sum
+        expr: base.units_held
+        description: Units currently held. Only meaningful per fund.
+      - name: weight_pct
+        agg: sum
+        expr: base.weight_pct
+        description: >-
+          Holding's share of its account's total value (including cash), in
+          percent. Only meaningful grouped per holding within a single
+          account — do not sum across accounts.
+    metrics:
+      - name: unrealised_gain_pct
+        expr: 100.0 * MEASURE(unrealised_gain_gbp) / NULLIF(MEASURE(cost_basis_gbp), 0)
+        description: Unrealised gain as a percentage of cost basis (ratio of sums).
+
+  - name: portfolio_value
+    table: mart_portfolio_inflows_daily
+    description: >-
+      Total portfolio value per account per day, alongside external inflows
+      (contributions + transfers) and cumulative invested capital. Use for
+      portfolio value over time or on a past date, total invested, and
+      growth attributable to investment performance.
+    primary_time_dimension: valuation_date
+    joins: []
+    dimensions:
+      - name: account_name
+        expr: base.account_name
+        description: ISA or SIPP.
+        values: [ISA, SIPP]
+      - name: valuation_date
+        type: time
+        expr: base.valuation_date
+        description: Price date.
+    measures:
+      - name: portfolio_value_gbp
+        agg: sum
+        expr: base.portfolio_value_gbp
+        additivity: semi
+        description: >-
+          Total market value in GBP. Additive across accounts; across time the
+          latest snapshot in each period is used (omit group_by/time_range for
+          the current value).
+      - name: inflows_gbp
+        agg: sum
+        expr: base.inflows_gbp
+        description: External inflows (contributions + transfers) received during the period.
+      - name: cumulative_inflows_gbp
+        agg: sum
+        expr: base.cumulative_inflows_gbp
+        additivity: semi
+        description: Total capital invested up to the end of the period (running total of inflows).
+    metrics:
+      - name: growth_gbp
+        expr: MEASURE(portfolio_value_gbp) - MEASURE(cumulative_inflows_gbp)
+        description: Investment growth in GBP — portfolio value minus total invested capital.
+
+  - name: portfolio_returns_monthly
+    table: mart_portfolio_returns_monthly
+    description: >-
+      Monthly portfolio investment returns per account (Modified Dietz,
+      contribution-adjusted) with trailing 12m/36m returns and annualised
+      Sharpe ratios. Use for performance and risk-adjusted return questions.
+      Returns are decimal fractions (0.05 = 5%). Without a time grouping,
+      trailing measures return the latest available value.
+    primary_time_dimension: month_end_date
+    joins: []
+    dimensions:
+      - name: account_name
+        expr: base.account_name
+        description: ISA or SIPP.
+        values: [ISA, SIPP]
+      - name: year_month
+        expr: base.year_month
+        description: Calendar month, YYYY-MM.
+      - name: financial_year
+        expr: base.financial_year
+        description: UK tax-year label, e.g. FY26 = April 2025 - March 2026.
+      - name: month_end_date
+        type: time
+        expr: base.month_end_date
+        description: Last trading day of the month.
+    measures:
+      - name: monthly_return
+        agg: last
+        expr: base.monthly_return
+        description: Modified Dietz return for the month (decimal fraction).
+      - name: trailing_12m_return
+        agg: last
+        expr: base.trailing_12m_return
+        description: Trailing 12-month return (decimal fraction), geometrically linked.
+      - name: trailing_36m_return_annualised
+        agg: last
+        expr: base.trailing_36m_return_annualised
+        description: Trailing 3-year return, annualised (decimal fraction).
+      - name: trailing_12m_sharpe
+        agg: last
+        expr: base.trailing_12m_sharpe
+        description: Annualised Sharpe ratio over the trailing 12 months (risk-free rate 0).
+      - name: trailing_36m_sharpe
+        agg: last
+        expr: base.trailing_36m_sharpe
+        description: Annualised Sharpe ratio over the trailing 36 months (risk-free rate 0).
+      - name: month_end_value_gbp
+        agg: last
+        expr: base.month_end_value_gbp
+        description: Portfolio value at month end in GBP.
+      - name: month_inflows_gbp
+        agg: sum
+        expr: base.month_inflows_gbp
+        description: External inflows during the month in GBP.
+
+  - name: benchmarks_monthly
+    table: mart_benchmarks_monthly
+    description: >-
+      Monthly benchmark index levels and returns for FTSE100, SP500 and
+      NASDAQ, with trailing returns and Sharpe ratios computed the same way
+      as portfolio_returns_monthly — use both models together to compare the
+      portfolio against benchmarks. Returns are decimal fractions.
+    primary_time_dimension: month_end_date
+    joins: []
+    dimensions:
+      - name: index_id
+        expr: base.index_id
+        description: Benchmark identifier.
+        values: [FTSE100, SP500, NASDAQ]
+      - name: year_month
+        expr: base.year_month
+        description: Calendar month, YYYY-MM.
+      - name: month_end_date
+        type: time
+        expr: base.month_end_date
+        description: Last trading day of the month.
+    measures:
+      - name: month_end_level
+        agg: last
+        expr: base.month_end_level
+        description: Index closing level at month end (points).
+      - name: monthly_return
+        agg: last
+        expr: base.monthly_return
+        description: Simple price return for the month (decimal fraction).
+      - name: trailing_12m_return
+        agg: last
+        expr: base.trailing_12m_return
+        description: Trailing 12-month return (decimal fraction).
+      - name: trailing_36m_return_annualised
+        agg: last
+        expr: base.trailing_36m_return_annualised
+        description: Trailing 3-year return, annualised (decimal fraction).
+      - name: trailing_12m_sharpe
+        agg: last
+        expr: base.trailing_12m_sharpe
+        description: Annualised Sharpe ratio over the trailing 12 months (risk-free rate 0).
+      - name: trailing_36m_sharpe
+        agg: last
+        expr: base.trailing_36m_sharpe
+        description: Annualised Sharpe ratio over the trailing 36 months (risk-free rate 0).
