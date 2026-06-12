@@ -382,6 +382,7 @@ Bot response:
 Score the response on TWO dimensions:
 
 QUALITY (1–5): Is the response clear, concise, and genuinely useful?
+  IMPORTANT: Do not penalise the response for providing metadata. That is an intentional part of the system design.
   5 = perfect — accurate, well-phrased, right level of detail
   4 = good — minor phrasing or detail issue, or includes a small amount of unrequested but correct information
   3 = adequate — answers the question but is verbose, unclear, missing key context, or noticeably cluttered with unrequested information

@@ -65,7 +65,7 @@ def _run_sql(sql: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _execute_query_metrics(inputs: dict) -> Any:
+def _execute_semantic_layer(inputs: dict) -> Any:
     registry = load_registry()
     model = registry.model(inputs.get("model", ""))
     if model is None:
@@ -412,7 +412,7 @@ def _execute_query_database(inputs: dict) -> Any:
 # ---------------------------------------------------------------------------
 
 _EXECUTORS = {
-    "query_metrics": _execute_query_metrics,
+    "semantic_layer": _execute_semantic_layer,
     "get_dimension_values": _execute_get_dimension_values,
     "generate_chart": _execute_generate_chart,
     "query_database": _execute_query_database,

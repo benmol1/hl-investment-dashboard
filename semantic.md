@@ -1,6 +1,16 @@
 # A Semantic Layer for the HL Investment Dashboard Bot
 
-*Research notes, design choices, and implementation plan — June 2026*
+*Research notes, design choices, and implementation plan — 11th June 2026*
+
+---
+## Ben's notes 12/06/26 11:15
+1. The overall approach is working. Fable 5 seems to have stitched it together well, and this hand-rolled semantic 
+layer processor seems to be working, although I won't claim I understand the full details of its infrastructure. 
+2. The initial test results (7e8f0a5)versus the master branch (369088d) are pretty interesting. Semantic Layer is about 33% faster than the APIs approach. It uses 50% more input tokens and 25% more output tokens. The average quality score is a bit higher. The accuracy is, on average, slightly lower, but that's being dragged down by Q08 which the semantic layer approach is getting wrong, probably because it doesn't handle financial years from the transactions data very well. 
+3. I suspect this can be improved dramatically by me manually creating how the Semantic layer works. I roughly understand how the bot is using it, but I was surprised to find how much duplication there was in the definitions of the Semantic layer. That's probably not best practise. 
+4. Curating a good semantic layer is probably an adjacent skill to creating a high-quality Kimball-style data model. In the semantic layer case, I haven't read the book yet, so I need to do some research and see what's best practise and try and apply it here. 
+5. I should also consider extending my evaluation questions to cover the real estate a bit more fully. Fable 5 decided how to build the semantic layer in part by being influenced by the evaluation questions, which is not a stupid thing to do, but I think it assumed the evaluation layer would be pretty comprehensive, which it is not. 
+6. In particular, there's a design point around making sure there's a uniqueness and a single right way to answer a question in the semantic layer. The contributions by financial year is a good example, because whilst it is just a straight aggregation of the transactions table, do you, for example, expose both the transactions and the contributions by financial year to the semantic layer, or do you just have to pick one? An interesting point to research further. 
 
 ---
 

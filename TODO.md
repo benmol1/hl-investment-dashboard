@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-06-05 14:25*
+*Last updated: 2026-06-12 11:25*
 
 ---
 
@@ -316,6 +316,16 @@ from the repo root. Requires `ANTHROPIC_API_KEY` in the environment or `.env` fi
 - [x] Compare the two result files across: latency, input+output tokens, tool call count,
       numeric accuracy score (0–1), Claude-as-judge quality (1–5), accuracy (1–5)
 - [x] Decide whether to merge Phase 12 into main based on results. The conclusion was that we should not do this!
+
+---
+
+## Phase 14 — Semantic Layer for Bot Querying ⏳ IN PROGRESS
+
+- [x] Research and implement semantic layer for bot querying
+- [x] Examine eval results of V1 semantic layer approach
+- [ ] Do human research to upskill myself on best practices for semantic layers
+- [ ] Rewrite semantic layer using improved knowledge
+- [ ] Retest bot with improved semantic layer
 
 ---
 

@@ -4,7 +4,7 @@ _REGISTRY = load_registry()
 
 TOOLS = [
     {
-        "name": "query_metrics",
+        "name": "semantic_layer",
         "description": (
             "PRIMARY TOOL — query the semantic layer. Pick a semantic model, the metrics to "
             "compute, and optionally dimensions to group by, filters, and a date range; the "
@@ -188,9 +188,9 @@ TOOLS = [
         "name": "query_database",
         "description": (
             "LAST RESORT ONLY — run a read-only SQL SELECT against the database when the "
-            "semantic layer (query_metrics) cannot express the question. Only SELECT statements "
+            "semantic layer (semantic_layer) cannot express the question. Only SELECT statements "
             "are permitted. Only tables whose names start with 'mart_' or 'dim_' may be "
-            "referenced. Always try query_metrics first."
+            "referenced. Always try semantic_layer first."
         ),
         "input_schema": {
             "type": "object",
