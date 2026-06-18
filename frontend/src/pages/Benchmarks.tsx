@@ -51,6 +51,10 @@ export default function Benchmarks() {
     () => fetchPortfolioPerformance(startDate, undefined, account),
     [startDate, account],
   )
+  const { data: allData } = useApi(
+    () => fetchPortfolioPerformance(undefined, undefined, account),
+    [account],
+  )
 
   const merged = data ? mergeData(data) : []
   const chartHeight = useChartHeight(240, 400)
@@ -87,13 +91,13 @@ export default function Benchmarks() {
   }
 
   const annualReturns = (() => {
-    if (!data) return []
+    if (!allData) return []
     const currentYear = new Date().getFullYear()
 
     // Build map: year -> last indexed value in that year, per series
     const yearEndMap = (key: Key): Map<number, number> => {
       const map = new Map<number, number>()
-      for (const pt of data[key]) {
+      for (const pt of allData[key]) {
         map.set(new Date(pt.date).getFullYear(), pt.indexed)
       }
       return map
