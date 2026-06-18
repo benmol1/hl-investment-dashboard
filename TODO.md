@@ -1,6 +1,6 @@
 # HL Investment Dashboard — Progress & To-Dos
 
-*Last updated: 2026-06-12 11:25*
+*Last updated: 2026-06-18 10:32*
 
 ---
 
@@ -332,9 +332,9 @@ from the repo root. Requires `ANTHROPIC_API_KEY` in the environment or `.env` fi
 ## Miscellaneous ⏳ IN PROGRESS
 
 - [x] Rename all dbt models to use a consistent convention for frequency of snapshot (e.g. `fct_holdings_daily`, `mart_portfolio_snapshot_monthly`) 
-- [ ] Update the Readme file with the improved data model naming convention
-- [ ] Update the custom Kimball-style dbt skill so that new models it generates automatically follow the underscore suffix naming convention for frequency.
-- [ ] Set up dotfiles repo on Windows PC — clone `~/.dotfiles`, run `mklink /D %USERPROFILE%\.claude %USERPROFILE%\.dotfiles\claude` in an elevated cmd prompt (or enable Developer Mode to avoid needing elevation).
+- [x] Update the Readme file with the improved data model naming convention
+- [x] Update the custom Kimball-style dbt skill so that new models it generates automatically follow the underscore suffix naming convention for frequency.
+- [x] Set up dotfiles repo on Windows PC — clone `~/.dotfiles`, run `mklink /D %USERPROFILE%\.claude %USERPROFILE%\.dotfiles\claude` in an elevated cmd prompt (or enable Developer Mode to avoid needing elevation).
 - [ ] Add a git pre-commit hook (`.git/hooks/pre-commit`) that runs `uv run pytest --tb=short -q` and aborts the commit if tests fail.
 - [ ] Add a GitHub Actions workflow (`.github/workflows/test.yml`) that runs the test suite on every push as a CI safety net.
 - [x] Update `mart_holdings_latest` to include cash holdings — currently filters to `holding_type = 'Fund'` only, inconsistent with other marts. Cash rows have no `fund_key`/`units`/`price` so will need separate handling (e.g. UNION with `fct_cash_position_daily`, or coalescing fund-specific columns to null/0 for cash rows).
