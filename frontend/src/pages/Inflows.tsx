@@ -40,12 +40,13 @@ export default function Inflows() {
         </div>
       </div>
 
-      {latest && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {latest && first && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Portfolio Value', value: latest.portfolio_value, colour: 'text-indigo-400' },
+            { label: `Starting Value${periodLabel}`, value: first.portfolio_value, colour: 'text-gray-300' },
             { label: `Inflows${periodLabel}`, value: periodInflows!, colour: 'text-cyan-400' },
             { label: `Portfolio Growth${periodLabel}`, value: portfolioGrowth!, colour: portfolioGrowth! >= 0 ? 'text-emerald-400' : 'text-red-400' },
+            { label: 'Portfolio Value', value: latest.portfolio_value, colour: 'text-indigo-400' },
           ].map(({ label, value, colour }) => (
             <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{label}</p>
