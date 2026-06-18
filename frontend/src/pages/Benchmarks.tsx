@@ -38,12 +38,22 @@ function mergeData(data: PortfolioPerformanceResponse) {
 }
 
 export default function Benchmarks() {
+  const currentYear = new Date().getFullYear()
+  const yearEndPresets = [currentYear - 3, currentYear - 2, currentYear - 1].map((y) => ({
+    label: `Dec '${String(y).slice(2)}`,
+    value: `${y}-12-31`,
+  }))
+
   const [account, setAccount] = useState<Account | undefined>()
-  const [startDate, setStartDate] = useState('2017-12-31')
+  const [startDate, setStartDate] = useState(`${currentYear - 3}-12-31`)
 
   const { data, loading, error } = useApi(
     () => fetchPortfolioPerformance(startDate, undefined, account),
     [startDate, account],
+  )
+  const { data: allData } = useApi(
+    () => fetchPortfolioPerformance(undefined, undefined, account),
+    [account],
   )
 
   const merged = data ? mergeData(data) : []
@@ -81,13 +91,13 @@ export default function Benchmarks() {
   }
 
   const annualReturns = (() => {
-    if (!data) return []
+    if (!allData) return []
     const currentYear = new Date().getFullYear()
 
     // Build map: year -> last indexed value in that year, per series
     const yearEndMap = (key: Key): Map<number, number> => {
       const map = new Map<number, number>()
-      for (const pt of data[key]) {
+      for (const pt of allData[key]) {
         map.set(new Date(pt.date).getFullYear(), pt.indexed)
       }
       return map
@@ -118,8 +128,21 @@ export default function Benchmarks() {
         <h1 className="text-2xl font-bold text-white">Benchmark Comparison</h1>
         <div className="flex flex-col items-start sm:items-end gap-2">
           <AccountFilter value={account} onChange={setAccount} />
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-sm flex-wrap sm:justify-end">
             <span className="text-gray-500">Start date:</span>
+            {yearEndPresets.map(({ label, value }) => (
+              <button
+                key={value}
+                onClick={() => setStartDate(value)}
+                className={`px-2 py-1 rounded text-xs font-medium border transition-colors ${
+                  startDate === value
+                    ? 'bg-indigo-600 border-indigo-500 text-white'
+                    : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-300'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
             <input
               type="date"
               value={startDate}
