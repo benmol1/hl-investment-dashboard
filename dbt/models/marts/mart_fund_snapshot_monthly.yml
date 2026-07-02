@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: mart_fund_snapshot_monthly
+    description: >
+      One row per (account, fund, calendar month) for every month a fund was
+      actually held. Fund-level counterpart to mart_portfolio_snapshot_monthly.
+      Unlike the account-level model, there is no month spine — a fund simply
+      has no row for months it wasn't held, since fct_holdings_daily excludes
+      closed positions.
+
+      month_end_value_gbp is sourced from fct_holdings_daily on dates where
+      dim_date.month_end_indicator = 'Month End', filtered to holding_type = 'Fund'.
+
+      monthly_net_fund_flows_gbp is net buy value minus sell proceeds for that
+      fund within the month (sourced from fct_transactions), including
+      switches in/out — used as the cash-flow term for fund-level Modified
+      Dietz returns in mart_fund_returns_monthly.
+
+      **Grain**: One row per (account_name, fund_name, year_month)
+      **Update Frequency**: Daily
+      **Sources**: fct_holdings_daily, fct_transactions, dim_account, dim_fund, dim_date
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [account_name, fund_name, year_month]
+    columns:
+      - name: account_name
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: fund_name
+        description: "Full fund name."
+        tests:
+          - not_null
+      - name: fund_short_name
+        description: "Short fund name, used for compact display."
+      - name: year_month
+        description: "YYYY-MM string for the calendar month (e.g. 2024-03)."
+        tests:
+          - not_null
+      - name: financial_year
+        description: "UK tax-year label (e.g. FY25 = April 2024 – March 2025)."
+      - name: month_end_date
+        description: "Last calendar day of the month, sourced from dim_date where month_end_indicator = 'Month End'."
+      - name: month_end_value_gbp
+        description: "Market value of this fund holding on the month-end date."
+      - name: monthly_net_fund_flows_gbp
+        description: >
+          Gross buys minus gross sells (including switches in/out) for this
+          fund within the calendar month. Positive = net buyer, negative = net
+          seller. Zero for months with no trades.

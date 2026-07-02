@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: mart_fund_returns_monthly
+    description: >
+      Monthly Modified Dietz return per (account, fund) — the fund-level
+      counterpart to mart_portfolio_returns_monthly. Excludes the effect of
+      new fund purchases/sales (including switches in/out) within the month,
+      so the return reflects price performance of the fund rather than how
+      much was bought or sold.
+
+      **Grain**: One row per (account_name, fund_name, year_month)
+      **Update Frequency**: Daily
+      **Sources**: mart_fund_snapshot_monthly
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [account_name, fund_name, year_month]
+    columns:
+      - name: account_name
+        description: "ISA or SIPP."
+        tests:
+          - not_null
+      - name: fund_name
+        description: "Full fund name."
+        tests:
+          - not_null
+      - name: fund_short_name
+        description: "Short fund name, used for compact display."
+      - name: year_month
+        description: "YYYY-MM string for the calendar month (e.g. 2024-03)."
+        tests:
+          - not_null
+      - name: financial_year
+        description: "UK tax-year label (e.g. FY25 = April 2024 – March 2025)."
+      - name: month_end_date
+        description: "Last calendar day of the month."
+      - name: month_end_value_gbp
+        description: "Market value of this fund holding on the month-end date (EMV)."
+      - name: prev_month_end_value_gbp
+        description: "Market value of this fund holding on the prior month-end date (BMV)."
+      - name: month_net_flows_gbp
+        description: "Net buys minus sells (including switches) for this fund within the month (CF)."
+      - name: monthly_return
+        description: >
+          Modified Dietz return for the month: (EMV - BMV - CF) / (BMV + 0.5 * CF).
+          Null for the first month a fund is held (no prior BMV).
