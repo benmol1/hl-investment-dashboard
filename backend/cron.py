@@ -67,13 +67,11 @@ def _fmt_date(d) -> str:
     return d.strftime("%b-%y") if d else "—"
 
 
-def _delta_str(value: float, prev: float | None) -> str:
-    if not prev:
-        return ""
-    change = value - prev
-    pct = change / prev * 100
-    sign = "+" if change >= 0 else ""
-    return f"{sign}£{change:,.0f} / {sign}{pct:.1f}%"
+def _pct_str(monthly_return: float | None) -> str:
+    if monthly_return is None:
+        return "new"
+    sign = "+" if monthly_return >= 0 else ""
+    return f"{sign}{monthly_return * 100:.1f}%"
 
 
 def _monthly_summary() -> str:
@@ -81,38 +79,61 @@ def _monthly_summary() -> str:
         import duckdb
 
         con = duckdb.connect(str(_DB_PATH), read_only=True)
-        rows = con.execute("""
-            WITH ranked AS (
-                SELECT account_name, month_end_date, month_end_value_gbp,
-                       monthly_inflows_gbp,
-                       LAG(month_end_value_gbp) OVER (PARTITION BY account_name ORDER BY month_end_date) AS prev_value
-                FROM mart_portfolio_snapshot_monthly
-            )
-            SELECT account_name, month_end_date, month_end_value_gbp, prev_value, monthly_inflows_gbp
-            FROM ranked
-            WHERE month_end_date = (SELECT MAX(month_end_date) FROM mart_portfolio_snapshot_monthly)
-            ORDER BY account_name
+
+        # Joined against the snapshot (not just the returns mart) so that
+        # accounts/funds with no prior month — e.g. a fund bought for the
+        # first time this month — still show up, just without a % return.
+        account_rows = con.execute("""
+            SELECT s.account_name, s.month_end_date, s.month_end_value_gbp,
+                   r.prev_month_end_value_gbp, s.monthly_inflows_gbp, r.monthly_return
+            FROM mart_portfolio_snapshot_monthly s
+            LEFT JOIN mart_portfolio_returns_monthly r
+                ON  r.account_name = s.account_name
+                AND r.year_month   = s.year_month
+            WHERE s.month_end_date = (SELECT MAX(month_end_date) FROM mart_portfolio_snapshot_monthly)
+            ORDER BY s.account_name
         """).fetchall()
+
+        fund_rows = con.execute("""
+            SELECT s.account_name, s.fund_name, s.fund_short_name, s.month_end_value_gbp, r.monthly_return
+            FROM mart_fund_snapshot_monthly s
+            LEFT JOIN mart_fund_returns_monthly r
+                ON  r.account_name = s.account_name
+                AND r.fund_name    = s.fund_name
+                AND r.year_month   = s.year_month
+            WHERE s.month_end_date = (SELECT MAX(month_end_date) FROM mart_fund_snapshot_monthly)
+            ORDER BY s.account_name, s.fund_name
+        """).fetchall()
+
         con.close()
 
-        if not rows:
+        if not account_rows:
             return ""
 
-        month_end_date = rows[0][1]
-        total = sum(r[2] for r in rows)
-        total_prev = sum(r[3] for r in rows if r[3] is not None) or None
-        total_inflows = sum(r[4] for r in rows if r[4] is not None)
+        month_end_date = account_rows[0][1]
+        total_value = sum(r[2] for r in account_rows)
+        total_bmv = sum(r[3] for r in account_rows if r[3] is not None) or None
+        total_inflows = sum(r[4] for r in account_rows)
+        total_return = (
+            (total_value - total_bmv - total_inflows) / (total_bmv + 0.5 * total_inflows)
+            if total_bmv and (total_bmv + 0.5 * total_inflows) != 0
+            else None
+        )
 
         lines = [
             f"📊 <b>Monthly portfolio summary ({_fmt_date(month_end_date)})</b>",
             "",
-            f"Total:         <b>£{total:,.0f}</b>",
-            f"Change:        {_delta_str(total, total_prev)}",
-            f"Inflows:       £{total_inflows:,.0f}",
+            f"Total:   <b>£{total_value:,.0f}</b>  ({_pct_str(total_return)})",
+            f"Inflows: £{total_inflows:,.0f}",
             "",
         ]
-        for account_name, _, value, prev, _ in rows:
-            lines.append(f"{account_name}: £{value:,.0f}  ({_delta_str(value, prev)})")
+        for account_name, _, value, _, _, monthly_return in account_rows:
+            lines.append(f"{account_name}: £{value:,.0f}  ({_pct_str(monthly_return)})")
+            for fa_name, fund_name, fund_short_name, fund_value, fund_return in fund_rows:
+                if fa_name != account_name:
+                    continue
+                label = fund_short_name or fund_name
+                lines.append(f"    {label}: £{fund_value:,.0f}  ({_pct_str(fund_return)})")
 
         return "\n".join(lines)
     except Exception as exc:
