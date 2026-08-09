@@ -151,8 +151,11 @@ def get_fetch_start(
 
 def fetch_benchmarks(
     con: duckdb.DuckDBPyConnection, backfill_from: Optional[date]
-) -> None:
+) -> int:
     end = date.today()
+    total_inserted = 0
+    benchmarks_needing_data = 0
+    benchmarks_with_data = 0
 
     for index_id, ticker in BENCHMARKS:
         start = get_benchmark_start(con, index_id, backfill_from)
@@ -160,6 +163,7 @@ def fetch_benchmarks(
             print(f"  {index_id}: up to date")
             continue
 
+        benchmarks_needing_data += 1
         print(f"  {index_id} ({ticker}): fetching {start} to {end}")
         try:
             df = yf.download(
@@ -173,6 +177,7 @@ def fetch_benchmarks(
             print(f"    No data returned for {ticker}")
             continue
 
+        benchmarks_with_data += 1
         inserted = 0
         for dt, row in df.iterrows():
             con.execute(
@@ -184,7 +189,18 @@ def fetch_benchmarks(
             )
             inserted += 1
 
+        total_inserted += inserted
         print(f"    Inserted {inserted:,} rows")
+
+    if benchmarks_needing_data > 0 and benchmarks_with_data == 0:
+        msg = (
+            f"0 levels fetched for all {benchmarks_needing_data} benchmark(s) that needed updates. "
+            f"Possible causes: yfinance outage or API change."
+        )
+        print(f"FATAL: {msg}", file=sys.stderr)
+        raise RuntimeError(msg)
+
+    return total_inserted
 
 
 def get_benchmark_start(
@@ -350,7 +366,7 @@ def main() -> None:
 
         # --- Benchmarks via yfinance ---
         print("\nFetching benchmark indices...")
-        fetch_benchmarks(con, backfill_from)
+        benchmark_inserted = fetch_benchmarks(con, backfill_from)
 
         _write_log(con, total_inserted, "success")
     except Exception as e:
@@ -359,6 +375,7 @@ def main() -> None:
     finally:
         con.close()
     print(f"INSERTED: {total_inserted}")
+    print(f"BENCHMARKS_INSERTED: {benchmark_inserted}")
     print("\nDone.")
 
 
