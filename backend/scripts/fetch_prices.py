@@ -279,12 +279,15 @@ def main() -> None:
         print(
             f"Fetching prices for {len(funds)} {scope} fund(s) with Morningstar codes..."
         )
+        funds_needing_prices = 0
+        funds_with_prices = 0
         for fund_id, fund_name, ms_code in funds:
             start = get_fetch_start(con, fund_id, backfill_from)
             if start >= today:
                 print(f"  {fund_name}: up to date")
                 continue
 
+            funds_needing_prices += 1
             print(f"  {fund_name} ({ms_code}): fetching {start} to {today}")
             try:
                 prices = fetch_morningstar_prices(ms_code, start, today)
@@ -310,10 +313,21 @@ def main() -> None:
                 print("    No price data returned — fund may need manual lookup")
                 continue
 
+            funds_with_prices += 1
             n = insert_fund_prices(con, fund_id, prices)
             total_inserted += n
             print(f"    Inserted {n:,} rows")
             time.sleep(REQUEST_DELAY_SECONDS)
+
+        if funds_needing_prices > 0 and funds_with_prices == 0:
+            msg = (
+                f"0 prices fetched for all {funds_needing_prices} fund(s) that needed updates "
+                f"(token: {MORNINGSTAR_API_TOKEN!r}). "
+                f"Possible causes: API format change, network error, or all funds missing data. "
+                f"Check the per-fund errors above."
+            )
+            print(f"FATAL: {msg}", file=sys.stderr)
+            raise RuntimeError(msg)
 
         # Warn about funds without Morningstar codes (same scope as the fetch above)
         missing = con.execute(
