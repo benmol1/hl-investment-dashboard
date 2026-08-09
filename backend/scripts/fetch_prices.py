@@ -289,6 +289,17 @@ def main() -> None:
             try:
                 prices = fetch_morningstar_prices(ms_code, start, today)
             except requests.HTTPError as e:
+                status = e.response.status_code if e.response is not None else "?"
+                if status in (401, 403):
+                    msg = (
+                        f"HTTP {status} from Morningstar — API token has likely rotated.\n"
+                        f"Current token: {MORNINGSTAR_API_TOKEN!r}\n"
+                        f"To fix: open morningstar.co.uk in a browser, open the Network tab,\n"
+                        f"find a timeseries_price request, and copy the token from the URL.\n"
+                        f"Then set MORNINGSTAR_API_TOKEN=<new_token> in the environment."
+                    )
+                    print(f"FATAL: {msg}", file=sys.stderr)
+                    raise RuntimeError(msg) from e
                 print(f"    ERROR: {e}")
                 continue
             except Exception as e:
