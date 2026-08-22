@@ -279,6 +279,7 @@ def main() -> None:
         print(
             f"Fetching prices for {len(funds)} {scope} fund(s) with Morningstar codes..."
         )
+        fund_errors: list[str] = []
         for fund_id, fund_name, ms_code in funds:
             start = get_fetch_start(con, fund_id, backfill_from)
             if start >= today:
@@ -301,9 +302,11 @@ def main() -> None:
                     print(f"FATAL: {msg}", file=sys.stderr)
                     raise RuntimeError(msg) from e
                 print(f"    ERROR: {e}")
+                fund_errors.append(f"{fund_name}: HTTP {status} — {e}")
                 continue
             except Exception as e:
                 print(f"    ERROR: {e}")
+                fund_errors.append(f"{fund_name}: {e}")
                 continue
 
             if not prices:
@@ -314,6 +317,12 @@ def main() -> None:
             total_inserted += n
             print(f"    Inserted {n:,} rows")
             time.sleep(REQUEST_DELAY_SECONDS)
+
+        if fund_errors:
+            raise RuntimeError(
+                f"{len(fund_errors)} fund(s) failed to fetch Morningstar prices:\n"
+                + "\n".join(fund_errors)
+            )
 
         # Warn about funds without Morningstar codes (same scope as the fetch above)
         missing = con.execute(
