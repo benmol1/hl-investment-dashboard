@@ -151,8 +151,9 @@ def get_fetch_start(
 
 def fetch_benchmarks(
     con: duckdb.DuckDBPyConnection, backfill_from: Optional[date]
-) -> None:
+) -> int:
     end = date.today()
+    total_inserted = 0
 
     for index_id, ticker in BENCHMARKS:
         start = get_benchmark_start(con, index_id, backfill_from)
@@ -184,7 +185,10 @@ def fetch_benchmarks(
             )
             inserted += 1
 
+        total_inserted += inserted
         print(f"    Inserted {inserted:,} rows")
+
+    return total_inserted
 
 
 def get_benchmark_start(
@@ -260,6 +264,7 @@ def main() -> None:
     _ensure_ingest_log(con)
     today = date.today()
     total_inserted = 0
+    benchmark_inserted = 0
 
     try:
         # --- Fund prices via Morningstar ---
@@ -345,7 +350,7 @@ def main() -> None:
 
         # --- Benchmarks via yfinance ---
         print("\nFetching benchmark indices...")
-        fetch_benchmarks(con, backfill_from)
+        benchmark_inserted = fetch_benchmarks(con, backfill_from)
 
         _write_log(con, total_inserted, "success")
     except Exception as e:
@@ -354,6 +359,7 @@ def main() -> None:
     finally:
         con.close()
     print(f"INSERTED: {total_inserted}")
+    print(f"BENCHMARKS_INSERTED: {benchmark_inserted}")
     print("\nDone.")
 
 
