@@ -52,10 +52,10 @@ def _run(label: str, cmd: list[str], cwd: Path | None = None) -> tuple[bool, str
     return True, result.stdout
 
 
-def _parse_inserted(stdout: str) -> int:
-    """Extract the count from an 'INSERTED: N' summary line in a script's stdout."""
+def _parse_inserted(stdout: str, prefix: str = "INSERTED") -> int:
+    """Extract the count from a '<prefix>: N' summary line in a script's stdout."""
     for line in stdout.splitlines():
-        if line.startswith("INSERTED:"):
+        if line.startswith(f"{prefix}:"):
             try:
                 return int(line.split(":", 1)[1].strip())
             except ValueError:
@@ -186,9 +186,11 @@ def daily_refresh() -> None:
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     tx_rows = _parse_inserted(tx_stdout)
     price_rows = _parse_inserted(price_stdout)
+    benchmark_rows = _parse_inserted(price_stdout, "BENCHMARKS_INSERTED")
     notify(
         f"✅ <b>HL Dashboard refresh complete</b> ({now})\n"
         f"Prices added: {price_rows:,}\n"
+        f"Benchmarks added: {benchmark_rows:,}\n"
         f"Transactions added: {tx_rows:,}",
         silent=True,
     )

@@ -151,8 +151,9 @@ def get_fetch_start(
 
 def fetch_benchmarks(
     con: duckdb.DuckDBPyConnection, backfill_from: Optional[date]
-) -> None:
+) -> int:
     end = date.today()
+    total_inserted = 0
 
     for index_id, ticker in BENCHMARKS:
         start = get_benchmark_start(con, index_id, backfill_from)
@@ -184,7 +185,10 @@ def fetch_benchmarks(
             )
             inserted += 1
 
+        total_inserted += inserted
         print(f"    Inserted {inserted:,} rows")
+
+    return total_inserted
 
 
 def get_benchmark_start(
@@ -260,6 +264,7 @@ def main() -> None:
     _ensure_ingest_log(con)
     today = date.today()
     total_inserted = 0
+    benchmark_inserted = 0
 
     try:
         # --- Fund prices via Morningstar ---
@@ -279,6 +284,7 @@ def main() -> None:
         print(
             f"Fetching prices for {len(funds)} {scope} fund(s) with Morningstar codes..."
         )
+        fund_errors: list[str] = []
         for fund_id, fund_name, ms_code in funds:
             start = get_fetch_start(con, fund_id, backfill_from)
             if start >= today:
@@ -301,9 +307,11 @@ def main() -> None:
                     print(f"FATAL: {msg}", file=sys.stderr)
                     raise RuntimeError(msg) from e
                 print(f"    ERROR: {e}")
+                fund_errors.append(f"{fund_name}: HTTP {status} — {e}")
                 continue
             except Exception as e:
                 print(f"    ERROR: {e}")
+                fund_errors.append(f"{fund_name}: {e}")
                 continue
 
             if not prices:
@@ -314,6 +322,12 @@ def main() -> None:
             total_inserted += n
             print(f"    Inserted {n:,} rows")
             time.sleep(REQUEST_DELAY_SECONDS)
+
+        if fund_errors:
+            raise RuntimeError(
+                f"{len(fund_errors)} fund(s) failed to fetch Morningstar prices:\n"
+                + "\n".join(fund_errors)
+            )
 
         # Warn about funds without Morningstar codes (same scope as the fetch above)
         missing = con.execute(
@@ -336,7 +350,7 @@ def main() -> None:
 
         # --- Benchmarks via yfinance ---
         print("\nFetching benchmark indices...")
-        fetch_benchmarks(con, backfill_from)
+        benchmark_inserted = fetch_benchmarks(con, backfill_from)
 
         _write_log(con, total_inserted, "success")
     except Exception as e:
@@ -345,6 +359,7 @@ def main() -> None:
     finally:
         con.close()
     print(f"INSERTED: {total_inserted}")
+    print(f"BENCHMARKS_INSERTED: {benchmark_inserted}")
     print("\nDone.")
 
 
