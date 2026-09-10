@@ -14,3 +14,10 @@
     box-sizing: border-box;
   }
 }
+
+/* Privacy mode — visually obscure cash amounts without changing any values. */
+.pv-blur {
+  filter: blur(6px);
+  user-select: none;
+  -webkit-user-select: none;
+}

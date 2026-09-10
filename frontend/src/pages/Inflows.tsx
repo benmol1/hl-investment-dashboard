@@ -8,6 +8,8 @@ import { fetchInflows } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
 import AccountFilter from '../components/AccountFilter'
+import Cash from '../privacy/Cash'
+import { usePrivacy, CASH_MASK } from '../privacy/context'
 import DateRangeFilter, { dateRangeToFrom } from '../components/DateRangeFilter'
 import type { DateRange } from '../components/DateRangeFilter'
 import type { Account } from '../types'
@@ -16,8 +18,10 @@ const fmt = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP',
 const fmtDate = (d: string) => d.slice(0, 7)
 
 export default function Inflows() {
+  const { obscured } = usePrivacy()
   const [account, setAccount] = useState<Account | undefined>()
   const [dateRange, setDateRange] = useState<DateRange>('All')
+  const fmtCash = (v: number) => (obscured ? CASH_MASK : fmt.format(v))
 
   const from = dateRangeToFrom(dateRange)
   const { data, loading, error } = useApi(() => fetchInflows(from, undefined, account), [from, account])
@@ -50,7 +54,7 @@ export default function Inflows() {
           ].map(({ label, value, colour }) => (
             <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{label}</p>
-              <p className={`text-2xl font-semibold ${colour}`}>{fmt.format(value)}</p>
+              <p className={`text-2xl font-semibold ${colour}`}><Cash>{fmt.format(value)}</Cash></p>
             </div>
           ))}
         </div>
@@ -74,9 +78,9 @@ export default function Inflows() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
               <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: '#6b7280', fontSize: 11 }} minTickGap={60} />
-              <YAxis tickFormatter={(v) => fmt.format(v)} tick={{ fill: '#6b7280', fontSize: 11 }} width={80} />
+              <YAxis tickFormatter={(v) => (obscured ? CASH_MASK : fmt.format(v))} tick={{ fill: '#6b7280', fontSize: 11 }} width={80} />
               <Tooltip
-                formatter={(v, name) => [fmt.format(Number(v)), String(name) === 'portfolio_value' ? 'Portfolio Value' : String(name) === 'cumulative_inflows' ? 'Inflows' : 'Growth']}
+                formatter={(v, name) => [fmtCash(Number(v)), String(name) === 'portfolio_value' ? 'Portfolio Value' : String(name) === 'cumulative_inflows' ? 'Inflows' : 'Growth']}
                 labelFormatter={(l) => `Date: ${l}`}
                 contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
                 labelStyle={{ color: '#d1d5db' }}

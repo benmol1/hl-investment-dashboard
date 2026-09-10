@@ -7,15 +7,19 @@ import { useChartHeight } from '../hooks/useChartHeight'
 import { fetchFinancialYearContributions } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
+import Cash from '../privacy/Cash'
+import { usePrivacy, CASH_MASK } from '../privacy/context'
 
 const fmt = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 })
 
 const SELECT = 'bg-gray-900 border border-gray-700 text-gray-200 rounded px-2 py-1 text-sm'
 
 export default function FinancialYearContributions() {
+  const { obscured } = usePrivacy()
   const [fromYear, setFromYear] = useState('')
   const [toYear, setToYear] = useState('')
   const chartHeight = useChartHeight(220, 340)
+  const fmtCash = (v: number) => (obscured ? CASH_MASK : fmt.format(v))
 
   const { data, loading, error } = useApi(fetchFinancialYearContributions, [])
 
@@ -76,7 +80,7 @@ export default function FinancialYearContributions() {
           ].map(({ label, value, colour }) => (
             <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{label}</p>
-              <p className={`text-2xl font-semibold ${colour}`}>{fmt.format(value)}</p>
+              <p className={`text-2xl font-semibold ${colour}`}><Cash>{fmt.format(value)}</Cash></p>
             </div>
           ))}
         </div>
@@ -90,9 +94,9 @@ export default function FinancialYearContributions() {
             <BarChart data={filteredData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
               <XAxis dataKey="financial_year" tick={{ fill: '#6b7280', fontSize: 11 }} />
-              <YAxis ticks={yTicks} domain={[0, yMax]} tickFormatter={(v) => fmt.format(v)} tick={{ fill: '#6b7280', fontSize: 11 }} width={80} />
+              <YAxis ticks={yTicks} domain={[0, yMax]} tickFormatter={(v) => (obscured ? CASH_MASK : fmt.format(v))} tick={{ fill: '#6b7280', fontSize: 11 }} width={80} />
               <Tooltip
-                formatter={(v, name) => [fmt.format(Number(v)), name === 'isa_gbp' ? 'ISA' : 'SIPP']}
+                formatter={(v, name) => [fmtCash(Number(v)), name === 'isa_gbp' ? 'ISA' : 'SIPP']}
                 contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
                 labelStyle={{ color: '#d1d5db' }}
                 cursor={{ fill: '#1f2937' }}
@@ -123,18 +127,18 @@ export default function FinancialYearContributions() {
                 {[...filteredData].reverse().map((row) => (
                   <tr key={row.financial_year} className="hover:bg-gray-800/40 transition-colors">
                     <td className="py-2 pr-4 text-gray-300 font-medium">{row.financial_year}</td>
-                    <td className="py-2 pr-4 text-right text-cyan-400">{fmt.format(row.isa_gbp)}</td>
-                    <td className="py-2 pr-4 text-right text-indigo-400">{fmt.format(row.sipp_gbp)}</td>
-                    <td className="py-2 text-right text-white">{fmt.format(row.total_gbp)}</td>
+                    <td className="py-2 pr-4 text-right text-cyan-400"><Cash>{fmt.format(row.isa_gbp)}</Cash></td>
+                    <td className="py-2 pr-4 text-right text-indigo-400"><Cash>{fmt.format(row.sipp_gbp)}</Cash></td>
+                    <td className="py-2 text-right text-white"><Cash>{fmt.format(row.total_gbp)}</Cash></td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="border-t border-gray-700">
                 <tr className="text-sm font-semibold">
                   <td className="py-2 pr-4 text-gray-400">Total</td>
-                  <td className="py-2 pr-4 text-right text-cyan-400">{fmt.format(totalIsa)}</td>
-                  <td className="py-2 pr-4 text-right text-indigo-400">{fmt.format(totalSipp)}</td>
-                  <td className="py-2 text-right text-white">{fmt.format(totalAll)}</td>
+                  <td className="py-2 pr-4 text-right text-cyan-400"><Cash>{fmt.format(totalIsa)}</Cash></td>
+                  <td className="py-2 pr-4 text-right text-indigo-400"><Cash>{fmt.format(totalSipp)}</Cash></td>
+                  <td className="py-2 text-right text-white"><Cash>{fmt.format(totalAll)}</Cash></td>
                 </tr>
               </tfoot>
             </table>

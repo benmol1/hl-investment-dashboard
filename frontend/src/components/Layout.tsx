@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useApi } from '../hooks/useApi'
 import { fetchFreshness } from '../api/portfolio'
 import DateDisplay from './DateDisplay'
+import PrivacyToggle from '../privacy/PrivacyToggle'
 
 const navItems = [
   { to: '/', label: 'Overview', exact: true },
@@ -86,24 +87,27 @@ export default function Layout() {
             </svg>
           </button>
           <span className="text-sm font-semibold text-indigo-400 uppercase tracking-widest">HL Dashboard</span>
-          {freshness && (
-            <div className="ml-auto flex flex-col items-end gap-0.5 text-xs text-gray-500">
-              <span>
-                <span className="sm:hidden">Prices: </span>
-                <span className="hidden sm:inline">Prices last updated: </span>
-                <span className="text-gray-400">
-                  <DateDisplay iso={freshness.price_date} includeTime />
+          <div className="ml-auto flex items-center gap-3 sm:gap-4">
+            <PrivacyToggle />
+            {freshness && (
+              <div className="flex flex-col items-end gap-0.5 text-xs text-gray-500">
+                <span>
+                  <span className="sm:hidden">Prices: </span>
+                  <span className="hidden sm:inline">Prices last updated: </span>
+                  <span className="text-gray-400">
+                    <DateDisplay iso={freshness.price_date} includeTime />
+                  </span>
                 </span>
-              </span>
-              <span>
-                <span className="sm:hidden">Trans: </span>
-                <span className="hidden sm:inline">Transactions last updated: </span>
-                <span className="text-gray-400">
-                  <DateDisplay iso={freshness.transaction_date} includeTime />
+                <span>
+                  <span className="sm:hidden">Trans: </span>
+                  <span className="hidden sm:inline">Transactions last updated: </span>
+                  <span className="text-gray-400">
+                    <DateDisplay iso={freshness.transaction_date} includeTime />
+                  </span>
                 </span>
-              </span>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </header>
 
         <main className="flex-1 p-3 sm:p-6 overflow-auto">

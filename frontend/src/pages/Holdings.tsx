@@ -5,6 +5,7 @@ import { fetchHoldings } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
 import AccountFilter from '../components/AccountFilter'
+import Cash from '../privacy/Cash'
 import type { Account, HoldingItem } from '../types'
 
 const fmtGBP = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 })
@@ -86,14 +87,14 @@ export default function Holdings() {
       {data && data.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Value', value: fmtGBP.format(totalValue), colour: 'text-indigo-400' },
-            { label: 'Cost Basis', value: fmtGBP.format(totalCost), colour: 'text-gray-300' },
-            { label: 'Unrealised Gain', value: fmtGBP.format(totalGain), colour: totalGain >= 0 ? 'text-emerald-400' : 'text-red-400' },
-            { label: 'Return', value: `${totalGainPct.toFixed(1)}%`, colour: totalGainPct >= 0 ? 'text-emerald-400' : 'text-red-400' },
-          ].map(({ label, value, colour }) => (
+            { label: 'Total Value', value: fmtGBP.format(totalValue), colour: 'text-indigo-400', cash: true },
+            { label: 'Cost Basis', value: fmtGBP.format(totalCost), colour: 'text-gray-300', cash: true },
+            { label: 'Unrealised Gain', value: fmtGBP.format(totalGain), colour: totalGain >= 0 ? 'text-emerald-400' : 'text-red-400', cash: true },
+            { label: 'Return', value: `${totalGainPct.toFixed(1)}%`, colour: totalGainPct >= 0 ? 'text-emerald-400' : 'text-red-400', cash: false },
+          ].map(({ label, value, colour, cash }) => (
             <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{label}</p>
-              <p className={`text-xl font-semibold ${colour}`}>{value}</p>
+              <p className={`text-xl font-semibold ${colour}`}>{cash ? <Cash>{value}</Cash> : value}</p>
             </div>
           ))}
         </div>
@@ -128,10 +129,10 @@ export default function Holdings() {
                   <td className="py-3">Total</td>
                   <td className="py-3 text-right tabular-nums hidden sm:table-cell"><span className="text-gray-700">—</span></td>
                   <td className="py-3 text-right tabular-nums hidden sm:table-cell"><span className="text-gray-700">—</span></td>
-                  <td className="py-3 text-right tabular-nums text-gray-200">{fmtGBP.format(totalValue)}</td>
-                  <td className="py-3 text-right tabular-nums text-gray-400 hidden sm:table-cell">{fmtGBP.format(totalCost)}</td>
+                  <td className="py-3 text-right tabular-nums text-gray-200"><Cash>{fmtGBP.format(totalValue)}</Cash></td>
+                  <td className="py-3 text-right tabular-nums text-gray-400 hidden sm:table-cell"><Cash>{fmtGBP.format(totalCost)}</Cash></td>
                   <td className={`py-3 text-right tabular-nums ${totalGain >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {totalGain >= 0 ? '+' : ''}{fmtGBP.format(totalGain)}
+                    <Cash>{totalGain >= 0 ? '+' : ''}{fmtGBP.format(totalGain)}</Cash>
                   </td>
                   <td className={`py-3 text-right tabular-nums ${totalGainPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {totalGainPct >= 0 ? '+' : ''}{totalGainPct.toFixed(1)}%
@@ -163,12 +164,12 @@ function HoldingRow({ h }: { h: HoldingItem }) {
       <td className="py-3 text-right text-gray-400 tabular-nums hidden sm:table-cell">
         {h.price_gbp !== null ? fmtPrice.format(h.price_gbp) : <span className="text-gray-700">—</span>}
       </td>
-      <td className="py-3 text-right text-gray-200 tabular-nums font-medium">{fmtGBP.format(h.value_gbp)}</td>
-      <td className="py-3 text-right text-gray-400 tabular-nums hidden sm:table-cell">{fmtGBP.format(h.cost_basis_gbp)}</td>
+      <td className="py-3 text-right text-gray-200 tabular-nums font-medium"><Cash>{fmtGBP.format(h.value_gbp)}</Cash></td>
+      <td className="py-3 text-right text-gray-400 tabular-nums hidden sm:table-cell"><Cash>{fmtGBP.format(h.cost_basis_gbp)}</Cash></td>
       <td className={`py-3 text-right tabular-nums font-medium ${h.unrealised_gain_gbp >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
         {isCash
           ? <span className="text-gray-700">—</span>
-          : <>{h.unrealised_gain_gbp >= 0 ? '+' : ''}{fmtGBP.format(h.unrealised_gain_gbp)}</>}
+          : <Cash>{h.unrealised_gain_gbp >= 0 ? '+' : ''}{fmtGBP.format(h.unrealised_gain_gbp)}</Cash>}
       </td>
       <td className={`py-3 text-right tabular-nums ${h.unrealised_gain_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
         {isCash

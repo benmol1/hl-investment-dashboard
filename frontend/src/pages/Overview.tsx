@@ -9,6 +9,8 @@ import { fetchPortfolioValue, fetchAllocation } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
 import AccountFilter from '../components/AccountFilter'
+import Cash from '../privacy/Cash'
+import { usePrivacy, CASH_MASK } from '../privacy/context'
 import DateRangeFilter, { dateRangeToFrom } from '../components/DateRangeFilter'
 import type { DateRange } from '../components/DateRangeFilter'
 import type { Account } from '../types'
@@ -19,8 +21,12 @@ const fmt = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP',
 const fmtDate = (d: string) => d.slice(0, 7) // YYYY-MM
 
 export default function Overview() {
+  const { obscured } = usePrivacy()
   const [account, setAccount] = useState<Account | undefined>()
   const [dateRange, setDateRange] = useState<DateRange>('All')
+
+  const fmtYAxis = (v: number) => (obscured ? CASH_MASK : fmt.format(v))
+  const fmtCashTooltip = (v: number) => (obscured ? CASH_MASK : fmt.format(v))
 
   const from = dateRangeToFrom(dateRange)
   const value = useApi(() => fetchPortfolioValue(from, undefined, account), [from, account])
@@ -37,7 +43,7 @@ export default function Overview() {
         <div>
           <h1 className="text-2xl font-bold text-white">Portfolio Overview</h1>
           {latestValue != null && (
-            <p className="text-3xl font-semibold text-indigo-400 mt-1">{fmt.format(latestValue)}</p>
+            <p className="text-3xl font-semibold text-indigo-400 mt-1"><Cash>{fmt.format(latestValue)}</Cash></p>
           )}
         </div>
         <div className="flex flex-col items-start sm:items-end gap-2">
@@ -54,9 +60,9 @@ export default function Overview() {
             <LineChart data={value.data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
               <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: '#6b7280', fontSize: 11 }} minTickGap={60} />
-              <YAxis tickFormatter={(v) => fmt.format(v)} tick={{ fill: '#6b7280', fontSize: 11 }} width={80} />
+              <YAxis tickFormatter={fmtYAxis} tick={{ fill: '#6b7280', fontSize: 11 }} width={80} />
               <Tooltip
-                formatter={(v) => [fmt.format(Number(v)), 'Value']}
+                formatter={(v) => [fmtCashTooltip(Number(v)), 'Value']}
                 labelFormatter={(l) => `Date: ${l}`}
                 contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
                 labelStyle={{ color: '#d1d5db' }}
@@ -89,7 +95,7 @@ export default function Overview() {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(v, _name, props) => [fmt.format(Number(v)), props.payload.fund_name]}
+                  formatter={(v, _name, props) => [fmtCashTooltip(Number(v)), props.payload.fund_name]}
                   contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
                 />
               </PieChart>
@@ -111,7 +117,7 @@ export default function Overview() {
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: COLOURS[i % COLOURS.length] }} />
                         <span className="text-gray-300 truncate max-w-[160px]" title={a.fund_name}>{a.fund_short_name}</span>
                       </td>
-                      <td className="py-2 text-right text-gray-300">{fmt.format(a.value_gbp)}</td>
+                      <td className="py-2 text-right text-gray-300"><Cash>{fmt.format(a.value_gbp)}</Cash></td>
                       <td className="py-2 text-right text-gray-400">{a.percentage.toFixed(1)}%</td>
                     </tr>
                   ))}

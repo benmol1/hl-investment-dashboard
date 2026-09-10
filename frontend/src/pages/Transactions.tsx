@@ -4,6 +4,7 @@ import { fetchTransactions } from '../api/transactions'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
 import DateDisplay from '../components/DateDisplay'
+import Cash from '../privacy/Cash'
 import type { Account } from '../types'
 
 const TX_TYPES = ['BUY', 'SELL', 'SWITCH_IN', 'SWITCH_OUT', 'CONTRIBUTION', 'FEE', 'INTEREST', 'REBATE', 'TRANSFER', 'OTHER']
@@ -114,7 +115,7 @@ export default function Transactions() {
                         {tx.unit_cost_pence != null ? `${(tx.unit_cost_pence / 100).toFixed(4)}p` : '—'}
                       </td>
                       <td className={`py-2.5 text-right tabular-nums font-medium ${tx.value_gbp >= 0 ? 'text-gray-200' : 'text-red-400'}`}>
-                        {fmt.format(Math.abs(tx.value_gbp))}
+                        <Cash>{fmt.format(Math.abs(tx.value_gbp))}</Cash>
                       </td>
                     </tr>
                   ))}
