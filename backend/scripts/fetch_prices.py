@@ -10,6 +10,12 @@ Morningstar note:
     returning 401/403, inspect the Network tab on morningstar.co.uk to find
     the current token.
 
+    As of 2026-09, the old host (tools.morningstar.co.uk) has been
+    decommissioned (CNAME with no A record). The same rest.svc API is still
+    live on lt.morningstar.com with an identical URL structure and the same
+    token, and is what MORNINGSTAR_BASE points to below. See
+    MORNINGSTAR_MIGRATION.md for the investigation notes.
+
 Usage:
     # Fetch missing prices for currently held funds (normal daily run)
     python backend/scripts/fetch_prices.py
@@ -42,7 +48,7 @@ DB_PATH = ROOT / "data" / "hl_dashboard.duckdb"
 
 # Morningstar's unofficial history API — see module docstring if this stops working
 MORNINGSTAR_API_TOKEN = os.getenv("MORNINGSTAR_API_TOKEN", "9vehuxllxs")
-MORNINGSTAR_BASE = f"https://tools.morningstar.co.uk/api/rest.svc/timeseries_price/{MORNINGSTAR_API_TOKEN}"
+MORNINGSTAR_BASE = f"https://lt.morningstar.com/api/rest.svc/timeseries_price/{MORNINGSTAR_API_TOKEN}"
 
 BENCHMARKS = [
     ("FTSE100", "^FTSE"),
