@@ -4,8 +4,7 @@ Source files consumed by the ingest pipeline. All CSVs are gitignored.
 
 | Path | Contents |
 |---|---|
-| `funds.csv` | Fund metadata (name, HL ticker, Morningstar code, account) |
-| `dates.csv` | Calendar/trading-day reference table |
+| `funds.csv` | **Required, create manually.** Fund metadata: `fund_ISIN`, `fund_code` (Morningstar), `fund_name`, `short_name`. See [`../examples/`](../examples/) |
 | `raw_transactions/ISA/` | HL transaction history exports for the ISA account |
 | `raw_transactions/SIPP/` | HL transaction history exports for the SIPP account |
 
