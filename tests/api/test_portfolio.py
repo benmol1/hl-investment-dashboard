@@ -111,16 +111,38 @@ def test_freshness(client):
     assert data["price_date"] is not None
 
 
-def test_ingest_log(client):
+def test_ingest_log(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.portfolio.PELM_DIR", tmp_path
+    )  # no PELM files here
     r = client.get("/portfolio/ingest-log")
     assert r.status_code == 200
     data = r.json()
-    assert len(data) == 2
-    sources = {entry["source"] for entry in data}
-    assert sources == {"transactions", "prices"}
-    for entry in data:
+    hl = [e for e in data if not e["source"].startswith("pelm_")]
+    assert {entry["source"] for entry in hl} == {"transactions", "prices"}
+    for entry in hl:
         assert "latest_data_date" in entry
         assert "last_successful_at" in entry
+
+
+def test_ingest_log_includes_pelm_rows(client, tmp_path, monkeypatch):
+    for name in ("pelm_transactions.csv", "pelm_monthly.csv"):
+        (tmp_path / name).write_text("x\n")
+    monkeypatch.setattr("app.routers.portfolio.PELM_DIR", tmp_path)
+    by_source = {e["source"]: e for e in client.get("/portfolio/ingest-log").json()}
+    # Latest data dates come from the data; run times are the files' modified times.
+    assert by_source["pelm_transactions"]["latest_data_date"] == "2024-02-02"
+    assert by_source["pelm_valuations"]["latest_data_date"] == "2024-02-29"
+    for source in ("pelm_transactions", "pelm_valuations"):
+        assert by_source[source]["last_successful_at"] is not None
+        assert by_source[source]["last_rows_imported_at"] is not None
+
+
+def test_ingest_log_pelm_rows_without_files(client, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.routers.portfolio.PELM_DIR", tmp_path)
+    by_source = {e["source"]: e for e in client.get("/portfolio/ingest-log").json()}
+    assert by_source["pelm_valuations"]["latest_data_date"] == "2024-02-29"
+    assert by_source["pelm_valuations"]["last_successful_at"] is None
 
 
 # --- PELM (monthly-grain account) -------------------------------------------

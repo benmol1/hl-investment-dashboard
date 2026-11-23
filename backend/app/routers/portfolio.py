@@ -1,10 +1,10 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 import duckdb
 
-from app.db import get_db
+from app.db import DB_PATH, get_db
 from app.models import (
     TimeSeriesPoint,
     AllocationItem,
@@ -21,6 +21,9 @@ from app.models import (
 router = APIRouter()
 
 AccountName = Literal["ISA", "SIPP", "PELM"]
+
+# Hand-maintained PELM files live beside the database, in the bind-mounted data folder.
+PELM_DIR = DB_PATH.parent / "pelm"
 
 # Accounts with full daily holdings/transactions. PELM is month-end valuations only, so it is
 # kept out of the no-filter aggregate (the combined ISA + SIPP view) and out of daily endpoints.
@@ -435,4 +438,45 @@ def ingest_log_summary(con: duckdb.DuckDBPyConnection = Depends(get_db)):
             last_successful_at=pr_last_successful,
             last_rows_imported_at=pr_last_rows,
         ),
+        *_pelm_ingest_entries(con),
     ]
+
+
+def _pelm_ingest_entries(con: duckdb.DuckDBPyConnection) -> list[IngestLogEntry]:
+    """
+    Ingest-log rows for the PELM Will Trust. It is updated by hand rather than by a scheduled
+    job, so there is no run history: the "run" times are when the source file was last modified.
+    A row is only shown once that part of PELM has data.
+    """
+    sources = [
+        (
+            "pelm_transactions",
+            "SELECT MAX(tx_date) FROM fct_pelm_transactions",
+            PELM_DIR / "pelm_transactions.csv",
+        ),
+        (
+            "pelm_valuations",
+            """SELECT MAX(month_end_date) FROM mart_portfolio_snapshot_monthly
+               WHERE account_name = 'PELM' AND month_end_value_gbp IS NOT NULL""",
+            PELM_DIR / "pelm_monthly.csv",
+        ),
+    ]
+    entries = []
+    for source, sql, path in sources:
+        latest = con.execute(sql).fetchone()[0]
+        if latest is None:
+            continue
+        updated = (
+            datetime.fromtimestamp(path.stat().st_mtime).astimezone()
+            if path.exists()
+            else None
+        )
+        entries.append(
+            IngestLogEntry(
+                source=source,
+                latest_data_date=latest,
+                last_successful_at=updated,
+                last_rows_imported_at=updated,
+            )
+        )
+    return entries

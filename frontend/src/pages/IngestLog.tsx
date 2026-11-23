@@ -7,6 +7,8 @@ import DateDisplay from '../components/DateDisplay'
 const SOURCE_LABELS: Record<string, string> = {
   transactions: 'Transactions',
   prices: 'Prices',
+  pelm_transactions: 'PELM transactions',
+  pelm_valuations: 'PELM month-end positions',
 }
 
 export default function IngestLog() {
@@ -58,6 +60,12 @@ export default function IngestLog() {
               </tbody>
             </table>
           </div>
+        )}
+        {data?.some((e) => e.source.startsWith('pelm_')) && (
+          <p className="text-xs text-gray-500 mt-4">
+            PELM Will Trust data is added by hand, not by a scheduled job: its run times show when the
+            source file was last updated.
+          </p>
         )}
       </Card>
     </div>
