@@ -109,6 +109,11 @@ export default function Overview() {
               </BarChart>
             </ResponsiveContainer>
           )}
+          <p className="text-xs text-gray-500 mt-3">
+            Estimate: cash is inferred from the trade ledger (including the deposit account), which has no
+            fees, dividends or interest. Real cash may differ from the official statements, typically by a
+            small amount, with investments making up the difference.
+          </p>
         </Card>
       ) : (
       <Card title="Current Allocation">
