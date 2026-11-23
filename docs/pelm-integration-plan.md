@@ -1,6 +1,6 @@
 # PELM Will Trust — Integration Plan
 
-*Drafted: 2026-09-11 · Branch: `feature/pelm-will-trust` · Status: proposed, not started*
+*Drafted: 2026-09-11 · Branch: `feature/pelm-will-trust` · Status: phases 1–2 (dbt) built; revised 2026-11-23*
 
 Adds the **P E L Molyneaux Will Trust** (account `C070982`, managed by Barratt & Cooke)
 to the dashboard as a third account alongside the HL ISA and SIPP, so its performance can
@@ -89,7 +89,7 @@ identical; only the maintenance burden differs.
 
 ### 3.1 Input file
 
-`data/imports/pelm_monthly.csv` — three columns, hand-maintained:
+`dbt/seeds/pelm_monthly.csv` — three columns, hand-maintained:
 
     month_end_date,value_gbp,external_flow_gbp
     2023-09-29,683050.47,
@@ -105,6 +105,8 @@ Sign convention matches `monthly_inflows_gbp`: positive in, negative out.
 > regardless. Revisit if the file layout survives two quarters unchanged.
 
 ### 3.2 dbt
+
+> **As built:** the seed lives in `dbt/seeds/` (dbt only reads seeds from there) and is gitignored because it holds personal valuations. `dim_account` derives the PELM row from the seed, so an empty seed leaves ISA/SIPP output unchanged. `int_cash_values_daily` now filters to `data_grain = 'daily'`, otherwise PELM would get a daily cash spine. The snapshot spine for PELM stops at its last valuation month.
 
 - Load `pelm_monthly.csv` as a **dbt seed** — the same mechanism already used for
   `dim_date`, no new code path, and it keeps the file version-controlled alongside the
@@ -139,7 +141,8 @@ Sign convention matches `monthly_inflows_gbp`: positive in, negative out.
 ### 3.4 Frontend
 
 - **Shows PELM:** Overview, Benchmarks, returns/Sharpe comparisons.
-- **Excludes PELM:** Holdings, Transactions, Fund Performance, FY Contributions.
+- **Transactions:** added later as a separate ledger view (to-do Phase 6) — trades and cash movements only.
+- **Excludes PELM:** Holdings, Fund Performance, FY Contributions.
 - The Overview value chart is daily for ISA/SIPP and monthly for PELM — render PELM as a
   monthly step/point series rather than interpolating a daily line it doesn't have.
 
@@ -156,7 +159,7 @@ month.
 
 1. Quarterly email arrives from Barratt & Cooke.
 2. Save attachments into `pelm-inputs/`.
-3. Append the new month rows to `data/imports/pelm_monthly.csv`, adding any withdrawal or
+3. Append the new month rows to `dbt/seeds/pelm_monthly.csv`, adding any withdrawal or
    transfer read off the ledger.
 4. `dbt seed --profiles-dir .` then `dbt run --profiles-dir .`
 
@@ -171,7 +174,7 @@ rather than fail nightly on unchanged data.
 |---|---|---|
 | Security-level PELM holdings | No valued position data exists in the source | B&C can supply a machine-readable position file |
 | Parsing the costs/charges PDFs | Modified Dietz over net valuations already has fees baked in; extracting them buys only a fee-attribution view | A fee comparison vs HL is explicitly wanted |
-| Ledger PDF parser | Two hand-entered flows in three years | Flow frequency rises materially |
+| Ledger PDF *parser* | Transcribe once by hand instead (see Phase 6 in the to-do); no automated parser | Flow frequency rises materially |
 | PELM in the nightly cron | Source updates quarterly, by email, by hand | Never, realistically |
 
 ---

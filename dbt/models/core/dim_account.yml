@@ -3,27 +3,37 @@ version: 2
 models:
   - name: dim_account
     description: >
-      Account dimension. One row per account (ISA, SIPP).
+      Account dimension. One row per account (ISA, SIPP, and PELM once pelm_monthly has data).
 
       **Table type**: Dimension
       **Grain**: One row per account_name
-      **Update Frequency**: Static — only two accounts exist
-      **Source**: hl_dashboard.accounts
+      **Update Frequency**: Static — three accounts at most
+      **Source**: hl_dashboard.accounts, base__pelm_valuations (PELM)
     columns:
       - name: account_key
-        description: "Hash surrogate key generated via dbt_utils.generate_surrogate_key(['a.id']), where a.id is the raw account identifier from the accounts source table. Use this for all joins between fact tables and dim_account."
+        description: "Hash surrogate key generated via dbt_utils.generate_surrogate_key(['account_name']). Use this for all joins between fact tables and dim_account."
         tests:
           - not_null
           - unique
       - name: account_name
-        description: "Account identifier (ISA or SIPP). Natural/business key — stored as an attribute, not used for joins."
+        description: "Account identifier (ISA, SIPP or PELM). Natural/business key — stored as an attribute, not used for joins."
         tests:
           - not_null
           - unique
           - accepted_values:
               arguments:
-                values: [ISA, SIPP]
+                values: [ISA, SIPP, PELM]
       - name: account_open_date
-        description: "Date of the account's first transaction, derived from base__hl_transactions. Null if no transactions have been recorded for the account."
+        description: "For ISA/SIPP, the date of the first transaction (base__hl_transactions). For PELM, the first month-end valuation date. Null if no transactions have been recorded for an HL account."
         tests:
           - not_null
+      - name: data_grain
+        description: >
+          Finest grain at which data exists for the account. 'daily' = full holdings and
+          transactions (ISA, SIPP); 'monthly' = month-end valuations only (PELM). Daily-only
+          models and endpoints must filter on this.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [daily, monthly]

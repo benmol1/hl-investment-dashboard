@@ -6,6 +6,7 @@ with account_date_spine as (
     inner join {{ ref('dim_date') }} dd
         on  dd.date >= da.account_open_date
         and dd.date <= current_date
+    where da.data_grain = 'daily'  -- PELM has no cash ledger in the model
 )
 
 select

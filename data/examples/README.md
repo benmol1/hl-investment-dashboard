@@ -24,3 +24,7 @@ Re-run `setup_db.py` after editing; it is safe to repeat.
 ## Transaction CSVs
 
 Normally downloaded by `download_transactions.py` or exported from HL. Format: 5 metadata lines, then the header row, then data rows. Dates are `DD/MM/YYYY`; `Quantity` is always positive and direction comes from the sign of `Value (£)`. The `Reference` prefix determines the type (`B…` buy, `S…` sell, `BX…`/`X…` switch in/out, `Card Web`/`FPC` contribution, `REG. SAVER`, `MANAGE FEE`, `INTEREST`, `Transfer`/`BACS`, `URIB…` rebate). Files are renamed to `{ACCOUNT}_{YYYY-MM-DD}.csv` on ingest; duplicates are skipped.
+
+## `pelm_monthly_example.csv`
+
+Layout for the PELM Will Trust valuations seed, which lives at `dbt/seeds/pelm_monthly.csv` (gitignored). Columns: `month_end_date`, `value_gbp`, `external_flow_gbp` — the flow is positive for money in, negative for money out, blank if none. Load with `dbt seed` then `dbt run` from the `dbt/` directory. See [docs/pelm-integration-plan.md](../../docs/pelm-integration-plan.md).
