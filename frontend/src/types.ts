@@ -115,5 +115,5 @@ export interface FinancialYearContribution {
   total_gbp: number
 }
 
-export type Account = 'ISA' | 'SIPP'
+export type Account = 'ISA' | 'SIPP' | 'PELM'
 export type Benchmark = 'FTSE100' | 'SP500' | 'NASDAQ'
