@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: fct_pelm_transactions
+    description: >
+      PELM Will Trust ledger lines, categorised. Trades and cash movements only: the ledger has
+      no dividends or fees, so this is not a full account history. Separate from
+      fct_transactions, which is shaped around HL fund trades.
+
+      **Grain**: One row per ledger line
+      **Source**: base__pelm_transactions
+    columns:
+      - name: transaction_id
+        description: "Surrogate key over (reference, tx_type, security)."
+        tests:
+          - not_null
+          - unique
+      - name: tx_date
+        description: "Ledger date."
+      - name: year_month
+        description: "YYYY-MM of tx_date."
+      - name: reference
+        description: "Barratt & Cooke ledger reference."
+      - name: tx_type
+        description: "See base__pelm_transactions."
+      - name: category
+        description: >
+          trade (BUY/SELL), external_flow (money or stock crossing the trust boundary),
+          internal_transfer (deposit-account sweeps; net to roughly zero), corporate_action
+          (including cash fractions), other.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [trade, external_flow, internal_transfer, corporate_action, other]
+      - name: security
+        description: "Security name, empty for pure cash entries."
+      - name: quantity
+        description: "Shares/units where applicable."
+      - name: amount_gbp
+        description: "Cash effect: positive in, negative out, null if none."
+      - name: notes
+        description: "Extra ledger detail."

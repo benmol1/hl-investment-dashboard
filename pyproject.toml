@@ -19,6 +19,7 @@ dependencies = [
     "matplotlib>=3.10.9",
     "playwright>=1.59.0",
     "ruff>=0.15.13",
+    "pdfplumber>=0.11.10",
 ]
 
 [dependency-groups]

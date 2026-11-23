@@ -68,6 +68,25 @@ export interface TransactionPage {
   items: Transaction[]
 }
 
+export interface PelmTransaction {
+  id: string
+  tx_date: string
+  reference: string | null
+  tx_type: string
+  category: string
+  security: string
+  quantity: number | null
+  amount_gbp: number | null
+  notes: string
+}
+
+export interface PelmTransactionPage {
+  total: number
+  page: number
+  per_page: number
+  items: PelmTransaction[]
+}
+
 export interface HoldingItem {
   holding_type: string  // 'fund' | 'cash'
   fund_id: string | null
@@ -115,5 +134,5 @@ export interface FinancialYearContribution {
   total_gbp: number
 }
 
-export type Account = 'ISA' | 'SIPP'
+export type Account = 'ISA' | 'SIPP' | 'PELM'
 export type Benchmark = 'FTSE100' | 'SP500' | 'NASDAQ'

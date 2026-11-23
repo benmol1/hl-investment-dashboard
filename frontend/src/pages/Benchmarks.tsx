@@ -7,34 +7,116 @@ import { useChartHeight } from '../hooks/useChartHeight'
 import { fetchPortfolioPerformance } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
-import AccountFilter from '../components/AccountFilter'
-import type { Account, PortfolioPerformanceResponse, SharpeRatios } from '../types'
+import MultiToggle from '../components/MultiToggle'
+import type { Account, Benchmark, PerformancePoint, PortfolioPerformanceResponse, SharpeRatios } from '../types'
 
-type Key = 'portfolio' | 'FTSE100' | 'SP500' | 'NASDAQ'
+// 'ALL' is the combined ISA + SIPP view (the API's no-account default). PELM is only ever
+// shown when selected explicitly.
+type AccountKey = 'ALL' | Account
 
-const SERIES: { key: Key; label: string; colour: string; dash?: string }[] = [
-  { key: 'portfolio', label: 'Portfolio', colour: '#6366f1' },
-  { key: 'FTSE100', label: 'FTSE 100', colour: '#f59e0b', dash: '4 2' },
-  { key: 'SP500', label: 'S&P 500', colour: '#10b981', dash: '4 2' },
-  { key: 'NASDAQ', label: 'Nasdaq', colour: '#f43f5e', dash: '4 2' },
-]
+interface SeriesDef {
+  key: string
+  label: string
+  colour: string
+  dash?: string
+}
 
+const ACCOUNT_ORDER: AccountKey[] = ['ALL', 'ISA', 'SIPP', 'PELM']
+const ACCOUNT_DEFS: Record<AccountKey, SeriesDef> = {
+  ALL: { key: 'ALL', label: 'ISA + SIPP', colour: '#6366f1' },
+  ISA: { key: 'ISA', label: 'ISA', colour: '#38bdf8' },
+  SIPP: { key: 'SIPP', label: 'SIPP', colour: '#a78bfa' },
+  PELM: { key: 'PELM', label: 'PELM Trust', colour: '#e879f9' },
+}
 
-function mergeData(data: PortfolioPerformanceResponse) {
-  const maps: Record<Key, Map<string, number>> = {
-    portfolio: new Map(data.portfolio.map((p) => [p.date, p.indexed])),
-    FTSE100: new Map(data.FTSE100.map((p) => [p.date, p.indexed])),
-    SP500: new Map(data.SP500.map((p) => [p.date, p.indexed])),
-    NASDAQ: new Map(data.NASDAQ.map((p) => [p.date, p.indexed])),
+const BENCH_ORDER: Benchmark[] = ['FTSE100', 'SP500', 'NASDAQ']
+const BENCH_DEFS: Record<Benchmark, SeriesDef> = {
+  FTSE100: { key: 'FTSE100', label: 'FTSE 100', colour: '#f59e0b', dash: '4 2' },
+  SP500: { key: 'SP500', label: 'S&P 500', colour: '#10b981', dash: '4 2' },
+  NASDAQ: { key: 'NASDAQ', label: 'Nasdaq', colour: '#f43f5e', dash: '4 2' },
+}
+
+const month = (d: string) => d.slice(0, 7)
+
+interface MergedRow {
+  date: string
+  [seriesKey: string]: number | string | undefined
+}
+
+/**
+ * Fetch performance for each selected account (benchmarks are indexed per response).
+ *
+ * useApi only clears its data after the render in which the inputs change, so for one render the
+ * previous response is paired with the new account list. Each response is therefore tagged with
+ * the accounts it was fetched for and treated as still loading unless they match.
+ */
+function usePerformance(accounts: AccountKey[], from: string | undefined) {
+  const wanted = accounts.join(',')
+  const state = useApi(
+    async () => ({
+      for: wanted,
+      responses: await Promise.all(
+        accounts.map((k) => fetchPortfolioPerformance(from, undefined, k === 'ALL' ? undefined : k)),
+      ),
+    }),
+    [from, wanted],
+  )
+  const fresh = state.data?.for === wanted
+  return {
+    data: fresh ? state.data!.responses : null,
+    loading: state.loading || (!!state.data && !fresh),
+    error: state.error,
   }
-  const dates = [...new Set([...maps.portfolio.keys(), ...maps.FTSE100.keys()])].sort()
-  return dates.map((date) => ({
-    date,
-    portfolio: maps.portfolio.get(date),
-    FTSE100: maps.FTSE100.get(date),
-    SP500: maps.SP500.get(date),
-    NASDAQ: maps.NASDAQ.get(date),
-  }))
+}
+
+/**
+ * Pick the response with the longest benchmark history: the one running furthest forward (a
+ * monthly-grain account like PELM stops at its last valuation), then the one starting earliest.
+ */
+function benchmarkSource(perf: PortfolioPerformanceResponse[]) {
+  const last = (r: PortfolioPerformanceResponse) => r.FTSE100.at(-1)?.date ?? ''
+  const first = (r: PortfolioPerformanceResponse) => r.FTSE100[0]?.date ?? '9999'
+  return perf.reduce((a, b) => {
+    if (last(b) !== last(a)) return last(b) > last(a) ? b : a
+    return first(b) < first(a) ? b : a
+  })
+}
+
+/**
+ * Rebase every series to 100 at a common start month (the latest start among the accounts), so
+ * accounts that began at different times are compared like-for-like.
+ */
+function rebase(series: Record<string, PerformancePoint[]>, accountKeys: string[]) {
+  const starts = accountKeys.map((k) => series[k]?.[0]?.date).filter((d): d is string => !!d)
+  if (!starts.length) return { series, startDate: undefined }
+  const startMonth = month(starts.map(month).sort().at(-1)!)
+  const out: Record<string, PerformancePoint[]> = {}
+  for (const [key, pts] of Object.entries(series)) {
+    const from = pts.findIndex((p) => month(p.date) >= startMonth)
+    if (from < 0) { out[key] = []; continue }
+    const base = pts[from].indexed
+    out[key] = pts.slice(from).map((p) => ({ date: p.date, indexed: (p.indexed / base) * 100 }))
+  }
+  const startDate = accountKeys.map((k) => out[k]?.[0]?.date).find((d) => d && month(d) === startMonth)
+  return { series: out, startDate }
+}
+
+/** One row per calendar month: PELM valuation dates can differ by a day from index month-ends. */
+function mergeData(series: Record<string, PerformancePoint[]>, benchKeys: string[]): MergedRow[] {
+  const labelDate = new Map<string, string>()
+  // Prefer benchmark dates as the label so all months line up with the index calendar.
+  for (const key of [...Object.keys(series).filter((k) => !benchKeys.includes(k)), ...benchKeys]) {
+    for (const p of series[key] ?? []) labelDate.set(month(p.date), p.date)
+  }
+  const rows = new Map<string, MergedRow>()
+  for (const [key, pts] of Object.entries(series)) {
+    for (const p of pts) {
+      const m = month(p.date)
+      if (!rows.has(m)) rows.set(m, { date: labelDate.get(m)! })
+      rows.get(m)![key] = p.indexed
+    }
+  }
+  return [...rows.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, r]) => r)
 }
 
 export default function Benchmarks() {
@@ -44,19 +126,29 @@ export default function Benchmarks() {
     value: `${y}-12-31`,
   }))
 
-  const [account, setAccount] = useState<Account | undefined>()
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>(['ALL'])
+  const [selectedBenchmarks, setSelectedBenchmarks] = useState<string[]>([...BENCH_ORDER])
   const [startDate, setStartDate] = useState(`${currentYear - 3}-12-31`)
 
-  const { data, loading, error } = useApi(
-    () => fetchPortfolioPerformance(startDate, undefined, account),
-    [startDate, account],
-  )
-  const { data: allData } = useApi(
-    () => fetchPortfolioPerformance(undefined, undefined, account),
-    [account],
-  )
+  const accounts = ACCOUNT_ORDER.filter((k) => selectedAccounts.includes(k))
+  const benchmarks = BENCH_ORDER.filter((k) => selectedBenchmarks.includes(k))
+  const series: SeriesDef[] = [...accounts.map((k) => ACCOUNT_DEFS[k]), ...benchmarks.map((k) => BENCH_DEFS[k])]
+  const accountKeys: string[] = accounts
 
-  const merged = data ? mergeData(data) : []
+  const { data: perf, loading, error } = usePerformance(accounts, startDate)
+  const { data: allPerf } = usePerformance(accounts, undefined)
+
+  const rawSeries = (responses: PortfolioPerformanceResponse[] | null) => {
+    if (!responses?.length) return {}
+    const bench = benchmarkSource(responses)
+    const out: Record<string, PerformancePoint[]> = {}
+    accounts.forEach((k, i) => { out[k] = responses[i].portfolio })
+    benchmarks.forEach((b) => { out[b] = bench[b] })
+    return out
+  }
+
+  const { series: chartSeries, startDate: commonStart } = rebase(rawSeries(perf), accountKeys)
+  const merged = perf ? mergeData(chartSeries, benchmarks) : []
   const chartHeight = useChartHeight(240, 400)
 
   const xTicks = merged
@@ -68,7 +160,8 @@ export default function Benchmarks() {
 
   const yTicks = (() => {
     if (!merged.length) return [50, 100, 150]
-    const vals = merged.flatMap((d) => [d.portfolio, d.FTSE100, d.SP500, d.NASDAQ].filter((v): v is number => v != null))
+    const vals = merged.flatMap((d) => series.map(({ key }) => d[key]).filter((v): v is number => typeof v === 'number'))
+    if (!vals.length) return [50, 100, 150]
     const min = Math.floor(Math.min(...vals) / 50) * 50
     const max = Math.ceil(Math.max(...vals) / 50) * 50
     const ticks: number[] = []
@@ -76,58 +169,83 @@ export default function Benchmarks() {
     return ticks
   })()
 
-  const getReturn = (key: Key) => {
-    const series = data?.[key]
-    if (!series?.length) return null
-    return (series.at(-1)!.indexed - 100).toFixed(1)
+  const getReturn = (key: string) => {
+    const pts = chartSeries[key]
+    if (!pts?.length) return null
+    return (pts.at(-1)!.indexed - 100).toFixed(1)
   }
 
-  const getAnnualisedReturn = (key: Key) => {
-    const series = data?.[key]
-    if (!series?.length) return null
-    const years = (new Date(series.at(-1)!.date).getTime() - new Date(series[0].date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+  const getAnnualisedReturn = (key: string) => {
+    const pts = chartSeries[key]
+    if (!pts?.length) return null
+    const years = (new Date(pts.at(-1)!.date).getTime() - new Date(pts[0].date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
     if (years < 1) return null
-    return ((Math.pow(series.at(-1)!.indexed / 100, 1 / years) - 1) * 100).toFixed(1)
+    return ((Math.pow(pts.at(-1)!.indexed / 100, 1 / years) - 1) * 100).toFixed(1)
   }
 
   const annualReturns = (() => {
-    if (!allData) return []
+    if (!allPerf) return []
     const currentYear = new Date().getFullYear()
+    const allSeries = rawSeries(allPerf)
 
     // Build map: year -> last indexed value in that year, per series
-    const yearEndMap = (key: Key): Map<number, number> => {
+    const yearEndMap = (key: string): Map<number, number> => {
       const map = new Map<number, number>()
-      for (const pt of allData[key]) {
+      for (const pt of allSeries[key] ?? []) {
         map.set(new Date(pt.date).getFullYear(), pt.indexed)
       }
       return map
     }
-    const maps = Object.fromEntries(SERIES.map(({ key }) => [key, yearEndMap(key)])) as Record<Key, Map<number, number>>
+    const maps = Object.fromEntries(series.map(({ key }) => [key, yearEndMap(key)])) as Record<string, Map<number, number>>
 
-    const allYears = [...new Set(SERIES.flatMap(({ key }) => [...maps[key].keys()]))].sort().reverse()
+    const allYears = [...new Set(series.flatMap(({ key }) => [...maps[key].keys()]))].sort().reverse()
 
     return allYears.flatMap(year => {
       const isYTD = year === currentYear
       const returns = Object.fromEntries(
-        SERIES.map(({ key }) => {
+        series.map(({ key }) => {
           const end = maps[key].get(year)
           const start = maps[key].get(year - 1)
           if (end == null || start == null) return [key, null]
           return [key, (end / start - 1) * 100]
         })
-      ) as Record<Key, number | null>
+      ) as Record<string, number | null>
       // Skip rows where every series is null (no prior year-end reference)
-      if (SERIES.every(({ key }) => returns[key] == null)) return []
+      if (series.every(({ key }) => returns[key] == null)) return []
       return [{ year, isYTD, returns }]
     })
   })()
 
+  // Benchmark Sharpe ratios come from a response that is not cut short by a monthly-grain account.
+  const sharpeSource = perf?.length
+    ? (perf.find((_, i) => accounts[i] !== 'PELM') ?? perf[0])
+    : undefined
+  const sharpeFor = (key: string): SharpeRatios | undefined => {
+    if (!perf) return undefined
+    const i = accounts.indexOf(key as AccountKey)
+    return i >= 0 ? perf[i].sharpe.portfolio : sharpeSource?.sharpe[key]
+  }
+  const pelmLastDate = accounts.includes('PELM') && perf ? perf[accounts.indexOf('PELM')].portfolio.at(-1)?.date : undefined
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <h1 className="text-2xl font-bold text-white">Benchmark Comparison</h1>
         <div className="flex flex-col items-start sm:items-end gap-2">
-          <AccountFilter value={account} onChange={setAccount} />
+          <MultiToggle
+            options={ACCOUNT_ORDER.map((k) => ({
+              ...ACCOUNT_DEFS[k],
+              title: k === 'PELM' ? 'Will Trust — not included in any totals unless selected' : undefined,
+            }))}
+            selected={selectedAccounts}
+            onChange={setSelectedAccounts}
+            requireOne
+          />
+          <MultiToggle
+            options={BENCH_ORDER.map((k) => BENCH_DEFS[k])}
+            selected={selectedBenchmarks}
+            onChange={setSelectedBenchmarks}
+          />
           <div className="flex items-center gap-2 text-sm flex-wrap sm:justify-end">
             <span className="text-gray-500">Start date:</span>
             {yearEndPresets.map(({ label, value }) => (
@@ -153,9 +271,9 @@ export default function Benchmarks() {
         </div>
       </div>
 
-      {data && (
+      {perf && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {SERIES.map(({ key, label, colour }) => {
+          {series.map(({ key, label, colour }) => {
             const ret = getReturn(key)
             const ann = getAnnualisedReturn(key)
             const retColour = (v: string | null) => v == null ? 'text-gray-600' : parseFloat(v) >= 0 ? 'text-emerald-400' : 'text-red-400'
@@ -185,7 +303,7 @@ export default function Benchmarks() {
         </div>
       )}
 
-      <Card title={`Performance indexed to 100 at ${data?.start_date ? fmtXTick(data.start_date) : '…'}`}>
+      <Card title={`Performance indexed to 100 at ${commonStart ? fmtXTick(commonStart) : '…'}`}>
         {loading || error || !merged.length ? (
           <StatusMessage loading={loading} error={error} empty={!merged.length} />
         ) : (
@@ -196,7 +314,7 @@ export default function Benchmarks() {
               <YAxis ticks={yTicks} domain={[yTicks[0], yTicks[yTicks.length - 1]]} tick={{ fill: '#6b7280', fontSize: 11 }} />
               <Tooltip
                 formatter={(v, name) => {
-                  const s = SERIES.find((x) => x.key === String(name))
+                  const s = series.find((x) => x.key === String(name))
                   return [`${Number(v).toFixed(2)}`, s?.label ?? String(name)]
                 }}
                 labelFormatter={(l) => `Date: ${l}`}
@@ -204,7 +322,7 @@ export default function Benchmarks() {
                 labelStyle={{ color: '#d1d5db' }}
               />
               <Legend formatter={(v) => {
-                const s = SERIES.find((x) => x.key === v)
+                const s = series.find((x) => x.key === v)
                 return <span style={{ color: '#9ca3af', fontSize: 12 }}>{s?.label ?? v}</span>
               }} />
               <ReferenceLine y={100} stroke="#4b5563" strokeDasharray="4 2" />
@@ -214,7 +332,7 @@ export default function Benchmarks() {
               {merged.filter(d => d.date.slice(5,7) === '12').map(d => (
                 <ReferenceLine key={d.date} x={d.date} stroke="#374151" strokeWidth={1} />
               ))}
-              {SERIES.map(({ key, colour, dash }) => (
+              {series.map(({ key, colour, dash }) => (
                 <Line
                   key={key}
                   type="linear"
@@ -238,7 +356,7 @@ export default function Benchmarks() {
             <thead>
               <tr className="text-gray-500 text-xs uppercase">
                 <th className="text-left pb-3 w-20"></th>
-                {SERIES.map(({ key, label, colour }) => (
+                {series.map(({ key, label, colour }) => (
                   <th key={key} className="text-right pb-3">
                     <span className="flex items-center justify-end gap-1.5">
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: colour }} />
@@ -254,7 +372,7 @@ export default function Benchmarks() {
                   <td className="py-3 text-gray-500 text-xs uppercase tracking-wider">
                     {year}{isYTD ? ' YTD' : ''}
                   </td>
-                  {SERIES.map(({ key }) => {
+                  {series.map(({ key }) => {
                     const v = returns[key]
                     return (
                       <td key={key} className="py-3 text-right font-semibold">
@@ -273,15 +391,15 @@ export default function Benchmarks() {
         </Card>
       )}
 
-      {data && (
+      {perf && (
         <Card title="Sharpe Ratios (annualised, risk-free rate = 0)">
-          <p className="text-xs text-gray-500 mb-4">Trailing windows ending today — fixed, not affected by the start date picker.</p>
+          <p className="text-xs text-gray-500 mb-4">Trailing windows ending today — fixed, not affected by the start date picker.{pelmLastDate && ` PELM Trust figures end at its last valuation (${pelmLastDate}).`}</p>
           <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-gray-500 text-xs uppercase">
                 <th className="text-left pb-3 w-28"></th>
-                {SERIES.map(({ key, label, colour }) => (
+                {series.map(({ key, label, colour }) => (
                   <th key={key} className="text-right pb-3">
                     <span className="flex items-center justify-end gap-1.5">
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: colour }} />
@@ -297,8 +415,8 @@ export default function Benchmarks() {
                   <td className="py-3 text-gray-500 text-xs uppercase tracking-wider">
                     {field === 'trailing_12m' ? '12-month' : '36-month'}
                   </td>
-                  {SERIES.map(({ key }) => {
-                    const v = (data.sharpe[key] as SharpeRatios | undefined)?.[field]
+                  {series.map(({ key }) => {
+                    const v = sharpeFor(key)?.[field]
                     return (
                       <td key={key} className="py-3 text-right font-semibold">
                         {v == null

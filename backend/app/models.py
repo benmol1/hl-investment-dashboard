@@ -73,6 +73,25 @@ class TransactionPage(BaseModel):
     items: list[Transaction]
 
 
+class PelmTransaction(BaseModel):
+    id: str
+    tx_date: date
+    reference: Optional[str]
+    tx_type: str
+    category: str
+    security: str
+    quantity: Optional[float]
+    amount_gbp: Optional[float]
+    notes: str
+
+
+class PelmTransactionPage(BaseModel):
+    total: int
+    page: int
+    per_page: int
+    items: list[PelmTransaction]
+
+
 class HoldingItem(BaseModel):
     holding_type: str = "fund"  # 'fund' or 'cash'
     fund_id: Optional[str] = None

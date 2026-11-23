@@ -5,6 +5,7 @@ import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
 import DateDisplay from '../components/DateDisplay'
 import Cash from '../privacy/Cash'
+import PelmTransactions from '../components/PelmTransactions'
 import type { Account } from '../types'
 
 const TX_TYPES = ['BUY', 'SELL', 'SWITCH_IN', 'SWITCH_OUT', 'CONTRIBUTION', 'FEE', 'INTEREST', 'REBATE', 'TRANSFER', 'OTHER']
@@ -25,9 +26,10 @@ export default function Transactions() {
   const [page, setPage] = useState(1)
   const [account, setAccount] = useState<Account | undefined>()
   const [txType, setTxType] = useState('')
+  const isPelm = account === 'PELM'
 
   const { data, loading, error } = useApi(
-    () => fetchTransactions({ page, per_page: 50, account, type: txType || undefined }),
+    () => (isPelm ? Promise.resolve(null) : fetchTransactions({ page, per_page: 50, account, type: txType || undefined })),
     [page, account, txType],
   )
 
@@ -39,8 +41,8 @@ export default function Transactions() {
 
       <div className="flex flex-wrap gap-3 items-center">
         <div className="flex gap-2 text-sm">
-          {(['All', 'ISA', 'SIPP'] as const).map((opt) => {
-            const acct = opt === 'All' ? undefined : (opt as Account)
+          {(['ISA + SIPP', 'ISA', 'SIPP', 'PELM Trust'] as const).map((opt) => {
+            const acct = opt === 'ISA + SIPP' ? undefined : opt === 'PELM Trust' ? 'PELM' : (opt as Account)
             return (
               <button
                 key={opt}
@@ -57,22 +59,23 @@ export default function Transactions() {
           })}
         </div>
 
-        <select
+        {!isPelm && <select
           value={txType}
           onChange={(e) => { setTxType(e.target.value); setPage(1) }}
           className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-md px-3 py-1 focus:outline-none focus:border-indigo-500"
         >
           <option value="">All types</option>
           {TX_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
+        </select>}
 
-        {data && (
+        {!isPelm && data && (
           <span className="text-sm text-gray-500 ml-auto">
             {data.total.toLocaleString()} transactions
           </span>
         )}
       </div>
 
+      {isPelm ? <PelmTransactions /> : (
       <Card>
         {loading || error ? (
           <StatusMessage loading={loading} error={error} />
@@ -143,6 +146,7 @@ export default function Transactions() {
           </>
         )}
       </Card>
+      )}
     </div>
   )
 }

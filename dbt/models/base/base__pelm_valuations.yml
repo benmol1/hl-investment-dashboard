@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: base__pelm_valuations
+    description: >
+      Typed table over the hand-maintained data/pelm/pelm_monthly.csv (read via the
+      pelm_monthly_source macro; empty if the file is absent): month-end total market value
+      and net external cash flow for the P E L Molyneaux Will Trust (account C070982,
+      managed by Barratt & Cooke). Valuation-level only — no holdings or transactions exist
+      for this account.
+
+      **Grain**: One row per year_month
+      **Source**: data/pelm/pelm_monthly.csv (gitignored; layout in data/examples/pelm_monthly_example.csv)
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [year_month]
+    columns:
+      - name: month_end_date
+        description: "Calendar month-end of the valuation month (e.g. 2025-05-31), matching dim_date and the benchmark series."
+        tests:
+          - not_null
+      - name: valuation_date
+        description: "Date as supplied by Barratt & Cooke (last working day of the month, e.g. 2025-05-30). Kept for traceability."
+        tests:
+          - not_null
+      - name: year_month
+        description: "YYYY-MM string derived from month_end_date. Matches dim_date.year_month."
+        tests:
+          - not_null
+      - name: month_end_value_gbp
+        description: "Total market value of the portfolio on the valuation date."
+        tests:
+          - not_null
+      - name: external_flow_gbp
+        description: "Net money into (+) or out of (-) the trust during the month, excluding trades. Zero when none."
+        tests:
+          - not_null

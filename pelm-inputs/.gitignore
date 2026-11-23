@@ -1,0 +1,4 @@
+# Third-party financial statements — keep the folder, not the contents.
+*
+!.gitignore
+!README.md

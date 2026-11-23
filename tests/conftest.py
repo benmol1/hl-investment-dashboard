@@ -17,7 +17,8 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
         CREATE TABLE dim_account (
             account_key  INTEGER PRIMARY KEY,
-            account_name VARCHAR
+            account_name VARCHAR,
+            data_grain   VARCHAR
         )
     """)
     con.execute("""
@@ -83,6 +84,13 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
         )
     """)
     con.execute("""
+        CREATE TABLE mart_portfolio_snapshot_monthly (
+            account_name        VARCHAR,
+            month_end_date      DATE,
+            month_end_value_gbp DOUBLE
+        )
+    """)
+    con.execute("""
         CREATE TABLE mart_benchmarks_monthly (
             index_id            VARCHAR,
             month_end_date      DATE,
@@ -129,6 +137,20 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
         )
     """)
     con.execute("""
+        CREATE TABLE fct_pelm_transactions (
+            transaction_id VARCHAR,
+            tx_date        DATE,
+            year_month     VARCHAR,
+            reference      VARCHAR,
+            tx_type        VARCHAR,
+            category       VARCHAR,
+            security       VARCHAR,
+            quantity       DOUBLE,
+            amount_gbp     DOUBLE,
+            notes          VARCHAR
+        )
+    """)
+    con.execute("""
         CREATE TABLE fct_transactions (
             transaction_id          VARCHAR,
             account_key             INTEGER,
@@ -151,8 +173,9 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     """)
     con.execute("""
         INSERT INTO dim_account VALUES
-        (1, 'ISA'),
-        (2, 'SIPP')
+        (1, 'ISA',  'daily'),
+        (2, 'SIPP', 'daily'),
+        (3, 'PELM', 'monthly')
     """)
     con.execute("""
         INSERT INTO dim_fund VALUES
@@ -198,7 +221,16 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
         ('2024-01-31', 'ISA',  0.01,  9900.0,  0.0,   0.5,  0.4),
         ('2024-01-31', 'SIPP', 0.015, 4900.0,  0.0,   0.4,  0.3),
         ('2024-02-29', 'ISA',  0.02,  10000.0, 100.0, 0.6,  NULL),
-        ('2024-02-29', 'SIPP', 0.01,  5000.0,   50.0, 0.5,  NULL)
+        ('2024-02-29', 'SIPP', 0.01,  5000.0,   50.0, 0.5,  NULL),
+        ('2024-01-31', 'PELM', 0.05,  1000.0,    0.0,   0.9,  0.8),
+        ('2024-02-29', 'PELM', 0.10,  1050.0,    0.0,   0.9,  NULL)
+    """)
+    con.execute("""
+        INSERT INTO mart_portfolio_snapshot_monthly VALUES
+        ('PELM', '2023-12-31', 1000.0),
+        ('PELM', '2024-01-31', 1050.0),
+        ('PELM', '2024-02-29', 1155.0),
+        ('PELM', '2024-03-31', NULL)
     """)
     con.execute("""
         INSERT INTO mart_benchmarks_monthly VALUES
@@ -212,7 +244,10 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
         INSERT INTO mart_holdings_latest VALUES
         ('Fund Alpha', 'Fund', 'ISA',  105.0, 52.0, 5460.0, 4500.0, 960.0),
-        ('Fund Alpha', 'Fund', 'SIPP',  52.0, 52.0, 2704.0, 2200.0, 504.0)
+        ('Fund Alpha', 'Fund', 'SIPP',  52.0, 52.0, 2704.0, 2200.0, 504.0),
+        -- Cash rows have no fund and no cost basis, as in the real mart
+        (NULL, 'Cash', 'ISA',  NULL, NULL,  500.0, NULL, NULL),
+        (NULL, 'Cash', 'SIPP', NULL, NULL,  250.0, NULL, NULL)
     """)
     con.execute("""
         INSERT INTO fct_cash_position_daily VALUES
@@ -230,6 +265,14 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
         INSERT INTO int_fund_values_daily VALUES
         (1, 1, 50.0),
         (2, 1, 52.0)
+    """)
+    con.execute("""
+        INSERT INTO fct_pelm_transactions VALUES
+        ('P1', '2024-01-10', '2024-01', 'B1', 'BUY',                'trade',            'ACME PLC',  10.0, -500.0, ''),
+        ('P2', '2024-01-15', '2024-01', 'S1', 'SELL',               'trade',            'ACME PLC',   4.0,  250.0, ''),
+        ('P3', '2024-01-20', '2024-01', 'T1', 'DEPOSIT_TRANSFER_OUT','internal_transfer','',        NULL, -250.0, ''),
+        ('P4', '2024-02-01', '2024-02', 'W1', 'WITHDRAWAL',         'external_flow',    '',          NULL, -1000.0, 'BACS Payment'),
+        ('P5', '2024-02-02', '2024-02', 'X1', 'STOCK_TRANSFER_IN',  'external_flow',    'OLD CO',   50.0, NULL, 'in specie')
     """)
     con.execute("""
         INSERT INTO fct_transactions VALUES

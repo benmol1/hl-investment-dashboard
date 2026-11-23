@@ -1,5 +1,5 @@
 import get from './client'
-import type { TransactionPage } from '../types'
+import type { PelmTransactionPage, TransactionPage } from '../types'
 import type { Account } from '../types'
 
 export const fetchTransactions = (opts: {
@@ -11,3 +11,12 @@ export const fetchTransactions = (opts: {
   from?: string
   to?: string
 }) => get<TransactionPage>('/transactions', opts as Record<string, string | number | undefined>)
+
+export const fetchPelmTransactions = (opts: {
+  page?: number
+  per_page?: number
+  type?: string
+  include_internal?: boolean
+  from?: string
+  to?: string
+}) => get<PelmTransactionPage>('/pelm/transactions', opts as Record<string, string | number | boolean | undefined>)

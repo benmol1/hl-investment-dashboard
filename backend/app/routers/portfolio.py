@@ -1,10 +1,10 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 import duckdb
 
-from app.db import get_db
+from app.db import DB_PATH, get_db
 from app.models import (
     TimeSeriesPoint,
     AllocationItem,
@@ -20,14 +20,64 @@ from app.models import (
 
 router = APIRouter()
 
+AccountName = Literal["ISA", "SIPP", "PELM"]
+
+# Hand-maintained PELM files live beside the database, in the bind-mounted data folder.
+PELM_DIR = DB_PATH.parent / "pelm"
+
+# Accounts with full daily holdings/transactions. PELM is month-end valuations only, so it is
+# kept out of the no-filter aggregate (the combined ISA + SIPP view) and out of daily endpoints.
+_DAILY_ACCOUNTS = "SELECT account_name FROM dim_account WHERE data_grain = 'daily'"
+
+
+def _data_grain(
+    con: duckdb.DuckDBPyConnection, account: Optional[str]
+) -> Optional[str]:
+    if not account:
+        return None
+    row = con.execute(
+        "SELECT data_grain FROM dim_account WHERE account_name = ?", [account]
+    ).fetchone()
+    return row[0] if row else None
+
+
+def _require_daily(con: duckdb.DuckDBPyConnection, account: Optional[str]) -> None:
+    """Reject monthly-grain accounts on endpoints that need daily holdings data."""
+    if _data_grain(con, account) == "monthly":
+        raise HTTPException(
+            status_code=400,
+            detail=f"{account} only has month-end valuations; this view is not available at that grain.",
+        )
+
+
+def _account_scope(account: Optional[str]) -> str:
+    """SQL filter for monthly marts: the chosen account, or all daily-grain accounts."""
+    if account:
+        return "AND account_name = ?"
+    return f"AND account_name IN ({_DAILY_ACCOUNTS})"
+
 
 @router.get("/value", response_model=list[TimeSeriesPoint])
 def portfolio_value(
     from_date: date = Query(date(2017, 1, 1), alias="from"),
     to_date: date = Query(default_factory=date.today, alias="to"),
-    account: Optional[Literal["ISA", "SIPP"]] = None,
+    account: Optional[AccountName] = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
+    if _data_grain(con, account) == "monthly":
+        # No daily series exists: return the month-end valuations as-is rather than interpolating.
+        rows = con.execute(
+            """
+            SELECT month_end_date, month_end_value_gbp
+            FROM mart_portfolio_snapshot_monthly
+            WHERE account_name = ? AND month_end_value_gbp IS NOT NULL
+              AND month_end_date BETWEEN ? AND ?
+            ORDER BY month_end_date
+            """,
+            [account, from_date, to_date],
+        ).fetchall()
+        return [TimeSeriesPoint(date=r[0], value_gbp=r[1]) for r in rows]
+
     account_filter = "AND account_name = ?" if account else ""
     params: list = [from_date, to_date]
     if account:
@@ -50,9 +100,10 @@ def portfolio_allocation(
     as_of: Optional[date] = Query(
         None, description="Date to calculate allocation (defaults to latest price date)"
     ),
-    account: Optional[Literal["ISA", "SIPP"]] = None,
+    account: Optional[AccountName] = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
+    _require_daily(con, account)
     if as_of is None:
         result = con.execute(
             "SELECT MAX(dd.date) FROM fct_holdings_daily fdh INNER JOIN dim_date dd ON dd.date_key = fdh.date_key"
@@ -108,9 +159,10 @@ def portfolio_allocation(
 def inflows_vs_growth(
     from_date: date = Query(date(2017, 1, 1), alias="from"),
     to_date: date = Query(default_factory=date.today, alias="to"),
-    account: Optional[Literal["ISA", "SIPP"]] = None,
+    account: Optional[AccountName] = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
+    _require_daily(con, account)
     account_filter = "AND account_name = ?" if account else ""
     params: list = [from_date, to_date]
     if account:
@@ -167,7 +219,7 @@ def contributions_by_financial_year(con: duckdb.DuckDBPyConnection = Depends(get
 def portfolio_performance(
     from_date: date = Query(date(2017, 1, 1), alias="from"),
     to_date: date = Query(default_factory=date.today, alias="to"),
-    account: Optional[Literal["ISA", "SIPP"]] = None,
+    account: Optional[AccountName] = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
     """
@@ -175,7 +227,10 @@ def portfolio_performance(
     at from_date, plus all three benchmark indices indexed to 100 at the same start date.
     Both series use calendar month-end dates.
     """
-    account_filter = "AND account_name = ?" if account else ""
+    # With no account selected, aggregate ISA + SIPP only: PELM is a separate trust and is
+    # compared by selecting it explicitly.
+    account_filter = _account_scope(account)
+    monthly_grain = _data_grain(con, account) == "monthly"
     params: list = [from_date, to_date]
     if account:
         params.append(account)
@@ -209,13 +264,16 @@ def portfolio_performance(
                 index = round(index * (1 + r[1]), 4)
             portfolio_series.append(PerformancePoint(date=r[0], indexed=index))
 
+    # A monthly-grain account (PELM) stops at its last valuation: stop the benchmarks there too.
+    bench_to = return_rows[-1][0] if monthly_grain and return_rows else to_date
+
     def bench_series(index_id: str) -> list[PerformancePoint]:
         rows = con.execute(
             """SELECT month_end_date, month_end_level
                FROM mart_benchmarks_monthly
                WHERE index_id = ? AND month_end_date BETWEEN ? AND ?
                ORDER BY month_end_date""",
-            [index_id, start_date, to_date],
+            [index_id, start_date, bench_to],
         ).fetchall()
         if not rows:
             return []
@@ -234,17 +292,20 @@ def portfolio_performance(
         SUM(trailing_36m_sharpe * prev_month_end_value_gbp)
             / NULLIF(SUM(CASE WHEN trailing_36m_sharpe IS NOT NULL THEN prev_month_end_value_gbp END), 0)
     FROM mart_portfolio_returns_monthly
-    WHERE month_end_date = (SELECT MAX(month_end_date) FROM mart_portfolio_returns_monthly WHERE month_end_date <= ?)
+    WHERE month_end_date = (
+        SELECT MAX(month_end_date) FROM mart_portfolio_returns_monthly
+        WHERE month_end_date <= ? {account_filter}
+    )
     {account_filter}
     """
-    sharpe_params = [to_date] + ([account] if account else [])
+    sharpe_params = [bench_to] + ([account] if account else []) * 2
     ps = con.execute(portfolio_sharpe_sql, sharpe_params).fetchone()
 
     bench_sharpe_rows = con.execute(
         """SELECT index_id, trailing_12m_sharpe, trailing_36m_sharpe
            FROM mart_benchmarks_monthly
            WHERE year_month = (SELECT MAX(year_month) FROM mart_benchmarks_monthly WHERE month_end_date <= ?)""",
-        [to_date],
+        [bench_to],
     ).fetchall()
     bench_sharpe = {
         r[0]: SharpeRatios(trailing_12m=r[1], trailing_36m=r[2])
@@ -270,9 +331,10 @@ def portfolio_performance(
 
 @router.get("/holdings", response_model=list[HoldingItem])
 def portfolio_holdings(
-    account: Optional[Literal["ISA", "SIPP"]] = None,
+    account: Optional[AccountName] = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
+    _require_daily(con, account)
     account_filter = "WHERE mhl.account_name = ?" if account else ""
     params: list = [account] if account else []
 
@@ -376,4 +438,45 @@ def ingest_log_summary(con: duckdb.DuckDBPyConnection = Depends(get_db)):
             last_successful_at=pr_last_successful,
             last_rows_imported_at=pr_last_rows,
         ),
+        *_pelm_ingest_entries(con),
     ]
+
+
+def _pelm_ingest_entries(con: duckdb.DuckDBPyConnection) -> list[IngestLogEntry]:
+    """
+    Ingest-log rows for the PELM Will Trust. It is updated by hand rather than by a scheduled
+    job, so there is no run history: the "run" times are when the source file was last modified.
+    A row is only shown once that part of PELM has data.
+    """
+    sources = [
+        (
+            "pelm_transactions",
+            "SELECT MAX(tx_date) FROM fct_pelm_transactions",
+            PELM_DIR / "pelm_transactions.csv",
+        ),
+        (
+            "pelm_valuations",
+            """SELECT MAX(month_end_date) FROM mart_portfolio_snapshot_monthly
+               WHERE account_name = 'PELM' AND month_end_value_gbp IS NOT NULL""",
+            PELM_DIR / "pelm_monthly.csv",
+        ),
+    ]
+    entries = []
+    for source, sql, path in sources:
+        latest = con.execute(sql).fetchone()[0]
+        if latest is None:
+            continue
+        updated = (
+            datetime.fromtimestamp(path.stat().st_mtime).astimezone()
+            if path.exists()
+            else None
+        )
+        entries.append(
+            IngestLogEntry(
+                source=source,
+                latest_data_date=latest,
+                last_successful_at=updated,
+                last_rows_imported_at=updated,
+            )
+        )
+    return entries

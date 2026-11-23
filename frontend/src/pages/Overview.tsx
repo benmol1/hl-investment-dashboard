@@ -29,10 +29,15 @@ export default function Overview() {
   const fmtCashTooltip = (v: number) => (obscured ? CASH_MASK : fmt.format(v))
 
   const from = dateRangeToFrom(dateRange)
+  const isMonthly = account === 'PELM' // valuation-only account: month-end points, no holdings
   const value = useApi(() => fetchPortfolioValue(from, undefined, account), [from, account])
-  const allocation = useApi(() => fetchAllocation(undefined, account), [account])
+  const allocation = useApi(
+    () => (isMonthly ? Promise.resolve([]) : fetchAllocation(undefined, account)),
+    [account],
+  )
 
-  const latestValue = value.data?.at(-1)?.value_gbp
+  const latestPoint = value.data?.at(-1)
+  const latestValue = latestPoint?.value_gbp
   const lineChartHeight = useChartHeight(220, 320)
   const pieChartHeight = useChartHeight(200, 280)
   const pieRadius = Math.min(pieChartHeight / 2 - 20, 110)
@@ -45,9 +50,12 @@ export default function Overview() {
           {latestValue != null && (
             <p className="text-3xl font-semibold text-indigo-400 mt-1"><Cash>{fmt.format(latestValue)}</Cash></p>
           )}
+          {isMonthly && latestPoint && (
+            <p className="text-xs text-gray-500 mt-1">Will Trust · month-end valuation as at {latestPoint.date}</p>
+          )}
         </div>
         <div className="flex flex-col items-start sm:items-end gap-2">
-          <AccountFilter value={account} onChange={setAccount} />
+          <AccountFilter value={account} onChange={setAccount} includePelm />
           <DateRangeFilter value={dateRange} onChange={setDateRange} />
         </div>
       </div>
@@ -67,12 +75,19 @@ export default function Overview() {
                 contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
                 labelStyle={{ color: '#d1d5db' }}
               />
-              <Line type="linear" dataKey="value_gbp" stroke="#6366f1" dot={false} strokeWidth={2} />
+              <Line type="linear" dataKey="value_gbp" stroke="#6366f1" dot={isMonthly} strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         )}
       </Card>
 
+      {isMonthly ? (
+        <Card title="Current Allocation">
+          <p className="text-sm text-gray-500">
+            Not available — the Will Trust is tracked from month-end valuations only, so there is no fund breakdown.
+          </p>
+        </Card>
+      ) : (
       <Card title="Current Allocation">
         {allocation.loading || allocation.error || !allocation.data?.length ? (
           <StatusMessage loading={allocation.loading} error={allocation.error} empty={!allocation.data?.length} />
@@ -127,6 +142,7 @@ export default function Overview() {
           </div>
         )}
       </Card>
+      )}
     </div>
   )
 }

@@ -174,6 +174,23 @@ docker compose exec -w /app/dbt cron /app/.venv/bin/dbt run --profiles-dir .
 
 **Updating transaction data:** with HL credentials configured, the cron job downloads new CSVs on Sundays at 00:00. Otherwise drop new HL CSV exports into `/srv/hl-dashboard/data/imports/raw_transactions/{ISA,SIPP}/`. Either way the 01:00 daily refresh ingests them.
 
+### Updating PELM Will Trust data
+
+The PELM Will Trust (Barratt & Cooke, account `C070982`) is optional and manual — the quarterly pack arrives by email, not from HL. It shows only when explicitly selected (Overview, Benchmarks, Transactions), never in ISA + SIPP totals.
+
+On the Pi (the `data/` folder is bind-mounted into the containers, so none of this needs an image rebuild):
+
+1. Copy the email attachments into `/srv/hl-dashboard/data/pelm/`. Keep the ledger's filename, `C070982 Ledger statements.pdf`.
+2. Append the new months to `pelm_monthly.csv` in that folder. Columns: `month_end_date,value_gbp,external_flow_gbp`; the flow is positive for money in, negative for money out, blank if none (read any transfer or withdrawal off the ledger PDF). Layout: [`data/examples/pelm_monthly_example.csv`](data/examples/pelm_monthly_example.csv).
+3. Parse the ledger into the transactions file:
+   `docker compose exec cron /app/.venv/bin/python backend/scripts/parse_pelm_ledger.py`
+   It refuses to write unless the ledger balances, writes `pelm_transactions.csv`, and reports any difference between the ledger's external flows and the `external_flow_gbp` you entered in step 2. Fix any reported difference before continuing.
+4. Rebuild the models: `docker compose exec -w /app/dbt cron /app/.venv/bin/dbt build --profiles-dir .`, or wait for the 01:00 refresh.
+
+The parser's `pdfplumber` is installed in the images, so after pulling a change that adds it, run `docker compose up -d --build` once. Locally, the same steps work with the files in `pelm-inputs/` and `data/pelm/`, using `uv run python backend/scripts/parse_pelm_ledger.py`.
+
+The files are read from the bind-mounted `data/` folder. If one is absent that part of PELM is simply left out and the nightly build still passes; a malformed file (e.g. a duplicated month) fails `dbt build` and triggers the usual Telegram alert. Full design: [docs/pelm-integration-plan.md](docs/pelm-integration-plan.md).
+
 ---
 
 ## API Reference

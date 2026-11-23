@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_portfolio_value_default(client):
     r = client.get("/portfolio/value")
     assert r.status_code == 200
@@ -108,13 +111,86 @@ def test_freshness(client):
     assert data["price_date"] is not None
 
 
-def test_ingest_log(client):
+def test_ingest_log(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.portfolio.PELM_DIR", tmp_path
+    )  # no PELM files here
     r = client.get("/portfolio/ingest-log")
     assert r.status_code == 200
     data = r.json()
-    assert len(data) == 2
-    sources = {entry["source"] for entry in data}
-    assert sources == {"transactions", "prices"}
-    for entry in data:
+    hl = [e for e in data if not e["source"].startswith("pelm_")]
+    assert {entry["source"] for entry in hl} == {"transactions", "prices"}
+    for entry in hl:
         assert "latest_data_date" in entry
         assert "last_successful_at" in entry
+
+
+def test_ingest_log_includes_pelm_rows(client, tmp_path, monkeypatch):
+    for name in ("pelm_transactions.csv", "pelm_monthly.csv"):
+        (tmp_path / name).write_text("x\n")
+    monkeypatch.setattr("app.routers.portfolio.PELM_DIR", tmp_path)
+    by_source = {e["source"]: e for e in client.get("/portfolio/ingest-log").json()}
+    # Latest data dates come from the data; run times are the files' modified times.
+    assert by_source["pelm_transactions"]["latest_data_date"] == "2024-02-02"
+    assert by_source["pelm_valuations"]["latest_data_date"] == "2024-02-29"
+    for source in ("pelm_transactions", "pelm_valuations"):
+        assert by_source[source]["last_successful_at"] is not None
+        assert by_source[source]["last_rows_imported_at"] is not None
+
+
+def test_ingest_log_pelm_rows_without_files(client, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.routers.portfolio.PELM_DIR", tmp_path)
+    by_source = {e["source"]: e for e in client.get("/portfolio/ingest-log").json()}
+    assert by_source["pelm_valuations"]["latest_data_date"] == "2024-02-29"
+    assert by_source["pelm_valuations"]["last_successful_at"] is None
+
+
+# --- PELM (monthly-grain account) -------------------------------------------
+
+
+def test_value_pelm_returns_monthly_points(client):
+    r = client.get("/portfolio/value?account=PELM")
+    assert r.status_code == 200
+    data = r.json()
+    # One point per valuation; the NULL month is dropped, nothing interpolated.
+    assert [p["value_gbp"] for p in data] == [1000.0, 1050.0, 1155.0]
+
+
+def test_value_default_excludes_pelm(client):
+    r = client.get("/portfolio/value")
+    assert {p["value_gbp"] for p in r.json()} == {15000.0, 15700.0}
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/portfolio/holdings?account=PELM",
+        "/portfolio/allocation?account=PELM",
+        "/portfolio/inflows?account=PELM",
+    ],
+)
+def test_daily_only_endpoints_reject_pelm(client, path):
+    r = client.get(path)
+    assert r.status_code == 400
+    assert "PELM" in r.json()["detail"]
+
+
+def test_performance_pelm_benchmarks_share_its_dates(client):
+    r = client.get("/portfolio/performance?account=PELM")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["start_date"] == "2024-01-31"
+    assert [p["indexed"] for p in data["portfolio"]] == [100.0, 110.0]
+    # PELM sits on the same calendar month-ends as the benchmarks.
+    assert [p["date"] for p in data["FTSE100"]] == [
+        p["date"] for p in data["portfolio"]
+    ]
+    # PELM's own latest Sharpe row, not the latest row across all accounts.
+    assert data["sharpe"]["portfolio"]["trailing_12m"] == 0.9
+
+
+def test_performance_default_excludes_pelm(client):
+    r = client.get("/portfolio/performance")
+    data = r.json()
+    # ISA + SIPP only: PELM's 10% month would otherwise lift the blended index.
+    assert data["portfolio"][-1]["indexed"] < 103
