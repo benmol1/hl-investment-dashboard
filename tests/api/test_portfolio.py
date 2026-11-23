@@ -153,14 +153,16 @@ def test_daily_only_endpoints_reject_pelm(client, path):
     assert "PELM" in r.json()["detail"]
 
 
-def test_performance_pelm_aligns_benchmarks_by_month(client):
+def test_performance_pelm_benchmarks_share_its_dates(client):
     r = client.get("/portfolio/performance?account=PELM")
     assert r.status_code == 200
     data = r.json()
-    assert data["start_date"] == "2024-01-30"
+    assert data["start_date"] == "2024-01-31"
     assert [p["indexed"] for p in data["portfolio"]] == [100.0, 110.0]
-    # Benchmarks use their own month-end dates (31 Jan / 29 Feb), same two months.
-    assert [p["date"] for p in data["FTSE100"]] == ["2024-01-31", "2024-02-29"]
+    # PELM sits on the same calendar month-ends as the benchmarks.
+    assert [p["date"] for p in data["FTSE100"]] == [
+        p["date"] for p in data["portfolio"]
+    ]
     # PELM's own latest Sharpe row, not the latest row across all accounts.
     assert data["sharpe"]["portfolio"]["trailing_12m"] == 0.9
 

@@ -208,16 +208,15 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
         ('2024-01-31', 'SIPP', 0.015, 4900.0,  0.0,   0.4,  0.3),
         ('2024-02-29', 'ISA',  0.02,  10000.0, 100.0, 0.6,  NULL),
         ('2024-02-29', 'SIPP', 0.01,  5000.0,   50.0, 0.5,  NULL),
-        -- PELM month-end dates deliberately differ by a day from the benchmark dates
-        ('2024-01-30', 'PELM', 0.05,  1000.0,    0.0,   0.9,  0.8),
-        ('2024-02-28', 'PELM', 0.10,  1050.0,    0.0,   0.9,  NULL)
+        ('2024-01-31', 'PELM', 0.05,  1000.0,    0.0,   0.9,  0.8),
+        ('2024-02-29', 'PELM', 0.10,  1050.0,    0.0,   0.9,  NULL)
     """)
     con.execute("""
         INSERT INTO mart_portfolio_snapshot_monthly VALUES
-        ('PELM', '2023-12-29', 1000.0),
-        ('PELM', '2024-01-30', 1050.0),
-        ('PELM', '2024-02-28', 1155.0),
-        ('PELM', '2024-03-28', NULL)
+        ('PELM', '2023-12-31', 1000.0),
+        ('PELM', '2024-01-31', 1050.0),
+        ('PELM', '2024-02-29', 1155.0),
+        ('PELM', '2024-03-31', NULL)
     """)
     con.execute("""
         INSERT INTO mart_benchmarks_monthly VALUES

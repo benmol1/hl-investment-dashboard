@@ -1,4 +1,3 @@
-import calendar
 from datetime import date
 from typing import Optional, Literal
 
@@ -262,13 +261,8 @@ def portfolio_performance(
                 index = round(index * (1 + r[1]), 4)
             portfolio_series.append(PerformancePoint(date=r[0], indexed=index))
 
-    # Monthly-grain accounts stop at their last valuation and their dates can differ by a day
-    # from the benchmark month-ends, so align benchmarks on whole calendar months.
-    bench_from, bench_to = start_date, to_date
-    if monthly_grain and return_rows:
-        last = return_rows[-1][0]
-        bench_from = start_date.replace(day=1)
-        bench_to = last.replace(day=calendar.monthrange(last.year, last.month)[1])
+    # A monthly-grain account (PELM) stops at its last valuation: stop the benchmarks there too.
+    bench_to = return_rows[-1][0] if monthly_grain and return_rows else to_date
 
     def bench_series(index_id: str) -> list[PerformancePoint]:
         rows = con.execute(
@@ -276,7 +270,7 @@ def portfolio_performance(
                FROM mart_benchmarks_monthly
                WHERE index_id = ? AND month_end_date BETWEEN ? AND ?
                ORDER BY month_end_date""",
-            [index_id, bench_from, bench_to],
+            [index_id, start_date, bench_to],
         ).fetchall()
         if not rows:
             return []

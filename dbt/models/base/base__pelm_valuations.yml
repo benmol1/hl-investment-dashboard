@@ -16,7 +16,11 @@ models:
             combination_of_columns: [year_month]
     columns:
       - name: month_end_date
-        description: "Valuation date as supplied (last business day of the month)."
+        description: "Calendar month-end of the valuation month (e.g. 2025-05-31), matching dim_date and the benchmark series."
+        tests:
+          - not_null
+      - name: valuation_date
+        description: "Date as supplied by Barratt & Cooke (last working day of the month, e.g. 2025-05-30). Kept for traceability."
         tests:
           - not_null
       - name: year_month
