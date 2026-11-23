@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_portfolio_value_default(client):
     r = client.get("/portfolio/value")
     assert r.status_code == 200
@@ -118,3 +121,52 @@ def test_ingest_log(client):
     for entry in data:
         assert "latest_data_date" in entry
         assert "last_successful_at" in entry
+
+
+# --- PELM (monthly-grain account) -------------------------------------------
+
+
+def test_value_pelm_returns_monthly_points(client):
+    r = client.get("/portfolio/value?account=PELM")
+    assert r.status_code == 200
+    data = r.json()
+    # One point per valuation; the NULL month is dropped, nothing interpolated.
+    assert [p["value_gbp"] for p in data] == [1000.0, 1050.0, 1155.0]
+
+
+def test_value_default_excludes_pelm(client):
+    r = client.get("/portfolio/value")
+    assert {p["value_gbp"] for p in r.json()} == {15000.0, 15700.0}
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/portfolio/holdings?account=PELM",
+        "/portfolio/allocation?account=PELM",
+        "/portfolio/inflows?account=PELM",
+    ],
+)
+def test_daily_only_endpoints_reject_pelm(client, path):
+    r = client.get(path)
+    assert r.status_code == 400
+    assert "PELM" in r.json()["detail"]
+
+
+def test_performance_pelm_aligns_benchmarks_by_month(client):
+    r = client.get("/portfolio/performance?account=PELM")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["start_date"] == "2024-01-30"
+    assert [p["indexed"] for p in data["portfolio"]] == [100.0, 110.0]
+    # Benchmarks use their own month-end dates (31 Jan / 29 Feb), same two months.
+    assert [p["date"] for p in data["FTSE100"]] == ["2024-01-31", "2024-02-29"]
+    # PELM's own latest Sharpe row, not the latest row across all accounts.
+    assert data["sharpe"]["portfolio"]["trailing_12m"] == 0.9
+
+
+def test_performance_default_excludes_pelm(client):
+    r = client.get("/portfolio/performance")
+    data = r.json()
+    # ISA + SIPP only: PELM's 10% month would otherwise lift the blended index.
+    assert data["portfolio"][-1]["indexed"] < 103

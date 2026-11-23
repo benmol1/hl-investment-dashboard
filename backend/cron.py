@@ -90,7 +90,11 @@ def _monthly_summary() -> str:
             LEFT JOIN mart_portfolio_returns_monthly r
                 ON  r.account_name = s.account_name
                 AND r.year_month   = s.year_month
-            WHERE s.month_end_date = (SELECT MAX(month_end_date) FROM mart_portfolio_snapshot_monthly)
+            WHERE s.account_name IN (SELECT account_name FROM dim_account WHERE data_grain = 'daily')
+              AND s.month_end_date = (
+                SELECT MAX(month_end_date) FROM mart_portfolio_snapshot_monthly
+                WHERE account_name IN (SELECT account_name FROM dim_account WHERE data_grain = 'daily')
+            )
             ORDER BY s.account_name
         """).fetchall()
 
