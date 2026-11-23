@@ -60,7 +60,7 @@ sources:
                 combination_of_columns: [fund_id, date]
 
       - name: benchmarks
-        description: "Daily closing level for FTSE 100, S&P 500, and Nasdaq, sourced from yfinance."
+        description: "Daily closing level for FTSE 100, S&P 500, and Nasdaq 100, sourced from yfinance. Accumulating index ETFs in GBP (see BENCHMARKS in fetch_prices.py), so these are total-return, in the same currency as the portfolio."
         columns:
           - name: index_id
             tests:

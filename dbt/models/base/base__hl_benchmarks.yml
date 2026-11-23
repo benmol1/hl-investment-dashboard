@@ -4,7 +4,7 @@ models:
   - name: base__hl_benchmarks
     description: >
       Base view on daily closing levels for the three benchmark indices (FTSE 100, S&P 500,
-      Nasdaq) sourced from yfinance. The absolute level is stored here; the API applies the
+      Nasdaq 100) sourced from yfinance as accumulating GBP ETFs, so total-return and in GBP. The absolute level is stored here; the API applies the
       indexed-to-100 calculation at query time since the base date varies per request.
 
       **Grain**: One row per (index_id, market_date)

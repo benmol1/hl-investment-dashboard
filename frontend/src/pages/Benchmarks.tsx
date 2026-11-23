@@ -34,7 +34,7 @@ const BENCH_ORDER: Benchmark[] = ['FTSE100', 'SP500', 'NASDAQ']
 const BENCH_DEFS: Record<Benchmark, SeriesDef> = {
   FTSE100: { key: 'FTSE100', label: 'FTSE 100', colour: '#f59e0b', dash: '4 2' },
   SP500: { key: 'SP500', label: 'S&P 500', colour: '#10b981', dash: '4 2' },
-  NASDAQ: { key: 'NASDAQ', label: 'Nasdaq', colour: '#f43f5e', dash: '4 2' },
+  NASDAQ: { key: 'NASDAQ', label: 'Nasdaq 100', colour: '#f43f5e', dash: '4 2' },
 }
 
 const month = (d: string) => d.slice(0, 7)

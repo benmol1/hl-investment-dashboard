@@ -11,7 +11,7 @@ Runs on a Raspberry Pi on the home network, accessible via browser or Telegram f
 - **Portfolio Overview** — total value over time + current allocation (donut + table)
 - **Inflows vs Growth** — stacked area chart separating invested capital from returns
 - **Fund Performance** — per-fund indexed line chart rebased to 100 at first purchase, with benchmark overlay
-- **Benchmark Comparison** — portfolios vs FTSE 100, S&P 500, and Nasdaq, all indexed to a common start; select any combination of accounts and switch each index on or off
+- **Benchmark Comparison** — portfolios vs FTSE 100, S&P 500, and Nasdaq 100 (total return, in GBP, via accumulating index ETFs), all indexed to a common start; select any combination of accounts and switch each index on or off
 - **Holdings Table** — units, price, value, cost basis, unrealised gain/loss; sortable columns; cash rows included
 - **Transaction Log** — paginated, filterable across both accounts
 - **ISA / SIPP filter** — every view can be scoped to a single account or combined
