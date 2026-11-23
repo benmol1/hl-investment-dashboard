@@ -87,7 +87,9 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
         CREATE TABLE mart_portfolio_snapshot_monthly (
             account_name        VARCHAR,
             month_end_date      DATE,
-            month_end_value_gbp DOUBLE
+            month_end_value_gbp DOUBLE,
+            cash_balance_gbp    DOUBLE,
+            invested_value_gbp  DOUBLE
         )
     """)
     con.execute("""
@@ -227,10 +229,10 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     """)
     con.execute("""
         INSERT INTO mart_portfolio_snapshot_monthly VALUES
-        ('PELM', '2023-12-31', 1000.0),
-        ('PELM', '2024-01-31', 1050.0),
-        ('PELM', '2024-02-29', 1155.0),
-        ('PELM', '2024-03-31', NULL)
+        ('PELM', '2023-12-31', 1000.0, NULL,  NULL),
+        ('PELM', '2024-01-31', 1050.0, 200.0, 850.0),
+        ('PELM', '2024-02-29', 1155.0, 300.0, 855.0),
+        ('PELM', '2024-03-31', NULL,   NULL,  NULL)
     """)
     con.execute("""
         INSERT INTO mart_benchmarks_monthly VALUES

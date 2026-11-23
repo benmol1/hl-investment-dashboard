@@ -56,3 +56,11 @@ models:
           Positive = net buyer, negative = net seller. Zero for months with no
           trades. Null for PELM (no fund trades exist). Differs from monthly_inflows_gbp because cash can
           sit uninvested between inflow and deployment.
+      - name: cash_balance_gbp
+        description: >
+          PELM only: cash held at month-end, rebuilt from the ledger (opening balance + cash
+          movements, with the deposit account counted as cash). Null for ISA/SIPP and for months
+          before the ledger starts. Ledger has no dividends, interest or fees, so this can drift
+          slightly from the true figure.
+      - name: invested_value_gbp
+        description: "PELM only: month_end_value_gbp minus cash_balance_gbp. Null where either is null."

@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, BarChart, Bar, Legend,
 } from 'recharts'
 import { useApi } from '../hooks/useApi'
 import { useChartHeight } from '../hooks/useChartHeight'
 import { fetchPortfolioValue, fetchAllocation } from '../api/portfolio'
+import { fetchPelmComposition } from '../api/transactions'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
 import AccountFilter from '../components/AccountFilter'
@@ -33,6 +34,11 @@ export default function Overview() {
   const value = useApi(() => fetchPortfolioValue(from, undefined, account), [from, account])
   const allocation = useApi(
     () => (isMonthly ? Promise.resolve([]) : fetchAllocation(undefined, account)),
+    [account],
+  )
+
+  const composition = useApi(
+    () => (isMonthly ? fetchPelmComposition() : Promise.resolve([])),
     [account],
   )
 
@@ -82,10 +88,27 @@ export default function Overview() {
       </Card>
 
       {isMonthly ? (
-        <Card title="Current Allocation">
-          <p className="text-sm text-gray-500">
-            Not available — the Will Trust is tracked from month-end valuations only, so there is no fund breakdown.
-          </p>
+        <Card title="Investments vs Cash">
+          {composition.loading || composition.error || !composition.data?.length ? (
+            <StatusMessage loading={composition.loading} error={composition.error} empty={!composition.data?.length} />
+          ) : (
+            <ResponsiveContainer width="100%" height={lineChartHeight}>
+              <BarChart data={composition.data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: '#6b7280', fontSize: 11 }} minTickGap={30} />
+                <YAxis tickFormatter={fmtYAxis} tick={{ fill: '#6b7280', fontSize: 11 }} width={80} />
+                <Tooltip
+                  formatter={(v) => fmtCashTooltip(Number(v))}
+                  labelFormatter={(l) => `Month-end: ${l}`}
+                  contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
+                  labelStyle={{ color: '#d1d5db' }}
+                />
+                <Legend />
+                <Bar dataKey="invested_gbp" name="Investments" stackId="a" fill="#6366f1" />
+                <Bar dataKey="cash_gbp" name="Cash" stackId="a" fill="#f59e0b" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
       ) : (
       <Card title="Current Allocation">

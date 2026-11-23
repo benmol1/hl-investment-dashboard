@@ -39,3 +39,11 @@ def test_pelm_transactions_pagination(client):
     r = client.get("/pelm/transactions?per_page=3&page=2")
     data = r.json()
     assert data["total"] == 4 and len(data["items"]) == 1
+
+
+def test_pelm_composition_only_months_with_a_cash_balance(client):
+    data = client.get("/pelm/composition").json()
+    assert [(p["date"], p["cash_gbp"], p["invested_gbp"]) for p in data] == [
+        ("2024-01-31", 200.0, 850.0),
+        ("2024-02-29", 300.0, 855.0),
+    ]

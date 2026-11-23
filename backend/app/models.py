@@ -92,6 +92,12 @@ class PelmTransactionPage(BaseModel):
     items: list[PelmTransaction]
 
 
+class PelmCompositionPoint(BaseModel):
+    date: date
+    cash_gbp: float
+    invested_gbp: float
+
+
 class HoldingItem(BaseModel):
     holding_type: str = "fund"  # 'fund' or 'cash'
     fund_id: Optional[str] = None

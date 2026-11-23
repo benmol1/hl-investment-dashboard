@@ -27,11 +27,12 @@ models:
         description: >
           trade (BUY/SELL), external_flow (money or stock crossing the trust boundary),
           internal_transfer (deposit-account sweeps; net to roughly zero), corporate_action
-          (including cash fractions), other.
+          (including cash fractions), opening_balance (the ledger's starting cash, not a
+          transaction), other.
         tests:
           - accepted_values:
               arguments:
-                values: [trade, external_flow, internal_transfer, corporate_action, other]
+                values: [trade, external_flow, internal_transfer, corporate_action, opening_balance, other]
       - name: security
         description: "Security name, empty for pure cash entries."
       - name: quantity

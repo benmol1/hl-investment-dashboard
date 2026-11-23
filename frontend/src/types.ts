@@ -136,3 +136,9 @@ export interface FinancialYearContribution {
 
 export type Account = 'ISA' | 'SIPP' | 'PELM'
 export type Benchmark = 'FTSE100' | 'SP500' | 'NASDAQ'
+
+export interface PelmCompositionPoint {
+  date: string
+  cash_gbp: number
+  invested_gbp: number
+}

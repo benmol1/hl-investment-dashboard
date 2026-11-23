@@ -16,7 +16,8 @@ external_flow_gbp column of data/pelm/pelm_monthly.csv, and any difference is re
 
 Output columns: tx_date, reference, tx_type, security, quantity, amount_gbp, notes.
 amount_gbp is the cash effect on the ledger: positive for money in, negative for money out,
-blank where there is none (in-specie transfers, corporate actions).
+blank where there is none (in-specie transfers, corporate actions). The first row is the
+OPENING_BALANCE of the cash ledger.
 """
 
 import collections
@@ -244,7 +245,8 @@ def main(argv: list[str]) -> int:
         print(f"Ledger PDF not found (looked in: {looked})", file=sys.stderr)
         return 1
 
-    body, opening, closing, credits, debits = reconcile(read_entries(pdf_path))
+    entries = read_entries(pdf_path)
+    body, opening, closing, credits, debits = reconcile(entries)
     expected_close = round(opening + credits - debits, 2)
     if abs(expected_close - closing) > 0.005:
         print(
@@ -256,6 +258,22 @@ def main(argv: list[str]) -> int:
         return 1
 
     rows = [r for e in body for r in classify(e)]
+    # The opening balance is kept as a row so cash at any month-end can be rebuilt downstream.
+    opening_date = next(
+        e["date"] for e in entries if e["narrative"].startswith("Opening balance")
+    )
+    rows.insert(
+        0,
+        {
+            "tx_date": datetime.strptime(opening_date, "%d-%b-%Y").date().isoformat(),
+            "reference": None,
+            "tx_type": "OPENING_BALANCE",
+            "security": "",
+            "quantity": None,
+            "amount_gbp": opening,
+            "notes": "Ledger opening cash balance",
+        },
+    )
     other = [r for r in rows if r["tx_type"] == "OTHER"]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

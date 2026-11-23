@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 import duckdb
 
 from app.db import get_db
-from app.models import PelmTransaction, PelmTransactionPage
+from app.models import PelmCompositionPoint, PelmTransaction, PelmTransactionPage
 
 router = APIRouter()
 
@@ -21,6 +21,23 @@ PELM_TX_TYPES = {
     "CASH_FRACTION",
     "OTHER",
 }
+
+
+@router.get("/composition", response_model=list[PelmCompositionPoint])
+def pelm_composition(con: duckdb.DuckDBPyConnection = Depends(get_db)):
+    """Month-end split of the trust between cash and investments (ledger months only)."""
+    rows = con.execute(
+        """
+        SELECT month_end_date, cash_balance_gbp, invested_value_gbp
+        FROM mart_portfolio_snapshot_monthly
+        WHERE account_name = 'PELM'
+          AND cash_balance_gbp IS NOT NULL AND invested_value_gbp IS NOT NULL
+        ORDER BY month_end_date
+        """
+    ).fetchall()
+    return [
+        PelmCompositionPoint(date=r[0], cash_gbp=r[1], invested_gbp=r[2]) for r in rows
+    ]
 
 
 @router.get("/transactions", response_model=PelmTransactionPage)
@@ -43,6 +60,7 @@ def list_pelm_transactions(
     filters: list[str] = []
     params: list = []
 
+    filters.append("category <> 'opening_balance'")
     if not include_internal:
         filters.append("category <> 'internal_transfer'")
     if tx_type and tx_type.upper() in PELM_TX_TYPES:

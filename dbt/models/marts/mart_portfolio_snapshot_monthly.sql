@@ -87,6 +87,22 @@ monthly_fund_purchases as (
     inner join {{ ref('dim_date') }} dd on dd.date_key = ft.trade_date_key
     where dtt.trade_indicator = 'Trade'
     group by ft.account_key, dd.year_month
+),
+
+-- PELM cash at each month-end: opening balance plus every cash movement up to that date. Deposit
+-- sweeps are left out because the deposit account is still cash held by the trust (the GIA
+-- ledger itself runs at about zero). Null for months before the ledger starts.
+pelm_cash as (
+    select
+        ams.account_key,
+        ams.year_month,
+        sum(t.amount_gbp) as cash_balance_gbp
+    from account_month_spine ams
+    inner join {{ ref('fct_pelm_transactions') }} t
+        on  t.category <> 'internal_transfer'
+        and t.tx_date <= last_day(cast(ams.year_month || '-01' as date))
+    where ams.data_grain = 'monthly'
+    group by ams.account_key, ams.year_month
 )
 
 select
@@ -99,7 +115,10 @@ select
     -- Null for PELM: there are no fund trades in the model, so zero would be misleading.
     case when ams.data_grain = 'monthly' then null
          else coalesce(mfp.net_fund_purchases_gbp, 0)
-    end                                                as monthly_net_fund_purchases_gbp
+    end                                                as monthly_net_fund_purchases_gbp,
+    -- PELM only; null for the daily-grain accounts.
+    pc.cash_balance_gbp,
+    mev.month_end_value_gbp - pc.cash_balance_gbp      as invested_value_gbp
 from account_month_spine ams
 left join month_end_values mev
     on  mev.account_key = ams.account_key
@@ -110,3 +129,6 @@ left join monthly_inflows mi
 left join monthly_fund_purchases mfp
     on  mfp.account_key = ams.account_key
     and mfp.year_month  = ams.year_month
+left join pelm_cash pc
+    on  pc.account_key = ams.account_key
+    and pc.year_month  = ams.year_month

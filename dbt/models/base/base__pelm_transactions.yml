@@ -27,12 +27,13 @@ models:
         description: >
           BUY, SELL, CASH_TRANSFER_IN (cash from the deceased's accounts), WITHDRAWAL (BACS out),
           DEPOSIT_TRANSFER_IN / DEPOSIT_TRANSFER_OUT (sweeps to and from the deposit account),
-          STOCK_TRANSFER_IN (in-specie), CORPORATE_ACTION, CASH_FRACTION, OTHER.
+          STOCK_TRANSFER_IN (in-specie), CORPORATE_ACTION, CASH_FRACTION, OTHER, and
+          OPENING_BALANCE (one row: the ledger's opening cash balance).
         tests:
           - not_null
           - accepted_values:
               arguments:
-                values: [BUY, SELL, CASH_TRANSFER_IN, WITHDRAWAL, DEPOSIT_TRANSFER_IN, DEPOSIT_TRANSFER_OUT, STOCK_TRANSFER_IN, CORPORATE_ACTION, CASH_FRACTION, OTHER]
+                values: [BUY, SELL, CASH_TRANSFER_IN, WITHDRAWAL, DEPOSIT_TRANSFER_IN, DEPOSIT_TRANSFER_OUT, STOCK_TRANSFER_IN, CORPORATE_ACTION, CASH_FRACTION, OPENING_BALANCE, OTHER]
       - name: security
         description: "Security name as printed on the ledger (truncated by the custodian). Empty for pure cash entries."
         tests:

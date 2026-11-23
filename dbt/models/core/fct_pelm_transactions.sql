@@ -11,6 +11,7 @@ select
         when tx_type in ('CASH_TRANSFER_IN', 'WITHDRAWAL', 'STOCK_TRANSFER_IN') then 'external_flow'
         when tx_type in ('DEPOSIT_TRANSFER_IN', 'DEPOSIT_TRANSFER_OUT')      then 'internal_transfer'
         when tx_type in ('CORPORATE_ACTION', 'CASH_FRACTION')                then 'corporate_action'
+        when tx_type = 'OPENING_BALANCE'                                     then 'opening_balance'
         else 'other'
     end                                                                         as category,
     security,
