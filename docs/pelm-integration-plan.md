@@ -152,10 +152,11 @@ Sign convention matches `monthly_inflows_gbp`: positive in, negative out.
 
 ### 3.5 Validation
 
-One check, asserting the chain-linked TWR over the full seed reproduces the figure agreed
-with B&C (currently 23.4%, pending §6 question 1). It catches the three realistic failure
-modes of a hand-maintained file: a flipped flow sign, a missed withdrawal, and a duplicated
-month.
+~~One check asserting the chain-linked TWR reproduces the figure agreed with B&C.~~ **Dropped
+(2026-11-23).** The failure modes it targeted — a flipped flow sign, a missed withdrawal, a
+duplicated month — are covered more directly: the ledger parser reconciles its external flows
+against `external_flow_gbp`, and dbt tests enforce unique and non-null months. The remaining gap
+(a mistyped valuation) wasn't worth a check pinned to a figure that is still unexplained.
 
 ---
 

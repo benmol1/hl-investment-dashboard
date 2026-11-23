@@ -2,7 +2,7 @@
 
 *Feature-scoped list. Main project to-dos live in [TODO.md](../TODO.md).*
 *Phases 1–2 done and loaded with real data (33 months). Chain-linked return 18.81%, matching the plan's 18.8%. Note March 2026: −9.1% with no ledger flow — worth asking B&C.*
-*Plan: [docs/pelm-integration-plan.md](pelm-integration-plan.md) · Last updated: 2026-09-11*
+*Plan: [docs/pelm-integration-plan.md](pelm-integration-plan.md) · Last updated: 2026-11-23*
 
 ---
 
@@ -11,9 +11,9 @@
 - [ ] Email Alastair: do the month-end valuations include accrued/uninvested income, or is income swept to the deposit account? (decides whether PELM returns are comparable to ISA/SIPP — see plan §1 finding 3)
 - [ ] Email Alastair: request the deposit account ledger (16 transfers went into it, no visibility)
 - [ ] Email Alastair: confirm the valuations file will keep arriving quarterly in the same two-column format
-- [ ] Once answered, agree the reference total-return figure the validation check asserts against (currently 23.4%)
+- [x] ~~Agree the reference total-return figure for a validation check~~ — dropped, see Phase 4
 
-*Phases 1–4 can start before these land; only the validation check in Phase 4 is truly blocked.*
+*The three emails are still worth sending before the PELM comparison is relied on or published: the first answers the 18.8% vs 23.4% gap.*
 
 ---
 
@@ -47,21 +47,21 @@
 
 ## Phase 3 — Backend
 
-- [ ] Widen `Optional[Literal["ISA", "SIPP"]]` to include `"PELM"` across the five signatures in `backend/app/routers/portfolio.py`
-- [ ] Read `data_grain` from `dim_account` and return an explicit "not available at this grain" response for PELM on `/portfolio/holdings`, `/portfolio/allocation` and the daily value series
-- [ ] Leave PELM out of `/portfolio/contributions` (hardcoded ISA/SIPP columns at `portfolio.py:150`) — trust, not a contribution account
-- [ ] Check the aggregate (no-account-filter) paths still behave now a third account exists — especially the BMV-weighted returns aggregation
-- [ ] Check the Telegram bot's semantic layer surfaces PELM sensibly, and that `query_database` mart/dim restrictions still hold
+- [x] Widen `Optional[Literal["ISA", "SIPP"]]` to include `"PELM"` across the five signatures in `backend/app/routers/portfolio.py`
+- [x] Read `data_grain` from `dim_account` and return an explicit "not available at this grain" response for PELM on `/portfolio/holdings`, `/portfolio/allocation` and the daily value series
+- [x] Leave PELM out of `/portfolio/contributions` (hardcoded ISA/SIPP columns at `portfolio.py:150`) — trust, not a contribution account
+- [x] Check the aggregate (no-account-filter) paths still behave now a third account exists — especially the BMV-weighted returns aggregation (decision: the no-account aggregate is ISA + SIPP only; PELM appears only when selected)
+- [x] Check the Telegram bot's semantic layer surfaces PELM sensibly, and that `query_database` mart/dim restrictions still hold (named tools stay ISA/SIPP; PELM reachable via `query_database`, mentioned in the system prompt; monthly summary excludes PELM)
 
 ---
 
 ## Phase 4 — Frontend & validation
 
-- [ ] Add PELM to the account selector on Overview and Benchmarks
-- [ ] Render PELM as a monthly step/point series on the value chart (not an interpolated daily line)
-- [ ] Hide or disable PELM on Holdings, Transactions, Fund Performance, FY Contributions
-- [ ] Write the single validation check: chain-linked TWR over the full file reproduces the agreed reference figure (blocked on Phase 0)
-- [ ] Run `uv run ruff format .` and `uv run ruff check . --fix`
+- [x] Add PELM to the account selector on Overview and Benchmarks (explicit opt-in only; Benchmarks supports multi-select and benchmark toggles)
+- [x] Render PELM as a monthly step/point series on the value chart (not an interpolated daily line)
+- [x] Hide or disable PELM on Holdings, Fund Performance, FY Contributions (Transactions later got its own PELM ledger view, Phase 6)
+- [x] ~~Write the single validation check~~ — **dropped (2026-11-23):** its failure modes are covered by the parser's flow reconciliation against the ledger and the dbt uniqueness / not-null tests
+- [x] Ran ruff format/check over all changed Python (the repo has older unformatted files, e.g. `backend/cron.py`, left alone)
 
 ---
 
