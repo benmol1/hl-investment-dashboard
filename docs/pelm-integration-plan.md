@@ -145,7 +145,7 @@ Sign convention matches `monthly_inflows_gbp`: positive in, negative out.
 ### 3.4 Frontend
 
 - **Shows PELM:** Overview, Benchmarks, returns/Sharpe comparisons.
-- **Transactions:** added later as a separate ledger view (to-do Phase 6) — trades and cash movements only.
+- **Transactions:** a separate ledger view (to-do Phase 6) — trades and cash movements only. Parsed from the ledger PDF into `data/pelm/pelm_transactions.csv`, modelled as `fct_pelm_transactions`, served at `/pelm/transactions` and shown behind a PELM Trust toggle on the Transactions page. Deposit-account sweeps are hidden unless asked for.
 - **Excludes PELM:** Holdings, Fund Performance, FY Contributions.
 - The Overview value chart is daily for ISA/SIPP and monthly for PELM — render PELM as a
   monthly step/point series rather than interpolating a daily line it doesn't have.
@@ -178,7 +178,7 @@ rather than fail nightly on unchanged data.
 |---|---|---|
 | Security-level PELM holdings | No valued position data exists in the source | B&C can supply a machine-readable position file |
 | Parsing the costs/charges PDFs | Modified Dietz over net valuations already has fees baked in; extracting them buys only a fee-attribution view | A fee comparison vs HL is explicitly wanted |
-| Ledger PDF *parser* | Transcribe once by hand instead (see Phase 6 in the to-do); no automated parser | Flow frequency rises materially |
+| ~~Ledger PDF parser~~ | **Now built** (`backend/scripts/parse_pelm_ledger.py`, Phase 6): word-position parsing is reliable, and the ledger reconciles to the penny. `pdfplumber` is a main dependency, so it runs in the cron container too | — |
 | PELM in the nightly cron | Source updates quarterly, by email, by hand | Never, realistically |
 
 ---

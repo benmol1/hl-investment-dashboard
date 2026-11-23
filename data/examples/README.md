@@ -28,3 +28,7 @@ Normally downloaded by `download_transactions.py` or exported from HL. Format: 5
 ## `pelm_monthly_example.csv`
 
 Layout for the PELM Will Trust valuations file, which lives at `data/pelm/pelm_monthly.csv` (gitignored). Columns: `month_end_date`, `value_gbp`, `external_flow_gbp` — the flow is positive for money in, negative for money out, blank if none. dbt reads it during `dbt build` (run from the `dbt/` directory); there is no seed step. See [docs/pelm-integration-plan.md](../../docs/pelm-integration-plan.md).
+
+## `pelm_transactions_example.csv`
+
+Layout of `data/pelm/pelm_transactions.csv` (gitignored), which is generated — not hand-written — by `backend/scripts/parse_pelm_ledger.py` from the Barratt & Cooke ledger PDF, on the laptop or inside the cron container. `amount_gbp` is the cash effect on the ledger (positive in, negative out, blank if none).

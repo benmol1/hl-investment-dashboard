@@ -67,21 +67,21 @@
 
 ## Phase 5 — Process
 
-- [x] Document the quarterly update steps in `README.md`
+- [x] Document the quarterly update steps in `README.md` (now all on the Pi; one image rebuild needed after deploying the `pdfplumber` dependency)
 - [x] Confirm the nightly cron does not fail on PELM: `dbt build` reads the bind-mounted file, and is verified to pass with the file present and absent
 - [x] `pelm-inputs/` is gitignored (only its README and `.gitignore` are tracked)
 
 ---
 
-## Phase 6 — PELM transactions view (added 2026-11-23)
+## Phase 6 — PELM transactions view (built 2026-11-23)
 
-Follows the monthly snapshot. Needs the ledger PDF. Caveats: no dividends/fees in the ledger; in-specie transfers have quantity but no value; text extraction shuffles debit/credit columns — read the PDF visually and check against the running balance.
+Caveats shown on the page: no dividends/fees in the ledger; in-specie transfers have quantity but no value; ledger omits the deposit account.
 
-- [ ] Transcribe the ledger to a gitignored `data/pelm/pelm_transactions.csv` (same macro pattern as the valuations) (date, type, security, quantity, amount_gbp)
-- [ ] Add `fct_pelm_transactions` (separate from HL's `fct_transactions`)
-- [ ] Derive `external_flow_gbp` from transfer/withdrawal rows and reconcile against the hand-entered flow column
-- [ ] Backend: account toggle on `/transactions` with PELM column set
-- [ ] Frontend: Transactions page toggle; note "trades and cash movements only"
+- [x] Parse the ledger PDF by word position (`backend/scripts/parse_pelm_ledger.py`; `pdfplumber` is a main dependency so it also runs in the cron container, with the PDF dropped into `data/pelm/`) into gitignored `data/pelm/pelm_transactions.csv`; refuses to write unless opening + credits − debits = closing (verified: 132 rows, £817,243.38 each side)
+- [x] Add `base__pelm_transactions` and `fct_pelm_transactions` (separate from HL's `fct_transactions`), via the same tolerant macro
+- [x] Reconcile ledger external flows against the hand-entered `external_flow_gbp` (done by the script; currently agree)
+- [x] Backend: `/pelm/transactions` (deposit sweeps hidden unless `include_internal`)
+- [x] Frontend: PELM Trust toggle on the Transactions page with its own columns and caveat note
 
 ## Deferred — do not do yet
 
