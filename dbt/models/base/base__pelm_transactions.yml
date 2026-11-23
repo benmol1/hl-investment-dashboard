@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: base__pelm_transactions
+    description: >
+      Typed table over data/pelm/pelm_transactions.csv: the GIA cash ledger for the P E L
+      Molyneaux Will Trust (account C070982, Barratt & Cooke), parsed from the ledger PDF by
+      backend/scripts/parse_pelm_ledger.py. Empty if the file is absent.
+
+      The ledger has no dividends or fees, and in-specie stock transfers carry a quantity but no
+      value.
+
+      **Grain**: One row per ledger line (a stock transfer in produces one row per security)
+      **Source**: data/pelm/pelm_transactions.csv (gitignored)
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [reference, tx_type, security]
+    columns:
+      - name: tx_date
+        description: "Ledger (tax) date."
+        tests:
+          - not_null
+      - name: reference
+        description: "Barratt & Cooke ledger reference."
+      - name: tx_type
+        description: >
+          BUY, SELL, CASH_TRANSFER_IN (cash from the deceased's accounts), WITHDRAWAL (BACS out),
+          DEPOSIT_TRANSFER_IN / DEPOSIT_TRANSFER_OUT (sweeps to and from the deposit account),
+          STOCK_TRANSFER_IN (in-specie), CORPORATE_ACTION, CASH_FRACTION, OTHER.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [BUY, SELL, CASH_TRANSFER_IN, WITHDRAWAL, DEPOSIT_TRANSFER_IN, DEPOSIT_TRANSFER_OUT, STOCK_TRANSFER_IN, CORPORATE_ACTION, CASH_FRACTION, OTHER]
+      - name: security
+        description: "Security name as printed on the ledger (truncated by the custodian). Empty for pure cash entries."
+        tests:
+          - not_null
+      - name: quantity
+        description: "Number of shares/units, where the entry has one."
+      - name: amount_gbp
+        description: "Cash effect on the ledger: positive for money in, negative for money out. Null for in-specie transfers and corporate actions."
+      - name: notes
+        description: "Extra detail from the ledger (FX rate, source account, corporate action wording)."
+        tests:
+          - not_null
