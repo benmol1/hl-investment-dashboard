@@ -89,7 +89,7 @@ identical; only the maintenance burden differs.
 
 ### 3.1 Input file
 
-`dbt/seeds/pelm_monthly.csv` — three columns, hand-maintained:
+`data/pelm/pelm_monthly.csv` — three columns, hand-maintained:
 
     month_end_date,value_gbp,external_flow_gbp
     2023-09-29,683050.47,
@@ -106,11 +106,15 @@ Sign convention matches `monthly_inflows_gbp`: positive in, negative out.
 
 ### 3.2 dbt
 
-> **As built:** the seed lives in `dbt/seeds/` (dbt only reads seeds from there) and is gitignored because it holds personal valuations. `dim_account` derives the PELM row from the seed, so an empty seed leaves ISA/SIPP output unchanged. `int_cash_values_daily` now filters to `data_grain = 'daily'`, otherwise PELM would get a daily cash spine. The snapshot spine for PELM stops at its last valuation month.
+> **As built:** not a dbt seed. The cron image bakes `dbt/` in at build time, and a seed would be
+> gitignored (personal data) and so missing on the Pi. Instead the `pelm_monthly_source` macro reads
+> `data/pelm/pelm_monthly.csv` from the bind-mounted data folder, returning an empty table if the
+> file is absent so the nightly `dbt build` can't fail on it. `base__pelm_valuations` maps the
+> supplied dates onto calendar month-ends. `dim_account` derives the PELM row from that table, so
+> no file means no PELM. `int_cash_values_daily` filters to `data_grain = 'daily'`, otherwise PELM
+> would get a daily cash spine. The snapshot spine for PELM stops at its last valuation month.
 
-- Load `pelm_monthly.csv` as a **dbt seed** — the same mechanism already used for
-  `dim_date`, no new code path, and it keeps the file version-controlled alongside the
-  models.
+- Read `pelm_monthly.csv` through the `pelm_monthly_source` macro (see the note above).
 - `base__pelm_valuations` — typed view over the seed (dates cast, columns renamed),
   consistent with the existing base layer convention.
 - `dim_account` — add a third row `PELM`, `account_open_date = 2023-09-29`, plus a new
@@ -159,9 +163,9 @@ month.
 
 1. Quarterly email arrives from Barratt & Cooke.
 2. Save attachments into `pelm-inputs/`.
-3. Append the new month rows to `dbt/seeds/pelm_monthly.csv`, adding any withdrawal or
+3. Append the new month rows to `data/pelm/pelm_monthly.csv`, adding any withdrawal or
    transfer read off the ledger.
-4. `dbt seed --profiles-dir .` then `dbt run --profiles-dir .`
+4. `dbt build --profiles-dir .` (or wait for the nightly run)
 
 Not wired into the nightly cron — PELM is manual by nature, and the cron job should skip it
 rather than fail nightly on unchanged data.

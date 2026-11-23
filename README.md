@@ -174,6 +174,16 @@ docker compose exec -w /app/dbt cron /app/.venv/bin/dbt run --profiles-dir .
 
 **Updating transaction data:** with HL credentials configured, the cron job downloads new CSVs on Sundays at 00:00. Otherwise drop new HL CSV exports into `/srv/hl-dashboard/data/imports/raw_transactions/{ISA,SIPP}/`. Either way the 01:00 daily refresh ingests them.
 
+### Updating PELM Will Trust data
+
+The PELM Will Trust (Barratt & Cooke, account `C070982`) is optional and manual — the quarterly pack arrives by email, not from HL. It shows only when explicitly selected (Overview, Benchmarks), never in ISA + SIPP totals.
+
+1. Save the email attachments into `pelm-inputs/` (gitignored).
+2. Append the new months to `data/pelm/pelm_monthly.csv` — on the Pi, `/srv/hl-dashboard/data/pelm/pelm_monthly.csv`. Columns: `month_end_date,value_gbp,external_flow_gbp`; the flow is positive for money in, negative for money out, blank if none (read any transfer or withdrawal off the ledger PDF). Layout: [`data/examples/pelm_monthly_example.csv`](data/examples/pelm_monthly_example.csv).
+3. Run `docker compose exec -w /app/dbt cron /app/.venv/bin/dbt build --profiles-dir .`, or wait for the 01:00 refresh. No rebuild is needed.
+
+The file is read from the bind-mounted `data/` folder. If it is absent PELM is simply left out and the nightly build still passes; a malformed file (e.g. a duplicated month) fails `dbt build` and triggers the usual Telegram alert. Full design: [docs/pelm-integration-plan.md](docs/pelm-integration-plan.md).
+
 ---
 
 ## API Reference

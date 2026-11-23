@@ -19,8 +19,8 @@ data/imports/**/*.csv
 # Exception: dates.csv contains no personal data
 !data/imports/dates.csv
 
-# PELM Will Trust valuations seed — personal financial data, never commit
-dbt/seeds/pelm_monthly.csv
+# PELM Will Trust valuations — personal financial data, never commit
+data/pelm/*.csv
 
 # Node / frontend (added when frontend is built)
 node_modules/

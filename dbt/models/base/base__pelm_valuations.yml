@@ -3,13 +3,14 @@ version: 2
 models:
   - name: base__pelm_valuations
     description: >
-      Typed view over the hand-maintained pelm_monthly seed: month-end total market value
+      Typed table over the hand-maintained data/pelm/pelm_monthly.csv (read via the
+      pelm_monthly_source macro; empty if the file is absent): month-end total market value
       and net external cash flow for the P E L Molyneaux Will Trust (account C070982,
       managed by Barratt & Cooke). Valuation-level only — no holdings or transactions exist
       for this account.
 
       **Grain**: One row per year_month
-      **Source**: seed pelm_monthly
+      **Source**: data/pelm/pelm_monthly.csv (gitignored; layout in data/examples/pelm_monthly_example.csv)
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

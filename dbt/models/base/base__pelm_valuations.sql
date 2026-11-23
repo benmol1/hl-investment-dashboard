@@ -1,4 +1,6 @@
-{{ config(materialized='view') }}
+-- A table, not a view: the source is read from a relative file path, which a view would
+-- re-resolve against whatever directory later queries it from.
+{{ config(materialized='table') }}
 
 -- Barratt & Cooke date valuations on the last working day of the month. Everything else in the
 -- model (dim_date, benchmarks, the HL accounts) uses calendar month-ends, so map onto those. A
@@ -10,4 +12,4 @@ select
     cast(value_gbp as double)                       as month_end_value_gbp,
     coalesce(cast(external_flow_gbp as double), 0)  as external_flow_gbp
 
-from {{ ref('pelm_monthly') }}
+from ({{ pelm_monthly_source() }}) as pelm

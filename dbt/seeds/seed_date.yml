@@ -3,18 +3,3 @@ version: 2
 seeds:
   - name: seed_date
     description: "Raw date dimension CSV covering 2016 onwards. Loaded via dbt seed; consumed by core/dim_date."
-
-  - name: pelm_monthly
-    description: >
-      Hand-maintained month-end valuations for the P E L Molyneaux Will Trust (Barratt & Cooke
-      account C070982). Gitignored — contains personal financial data. Copy the layout from
-      data/examples/pelm_monthly_example.csv.
-
-      **Grain**: One row per month-end valuation date
-      **Sign convention**: external_flow_gbp is positive for money in, negative for money out.
-      Leave blank when there was no external flow in the month.
-    config:
-      column_types:
-        month_end_date: date
-        value_gbp: double
-        external_flow_gbp: double

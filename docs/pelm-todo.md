@@ -19,22 +19,22 @@
 
 ## Phase 1 — Input file
 
-- [x] Create the seed `dbt/seeds/pelm_monthly.csv` (moved from `data/imports/` — dbt reads seeds from `dbt/seeds/`; gitignored as personal data) with columns `month_end_date,value_gbp,external_flow_gbp`. Currently header-only; example layout in `data/examples/pelm_monthly_example.csv`
+- [x] Create `data/pelm/pelm_monthly.csv` (gitignored; read by a macro, not a dbt seed — see plan §3.2) with columns `month_end_date,value_gbp,external_flow_gbp`. Holds the 33 real months; example layout in `data/examples/pelm_monthly_example.csv`
 - [x] Convert all 33 rows from `pelm-inputs/C070982 End of Month Valuations.xlsx`
 - [x] Add external flows read off the ledger PDF:
   - [x] 2023-10-31 → `+4774.78` (transfers from C028801 / M028801, 24 Oct 2023)
   - [x] 2025-05-30 → `-157000.00` (BACS Payment *3850, 21 May 2025)
   - [x] Re-scan the ledger (done: only other external items are the 21 Sep 2023 cash and in-specie transfers, before the first valuation) for any flow missed — everything else should be internal (trades, deposit transfers) and net to zero
 - [x] Decide whether the £20,679.81 (confirmed: 21 Sep is before the 29 Sep opening valuation, so it is inside it; no flow row) transfer of 21 Sep 2023 is inside the 29 Sep opening valuation (it should be — confirm, don't double-count)
-- [x] Sign convention (positive in, negative out) recorded in the seed's yml description
+- [x] Sign convention (positive in, negative out) recorded in `data/pelm/README.md` and the example README
 - [x] Mention `pelm_monthly.csv` in `data/examples/README.md`
 
 ---
 
 ## Phase 2 — dbt
 
-- [x] Register `pelm_monthly.csv` as a dbt seed (same pattern as `seed_date.csv`)
-- [x] Add `dbt/models/base/base__pelm_valuations.sql` + `.yml` — typed view over the seed
+- [x] Load `pelm_monthly.csv` via the `pelm_monthly_source` macro (empty table if the file is absent)
+- [x] Add `dbt/models/base/base__pelm_valuations.sql` + `.yml` — typed table over the CSV
 - [x] Add `PELM` row to `dim_account` with `account_open_date = 2023-09-29`
 - [x] Add `data_grain` column to `dim_account` (`'daily'` for ISA/SIPP, `'monthly'` for PELM)
 - [x] Add PELM union CTE to `mart_portfolio_snapshot_monthly` (`value_gbp` → `month_end_value_gbp`, `external_flow_gbp` → `monthly_inflows_gbp`, null net fund purchases)
@@ -60,16 +60,16 @@
 - [ ] Add PELM to the account selector on Overview and Benchmarks
 - [ ] Render PELM as a monthly step/point series on the value chart (not an interpolated daily line)
 - [ ] Hide or disable PELM on Holdings, Transactions, Fund Performance, FY Contributions
-- [ ] Write the single validation check: chain-linked TWR over the full seed reproduces the agreed reference figure (blocked on Phase 0)
+- [ ] Write the single validation check: chain-linked TWR over the full file reproduces the agreed reference figure (blocked on Phase 0)
 - [ ] Run `uv run ruff format .` and `uv run ruff check . --fix`
 
 ---
 
 ## Phase 5 — Process
 
-- [ ] Document the quarterly update steps in `README.md` (or link to plan §4)
-- [ ] Confirm the nightly cron skips PELM and does not fail on unchanged data
-- [ ] Decide whether `pelm-inputs/` should be gitignored (contains third-party financial statements)
+- [x] Document the quarterly update steps in `README.md`
+- [x] Confirm the nightly cron does not fail on PELM: `dbt build` reads the bind-mounted file, and is verified to pass with the file present and absent
+- [x] `pelm-inputs/` is gitignored (only its README and `.gitignore` are tracked)
 
 ---
 
@@ -77,9 +77,9 @@
 
 Follows the monthly snapshot. Needs the ledger PDF. Caveats: no dividends/fees in the ledger; in-specie transfers have quantity but no value; text extraction shuffles debit/credit columns — read the PDF visually and check against the running balance.
 
-- [ ] Transcribe the ledger to a gitignored `dbt/seeds/pelm_transactions.csv` (date, type, security, quantity, amount_gbp)
+- [ ] Transcribe the ledger to a gitignored `data/pelm/pelm_transactions.csv` (same macro pattern as the valuations) (date, type, security, quantity, amount_gbp)
 - [ ] Add `fct_pelm_transactions` (separate from HL's `fct_transactions`)
-- [ ] Derive `external_flow_gbp` from transfer/withdrawal rows and reconcile against the hand-entered seed column
+- [ ] Derive `external_flow_gbp` from transfer/withdrawal rows and reconcile against the hand-entered flow column
 - [ ] Backend: account toggle on `/transactions` with PELM column set
 - [ ] Frontend: Transactions page toggle; note "trades and cash movements only"
 
