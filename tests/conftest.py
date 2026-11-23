@@ -230,7 +230,10 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
         INSERT INTO mart_holdings_latest VALUES
         ('Fund Alpha', 'Fund', 'ISA',  105.0, 52.0, 5460.0, 4500.0, 960.0),
-        ('Fund Alpha', 'Fund', 'SIPP',  52.0, 52.0, 2704.0, 2200.0, 504.0)
+        ('Fund Alpha', 'Fund', 'SIPP',  52.0, 52.0, 2704.0, 2200.0, 504.0),
+        -- Cash rows have no fund and no cost basis, as in the real mart
+        (NULL, 'Cash', 'ISA',  NULL, NULL,  500.0, NULL, NULL),
+        (NULL, 'Cash', 'SIPP', NULL, NULL,  250.0, NULL, NULL)
     """)
     con.execute("""
         INSERT INTO fct_cash_position_daily VALUES
