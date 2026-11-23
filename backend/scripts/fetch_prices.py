@@ -1,6 +1,8 @@
 """
 Fetch daily NAV prices for all funds in the database and store in the prices table.
-Also fetches benchmark index levels (FTSE 100, S&P 500, Nasdaq) via yfinance.
+Also fetches benchmark levels (FTSE 100, S&P 500, Nasdaq 100) via yfinance, using accumulating
+index ETFs quoted in GBP so the benchmarks are total-return and in the same currency as the
+portfolio (the raw indices exclude dividends and the US ones are in dollars).
 
 Morningstar note:
     Fund prices are fetched from Morningstar's unofficial JSON API using the
@@ -50,10 +52,13 @@ DB_PATH = ROOT / "data" / "hl_dashboard.duckdb"
 MORNINGSTAR_API_TOKEN = os.getenv("MORNINGSTAR_API_TOKEN", "9vehuxllxs")
 MORNINGSTAR_BASE = f"https://lt.morningstar.com/api/rest.svc/timeseries_price/{MORNINGSTAR_API_TOKEN}"
 
+# Accumulating ETFs (dividends reinvested, so the price is already a total return) on their GBP
+# lines on the LSE, all with history back to Jan 2017. Don't swap in a distributing ETF: Yahoo
+# back-adjusts its history for every dividend, which would invalidate levels stored earlier.
 BENCHMARKS = [
-    ("FTSE100", "^FTSE"),
-    ("SP500", "^GSPC"),
-    ("NASDAQ", "^IXIC"),
+    ("FTSE100", "CUKX.L"),  # iShares Core FTSE 100 GBP Acc
+    ("SP500", "CSP1.L"),  # iShares Core S&P 500 UCITS ETF (Acc), GBP line
+    ("NASDAQ", "CNX1.L"),  # iShares NASDAQ 100 UCITS ETF (Acc), GBP line
 ]
 
 # Polite delay between Morningstar requests to avoid rate-limiting
@@ -162,6 +167,13 @@ def fetch_benchmarks(
     total_inserted = 0
 
     for index_id, ticker in BENCHMARKS:
+        # Levels from a different ticker aren't comparable: drop them so the series refetches.
+        stale = con.execute(
+            "DELETE FROM benchmarks WHERE index_id = ? AND ticker IS DISTINCT FROM ? RETURNING 1",
+            (index_id, ticker),
+        ).fetchall()
+        if stale:
+            print(f"  {index_id}: dropped {len(stale):,} rows from a previous ticker")
         start = get_benchmark_start(con, index_id, backfill_from)
         if start >= end:
             print(f"  {index_id}: up to date")
@@ -170,7 +182,11 @@ def fetch_benchmarks(
         print(f"  {index_id} ({ticker}): fetching {start} to {end}")
         try:
             df = yf.download(
-                ticker, start=start.isoformat(), end=end.isoformat(), progress=False
+                ticker,
+                start=start.isoformat(),
+                end=end.isoformat(),
+                progress=False,
+                auto_adjust=False,
             )
         except Exception as e:
             print(f"    ERROR fetching {ticker}: {e}")
