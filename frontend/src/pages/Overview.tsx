@@ -10,6 +10,7 @@ import { fetchPelmComposition } from '../api/transactions'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
 import AccountFilter from '../components/AccountFilter'
+import { fmtQuarterTick, quarterTicks, quarterReferenceLines } from '../chartDates'
 import Cash from '../privacy/Cash'
 import { usePrivacy, CASH_MASK } from '../privacy/context'
 import DateRangeFilter, { dateRangeToFrom } from '../components/DateRangeFilter'
@@ -42,6 +43,9 @@ export default function Overview() {
     [account],
   )
 
+  const valueDates = (value.data ?? []).map((p) => p.date)
+  const compositionDates = (composition.data ?? []).map((p) => p.date)
+
   const latestPoint = value.data?.at(-1)
   const latestValue = latestPoint?.value_gbp
   const lineChartHeight = useChartHeight(220, 320)
@@ -72,9 +76,16 @@ export default function Overview() {
         ) : (
           <ResponsiveContainer width="100%" height={lineChartHeight}>
             <LineChart data={value.data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-              <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: '#6b7280', fontSize: 11 }} minTickGap={60} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={!isMonthly} />
+              <XAxis
+                dataKey="date"
+                ticks={isMonthly ? quarterTicks(valueDates) : undefined}
+                tickFormatter={isMonthly ? fmtQuarterTick : fmtDate}
+                tick={{ fill: '#6b7280', fontSize: 11 }}
+                minTickGap={isMonthly ? 0 : 60}
+              />
               <YAxis tickFormatter={fmtYAxis} tick={{ fill: '#6b7280', fontSize: 11 }} width={80} />
+              {isMonthly && quarterReferenceLines(valueDates)}
               <Tooltip
                 formatter={(v) => [fmtCashTooltip(Number(v)), 'Value']}
                 labelFormatter={(l) => `Date: ${l}`}
@@ -95,7 +106,13 @@ export default function Overview() {
             <ResponsiveContainer width="100%" height={lineChartHeight}>
               <BarChart data={composition.data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: '#6b7280', fontSize: 11 }} minTickGap={30} />
+                <XAxis
+                  dataKey="date"
+                  ticks={quarterTicks(compositionDates)}
+                  tickFormatter={fmtQuarterTick}
+                  tick={{ fill: '#6b7280', fontSize: 11 }}
+                  interval={0}
+                />
                 <YAxis tickFormatter={fmtYAxis} tick={{ fill: '#6b7280', fontSize: 11 }} width={80} />
                 <Tooltip
                   formatter={(v) => fmtCashTooltip(Number(v))}

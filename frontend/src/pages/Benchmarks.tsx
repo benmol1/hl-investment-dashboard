@@ -8,6 +8,7 @@ import { fetchPortfolioPerformance } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
 import MultiToggle from '../components/MultiToggle'
+import { fmtQuarterTick, quarterTicks, quarterReferenceLines } from '../chartDates'
 import type { Account, Benchmark, PerformancePoint, PortfolioPerformanceResponse, SharpeRatios } from '../types'
 
 // 'ALL' is the combined ISA + SIPP view (the API's no-account default). PELM is only ever
@@ -151,12 +152,9 @@ export default function Benchmarks() {
   const merged = perf ? mergeData(chartSeries, benchmarks) : []
   const chartHeight = useChartHeight(240, 400)
 
-  const xTicks = merged
-    .filter(d => ['03','06','09','12'].includes(d.date.slice(5,7)))
-    .map(d => d.date)
-
-  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  const fmtXTick = (d: string) => `${MONTHS[parseInt(d.slice(5,7)) - 1]}-${d.slice(2,4)}`
+  const dates = merged.map((d) => d.date)
+  const xTicks = quarterTicks(dates)
+  const fmtXTick = fmtQuarterTick
 
   const yTicks = (() => {
     if (!merged.length) return [50, 100, 150]
@@ -326,12 +324,7 @@ export default function Benchmarks() {
                 return <span style={{ color: '#9ca3af', fontSize: 12 }}>{s?.label ?? v}</span>
               }} />
               <ReferenceLine y={100} stroke="#4b5563" strokeDasharray="4 2" />
-              {merged.filter(d => ['03','06','09'].includes(d.date.slice(5,7))).map(d => (
-                <ReferenceLine key={d.date} x={d.date} stroke="#1f2937" strokeWidth={1} strokeDasharray="3 3" />
-              ))}
-              {merged.filter(d => d.date.slice(5,7) === '12').map(d => (
-                <ReferenceLine key={d.date} x={d.date} stroke="#374151" strokeWidth={1} />
-              ))}
+              {quarterReferenceLines(dates)}
               {series.map(({ key, colour, dash }) => (
                 <Line
                   key={key}
