@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import portfolio, funds, transactions
+from app.routers import portfolio, funds, transactions, pelm
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ app.add_middleware(
 app.include_router(portfolio.router, prefix="/portfolio", tags=["portfolio"])
 app.include_router(funds.router, prefix="/funds", tags=["funds"])
 app.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
+app.include_router(pelm.router, prefix="/pelm", tags=["pelm"])
 
 
 @app.get("/health")

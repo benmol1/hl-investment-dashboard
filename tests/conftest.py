@@ -137,6 +137,20 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
         )
     """)
     con.execute("""
+        CREATE TABLE fct_pelm_transactions (
+            transaction_id VARCHAR,
+            tx_date        DATE,
+            year_month     VARCHAR,
+            reference      VARCHAR,
+            tx_type        VARCHAR,
+            category       VARCHAR,
+            security       VARCHAR,
+            quantity       DOUBLE,
+            amount_gbp     DOUBLE,
+            notes          VARCHAR
+        )
+    """)
+    con.execute("""
         CREATE TABLE fct_transactions (
             transaction_id          VARCHAR,
             account_key             INTEGER,
@@ -251,6 +265,14 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
         INSERT INTO int_fund_values_daily VALUES
         (1, 1, 50.0),
         (2, 1, 52.0)
+    """)
+    con.execute("""
+        INSERT INTO fct_pelm_transactions VALUES
+        ('P1', '2024-01-10', '2024-01', 'B1', 'BUY',                'trade',            'ACME PLC',  10.0, -500.0, ''),
+        ('P2', '2024-01-15', '2024-01', 'S1', 'SELL',               'trade',            'ACME PLC',   4.0,  250.0, ''),
+        ('P3', '2024-01-20', '2024-01', 'T1', 'DEPOSIT_TRANSFER_OUT','internal_transfer','',        NULL, -250.0, ''),
+        ('P4', '2024-02-01', '2024-02', 'W1', 'WITHDRAWAL',         'external_flow',    '',          NULL, -1000.0, 'BACS Payment'),
+        ('P5', '2024-02-02', '2024-02', 'X1', 'STOCK_TRANSFER_IN',  'external_flow',    'OLD CO',   50.0, NULL, 'in specie')
     """)
     con.execute("""
         INSERT INTO fct_transactions VALUES
