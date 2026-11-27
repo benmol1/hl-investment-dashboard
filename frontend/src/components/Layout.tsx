@@ -11,6 +11,7 @@ const navItems = [
   { to: '/tax-year-contributions', label: 'Tax Year Contributions' },
   { to: '/funds', label: 'Fund Performance' },
   { to: '/benchmarks', label: 'Benchmarks' },
+  { to: '/pelm-reconciliation', label: 'PELM Reconciliation' },
   { to: '/holdings', label: 'Current Holdings' },
   { to: '/transactions', label: 'Transactions' },
   { to: '/ingest-log', label: 'Data Ingestion Log' },

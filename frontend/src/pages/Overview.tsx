@@ -127,9 +127,10 @@ export default function Overview() {
             </ResponsiveContainer>
           )}
           <p className="text-xs text-gray-500 mt-3">
-            Estimate: cash is inferred from the trade ledger (including the deposit account), which has no
-            fees, dividends or interest. Real cash may differ from the official statements, typically by a
-            small amount, with investments making up the difference.
+            Estimate: cash is built up from the Barratt &amp; Cooke ledgers (including the deposit account).
+            Dividends, interest and fees are included only where those ledgers were supplied (currently
+            Jul 2025 – Mar 2026). Real cash may differ from the official statements, typically by a small
+            amount, with investments making up the difference.
           </p>
         </Card>
       ) : (
@@ -188,6 +189,7 @@ export default function Overview() {
         )}
       </Card>
       )}
+
     </div>
   )
 }

@@ -3,18 +3,21 @@ version: 2
 models:
   - name: fct_pelm_transactions
     description: >
-      PELM Will Trust ledger lines, categorised. Trades and cash movements only: the ledger has
-      no dividends or fees, so this is not a full account history. Separate from
+      PELM Will Trust ledger lines across the four Barratt & Cooke sub-ledgers, categorised.
+      Dividends, interest and fees are only present for the periods whose dividends, income and
+      fees ledgers were supplied (see int_pelm_ledger_coverage_monthly). Separate from
       fct_transactions, which is shaped around HL fund trades.
 
       **Grain**: One row per ledger line
       **Source**: base__pelm_transactions
     columns:
       - name: transaction_id
-        description: "Surrogate key over (reference, tx_type, security)."
+        description: "Surrogate key over (ledger, tx_date, reference, tx_type, security)."
         tests:
           - not_null
           - unique
+      - name: ledger
+        description: "capital, dividends, income or fees (see base__pelm_transactions)."
       - name: tx_date
         description: "Ledger date."
       - name: year_month
@@ -25,14 +28,16 @@ models:
         description: "See base__pelm_transactions."
       - name: category
         description: >
-          trade (BUY/SELL), external_flow (money or stock crossing the trust boundary),
-          internal_transfer (deposit-account sweeps; net to roughly zero), corporate_action
-          (including cash fractions), opening_balance (the ledger's starting cash, not a
-          transaction), other.
+          trade (BUY/SELL); external_flow (money or stock crossing the trust boundary, including
+          INCOME_DISTRIBUTION, the BACS payments of income to the beneficiary); income (DIVIDEND,
+          INTEREST); fee (FEE, FEE_VAT, FX_COMMISSION); internal_transfer (deposit and settlement
+          sweeps between sub-ledgers; cash stays in the trust); corporate_action (including cash
+          fractions); opening_balance (a ledger's starting cash, or a BALANCE_ADJUSTMENT across a
+          gap between statements — not a transaction); other.
         tests:
           - accepted_values:
               arguments:
-                values: [trade, external_flow, internal_transfer, corporate_action, opening_balance, other]
+                values: [trade, external_flow, income, fee, internal_transfer, corporate_action, opening_balance, other]
       - name: security
         description: "Security name, empty for pure cash entries."
       - name: quantity

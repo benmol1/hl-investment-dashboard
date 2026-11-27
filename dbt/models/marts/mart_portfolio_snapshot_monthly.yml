@@ -16,7 +16,7 @@ models:
 
       **Grain**: One row per (account_name, year_month)
       **Update Frequency**: Daily
-      **Sources**: fct_holdings_daily, fct_transactions, base__pelm_valuations, dim_account, dim_date, dim_transaction_type
+      **Sources**: fct_holdings_daily, fct_transactions, base__pelm_valuations, fct_pelm_transactions, int_pelm_ledger_coverage_monthly, dim_account, dim_date, dim_transaction_type
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
@@ -49,7 +49,7 @@ models:
               config:
                 where: "account_name = 'PELM'"
       - name: monthly_inflows_gbp
-        description: "Total inflows (contributions + transfers) received within the calendar month. Zero for months with no inflows. For PELM, hand-entered external flows from the seed (positive in, negative out)."
+        description: "Total inflows (contributions + transfers) received within the calendar month. Zero for months with no inflows. For PELM, external flows from the ledger (fct_pelm_transactions category external_flow: transfers in, capital withdrawals, BACS income payments to the beneficiary; positive in, negative out)."
       - name: monthly_net_fund_purchases_gbp
         description: >
           Gross fund buys minus gross fund sells within the calendar month.
@@ -59,8 +59,24 @@ models:
       - name: cash_balance_gbp
         description: >
           PELM only: cash held at month-end, rebuilt from the ledger (opening balance + cash
-          movements, with the deposit account counted as cash). Null for ISA/SIPP and for months
-          before the ledger starts. Ledger has no dividends, interest or fees, so this can drift
-          slightly from the true figure.
+          movements across the sub-ledgers, with the deposit account counted as cash). Null for
+          ISA/SIPP and for months before the ledger starts. Dividends, interest and fees are only
+          included where those ledgers were supplied, so this is an estimate.
       - name: invested_value_gbp
         description: "PELM only: month_end_value_gbp minus cash_balance_gbp. Null where either is null."
+      - name: monthly_income_distributed_gbp
+        description: >
+          PELM only: income paid out to the beneficiary by BACS in the month (positive), already
+          included in monthly_inflows_gbp as an outflow. Zero where the dividends ledger is
+          missing (unknown, not none). Null for ISA/SIPP.
+      - name: cash_flow_coverage_indicator
+        description: >
+          'Complete' when every external cash flow in the month is known: always for ISA/SIPP;
+          for PELM only when the capital and dividends ledgers cover the month
+          (int_pelm_ledger_coverage_monthly). PELM's 'Incomplete' months are missing the BACS
+          income payments to the beneficiary, so their monthly_return is understated.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [Complete, Incomplete]

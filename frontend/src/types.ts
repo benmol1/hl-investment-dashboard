@@ -74,6 +74,7 @@ export interface PelmTransaction {
   reference: string | null
   tx_type: string
   category: string
+  ledger: string  // 'capital' | 'dividends' | 'income' | 'fees'
   security: string
   quantity: number | null
   amount_gbp: number | null
@@ -113,6 +114,8 @@ export interface PortfolioPerformanceResponse {
   SP500: PerformancePoint[]
   NASDAQ: PerformancePoint[]
   sharpe: Record<string, SharpeRatios>
+  /** Month-end dates whose return is understated because cash flows are unknown (PELM only). */
+  incomplete_flow_dates?: string[]
 }
 
 export interface DataFreshness {
@@ -141,4 +144,55 @@ export interface PelmCompositionPoint {
   date: string
   cash_gbp: number
   invested_gbp: number
+}
+
+export interface PelmIncomePeriod {
+  period: string        // '2025-Q3' or '2025-07'
+  period_start: string
+  period_end: string
+  dividends_gbp: number
+  interest_gbp: number
+  income_gbp: number
+  fx_commission_gbp: number
+  custody_fees_gbp: number
+  income_distributed_gbp: number
+  income_complete: boolean
+  fees_complete: boolean
+}
+
+export interface PelmIncomeResponse {
+  periods: PelmIncomePeriod[]
+  trailing_12m_income_gbp: number | null
+  trailing_12m_income_yield: number | null
+}
+
+export interface PelmReconciliationRow {
+  period_start: string
+  period_end: string
+  source: string
+  reported_return: number    // fraction
+  dashboard_return: number | null  // fraction
+  difference_pp: number | null     // percentage points
+  net_outflows_gbp: number | null
+  coverage: string           // 'Complete' | 'Incomplete' | 'Missing months'
+}
+
+export interface QuarterlyReturn {
+  quarter: string          // '2025-Q3'
+  start_date: string
+  end_date: string
+  /** Months covered; < 3 for a partial quarter (the account's first, or the one in progress). */
+  months: number
+  portfolio: number        // fraction
+  /** False when some month's cash flows are incomplete (PELM only), so the return is understated. */
+  flows_complete: boolean
+  /** True when estimate=true and the quarter contains best-estimate months. */
+  estimated: boolean
+  FTSE100: number | null
+  SP500: number | null
+  NASDAQ: number | null
+}
+
+export interface QuarterlyReturnsResponse {
+  quarters: QuarterlyReturn[]
 }

@@ -9,6 +9,7 @@ import Holdings from './pages/Holdings'
 import Transactions from './pages/Transactions'
 import IngestLog from './pages/IngestLog'
 import FinancialYearContributions from './pages/FinancialYearContributions'
+import PelmReconciliation from './pages/PelmReconciliation'
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="funds" element={<FundList />} />
           <Route path="funds/:id" element={<FundPerformance />} />
           <Route path="benchmarks" element={<Benchmarks />} />
+          <Route path="pelm-reconciliation" element={<PelmReconciliation />} />
           <Route path="holdings" element={<Holdings />} />
           <Route path="transactions" element={<Transactions />} />
           <Route path="ingest-log" element={<IngestLog />} />

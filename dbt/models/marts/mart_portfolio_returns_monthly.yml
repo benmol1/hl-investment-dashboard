@@ -14,7 +14,7 @@ models:
       (mean monthly return / stddev_samp of monthly returns) * sqrt(12), with risk-free rate = 0.
     columns:
       - name: account_name
-        description: "ISA or SIPP."
+        description: "ISA, SIPP or PELM."
         tests:
           - not_null
       - name: year_month
@@ -38,6 +38,22 @@ models:
           Modified Dietz return for the month: (EMV - BMV - CF) / (BMV + 0.5 * CF).
           Assumes cash flows arrive at the mid-point of the month (W = 0.5).
           Null when the denominator is zero.
+      - name: cash_flow_coverage_indicator
+        description: >
+          From mart_portfolio_snapshot_monthly. 'Incomplete' for PELM months whose BACS income
+          payments are unknown (no dividends ledger), where monthly_return is understated.
+          Always 'Complete' for ISA/SIPP.
+      - name: estimated_monthly_return
+        description: >
+          Best estimate of the month's total return. Equals monthly_return where cash flows are
+          complete (always for ISA/SIPP). For PELM months without the dividends ledger, it is
+          monthly_return plus avg_income_uplift, because their income paid out is unknown. Trailing
+          returns and Sharpe ratios use monthly_return, not this.
+      - name: avg_income_uplift
+        description: >
+          PELM only: the average, over months with complete cash flows, of monthly_return minus
+          the same return calculated without the BACS income payments. It is what the income data
+          adds to a month's return. Null for ISA/SIPP.
       - name: trailing_12m_return
         description: >
           Trailing 12-month return, computed by geometrically linking monthly Modified Dietz

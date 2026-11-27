@@ -18,7 +18,24 @@ const TYPE_LABELS: Record<string, string> = {
   DEPOSIT_TRANSFER_OUT: 'To deposit',
   CORPORATE_ACTION: 'Corporate action',
   CASH_FRACTION: 'Cash fraction',
+  INCOME_DISTRIBUTION: 'Income paid out',
+  DIVIDEND: 'Dividend',
+  INTEREST: 'Interest',
+  FX_COMMISSION: 'FX commission',
+  FEE: 'Custody fee',
+  FEE_VAT: 'VAT on fee',
+  SETTLEMENT_TRANSFER: 'Settlement transfer',
   OTHER: 'Other',
+}
+
+/** Internal movements (deposit sweeps, settlement transfers) are hidden unless asked for. */
+const INTERNAL_TYPES = new Set(['DEPOSIT_TRANSFER_IN', 'DEPOSIT_TRANSFER_OUT', 'SETTLEMENT_TRANSFER'])
+
+const LEDGER_LABELS: Record<string, string> = {
+  capital: 'Capital',
+  dividends: 'Dividends',
+  income: 'Income',
+  fees: 'Fees',
 }
 
 const TYPE_COLOURS: Record<string, string> = {
@@ -29,9 +46,15 @@ const TYPE_COLOURS: Record<string, string> = {
   STOCK_TRANSFER_IN: 'bg-cyan-900/50 text-cyan-400',
   CORPORATE_ACTION: 'bg-purple-900/50 text-purple-400',
   CASH_FRACTION: 'bg-yellow-900/50 text-yellow-400',
+  INCOME_DISTRIBUTION: 'bg-orange-900/50 text-orange-400',
+  DIVIDEND: 'bg-teal-900/50 text-teal-400',
+  INTEREST: 'bg-yellow-900/50 text-yellow-400',
+  FX_COMMISSION: 'bg-gray-800 text-gray-500',
+  FEE: 'bg-gray-800 text-gray-500',
+  FEE_VAT: 'bg-gray-800 text-gray-500',
 }
 
-/** Ledger view for the PELM Will Trust: trades and cash movements only. */
+/** Ledger view for the PELM Will Trust: trades, cash movements, income and fees. */
 export default function PelmTransactions() {
   const [page, setPage] = useState(1)
   const [txType, setTxType] = useState('')
@@ -53,7 +76,7 @@ export default function PelmTransactions() {
         >
           <option value="">All types</option>
           {Object.entries(TYPE_LABELS)
-            .filter(([t]) => includeInternal || !t.startsWith('DEPOSIT_'))
+            .filter(([t]) => includeInternal || !INTERNAL_TYPES.has(t))
             .map(([t, label]) => <option key={t} value={t}>{label}</option>)}
         </select>
 
@@ -63,11 +86,11 @@ export default function PelmTransactions() {
             checked={includeInternal}
             onChange={(e) => {
               setIncludeInternal(e.target.checked)
-              if (!e.target.checked && txType.startsWith('DEPOSIT_')) setTxType('')
+              if (!e.target.checked && INTERNAL_TYPES.has(txType)) setTxType('')
               setPage(1)
             }}
           />
-          Show deposit-account transfers
+          Show internal transfers
         </label>
 
         {data && (
@@ -76,8 +99,9 @@ export default function PelmTransactions() {
       </div>
 
       <p className="text-xs text-gray-500">
-        Will Trust ledger: trades and cash movements only. It records no dividends or fees, and stock
-        transferred in carries a quantity but no value.
+        Dividends, interest and fees are included only for periods where Barratt &amp; Cooke supplied
+        those ledgers (currently Jul 2025 – Mar 2026). Stock transferred in specie has a quantity but
+        no value.
       </p>
 
       <Card>
@@ -93,6 +117,7 @@ export default function PelmTransactions() {
                   <tr className="text-gray-500 text-xs uppercase border-b border-gray-800">
                     <th className="text-left pb-3">Date</th>
                     <th className="text-left pb-3">Type</th>
+                    <th className="text-left pb-3 hidden md:table-cell">Ledger</th>
                     <th className="text-left pb-3">Security</th>
                     <th className="text-right pb-3 hidden sm:table-cell">Quantity</th>
                     <th className="text-right pb-3">Amount</th>
@@ -109,6 +134,9 @@ export default function PelmTransactions() {
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${TYPE_COLOURS[tx.tx_type] ?? 'bg-gray-800 text-gray-400'}`}>
                           {TYPE_LABELS[tx.tx_type] ?? tx.tx_type}
                         </span>
+                      </td>
+                      <td className="py-2.5 text-gray-500 text-xs hidden md:table-cell">
+                        {LEDGER_LABELS[tx.ledger] ?? tx.ledger}
                       </td>
                       <td className="py-2.5 text-gray-300 max-w-[140px] sm:max-w-[240px] truncate" title={tx.security || undefined}>
                         {tx.security || <span className="text-gray-600">—</span>}

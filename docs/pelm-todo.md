@@ -1,19 +1,19 @@
 # PELM Will Trust — To-Do
 
 *Feature-scoped list. Main project to-dos live in [TODO.md](../TODO.md).*
-*Phases 1–2 done and loaded with real data (33 months). Chain-linked return 18.81%, matching the plan's 18.8%. Note March 2026: −9.1% with no ledger flow — worth asking B&C.*
-*Plan: [docs/pelm-integration-plan.md](pelm-integration-plan.md) · Last updated: 2026-11-23*
+*Phases 1–7 done. Second pack (Nov 2026) loaded: 38 months of valuations, four sub-ledgers, three B&C performance reports. Q3 2025 – Q1 2026 returns reconcile to B&C within 0.03pp; inception to May 2026 now 21.95% (B&C 23.4%; the rest is months without a dividends ledger).*
+*Plan: [docs/pelm-integration-plan.md](pelm-integration-plan.md) §7 · Last updated: 2026-11-27*
 
 ---
 
 ## Phase 0 — Unblock
 
-- [ ] Email Alastair: do the month-end valuations include accrued/uninvested income, or is income swept to the deposit account? (decides whether PELM returns are comparable to ISA/SIPP — see plan §1 finding 3)
-- [ ] Email Alastair: request the deposit account ledger (16 transfers went into it, no visibility)
-- [ ] Email Alastair: confirm the valuations file will keep arriving quarterly in the same two-column format
+- [x] ~~Email Alastair: do the month-end valuations include income?~~ — answered by the second pack: income stays in the valuation until paid out by BACS (plan §7.1)
+- [x] ~~Email Alastair: request the deposit account ledger~~ — not needed: the deposit account is inside the valuation (plan §7.1)
+- [x] Valuations file keeps arriving in the same two-column format (confirmed by the Nov 2026 pack)
 - [x] ~~Agree the reference total-return figure for a validation check~~ — dropped, see Phase 4
 
-*The three emails are still worth sending before the PELM comparison is relied on or published: the first answers the 18.8% vs 23.4% gap.*
+*Remaining questions for Alastair are in Phase 8.*
 
 ---
 
@@ -83,9 +83,42 @@ Caveats shown on the page: no dividends/fees in the ledger; in-specie transfers 
 - [x] Backend: `/pelm/transactions` (deposit sweeps hidden unless `include_internal`)
 - [x] Frontend: PELM Trust toggle on the Transactions page with its own columns and caveat note
 
+## Phase 7 — Income, fees and return reconciliation (built 2026-11-27)
+
+Plan §7. Months without a dividends ledger are flagged, not estimated (decision 2026-11-27).
+
+- [x] Append Jun–Oct 2026 valuations; `pelm_monthly.csv` reduced to the spreadsheet's two columns (flows now come from the ledger)
+- [x] Parser reads all `C070982 Ledger*.pdf` (subfolders too), splits capital / dividends / income / fees statements, balances each, dedupes overlaps, checks opening-balance continuity, writes `pelm_ledger_coverage.csv`
+- [x] New tx types: `DIVIDEND`, `INTEREST`, `FX_COMMISSION`, `FEE`, `FEE_VAT`, `INCOME_DISTRIBUTION`, `SETTLEMENT_TRANSFER`, `BALANCE_ADJUSTMENT`; the £108 "TO SETTLEMENT" is now internal
+- [x] dbt: tolerant CSV macro; PELM flows derived from ledger external flows; `int_pelm_ledger_coverage_monthly`; `cash_flow_coverage_indicator` on snapshot and returns marts
+- [x] dbt: `mart_pelm_income_monthly` and `mart_pelm_return_reconciliation`, plus the singular test `assert_pelm_reported_returns_reconcile` (0.1pp). All three quarters pass at ≤0.03pp
+- [x] Hand-entered `pelm_reported_returns.csv` (Q3 2025, Q4 2025, Q1 2026)
+- [x] API: `ledger` + `category` on `/pelm/transactions`; `/pelm/income`; `/pelm/reconciliation`; `incomplete_flow_dates` on `/portfolio/performance`; `pelm_income_ledgers` ingest-log row; bot prompt names the new marts
+- [x] Frontend: Overview Income & Fees card and B&C reconciliation table; Transactions new types, ledger column, updated caveat; Benchmarks caveat and shading for incomplete months; ingest-log label
+- [x] Tests: parser unit tests (classification, dedupe, continuity, gap adjustment) and API tests; 89 pass; dbt 248 nodes pass
+- [ ] Check the new Overview cards and Benchmarks shading in a browser (desktop and phone width)
+- [ ] On the Pi: rebuild images (`docker compose up -d --build`), copy the pack into `data/pelm/20261127/`, copy the updated `pelm_monthly.csv` and new `pelm_reported_returns.csv`, run the parser, `dbt build`
+
+---
+
+## Phase 7b — Quarterly returns and best-estimate toggle (plan §7.6)
+
+- [x] Reconciliation table moved to its own PELM Reconciliation page
+- [x] `/portfolio/returns/quarterly` and a quarterly total-returns table on Benchmarks (every quarter, benchmarks over the same months, partial quarters marked)
+- [x] `estimated_monthly_return` / `avg_income_uplift` in `mart_portfolio_returns_monthly`; `estimate=true` on `/portfolio/performance` and the quarterly endpoint; Actual / Best estimate toggle on Benchmarks
+- [ ] Decide whether to keep the estimate method: it gives 30.5% inception to May 2026 against B&C's 23.4% (the recent income payout rate overstates earlier months)
+
+## Phase 8 — Ask Barratt & Cooke (plan §7.5)
+
+- [ ] Dividends, income and fees ledgers for Sep 2023 – Jun 2025 (closes the remaining gap to 23.4%)
+- [ ] All four ledgers for Apr – Oct 2026, to match the new valuations
+- [ ] Formal total-return reports for Q4 2023 – Q2 2025, so the reconciliation test covers the full history
+- [ ] Is the custody fee annual or quarterly? (one charge in nine months; no fees page in Q3/Q4 2025)
+
 ## Deferred — do not do yet
 
 - Security-level PELM holdings — no valued position data exists in the source
-- Parsing the costs/charges PDFs — fees are already netted into the valuations
+- Parsing the costs/charges PDFs — fees are already netted into the valuations; custody fee now comes from the fees ledger
+- Parsing tax certificates and performance-report xlsx — a hand-typed headline figure a quarter is enough
 - An xlsx ingest script — three hand-typed rows a quarter (ledger transcription is now Phase 6)
 - PELM in the nightly cron — source updates quarterly, by email, by hand

@@ -27,8 +27,12 @@ Normally downloaded by `download_transactions.py` or exported from HL. Format: 5
 
 ## `pelm_monthly_example.csv`
 
-Layout for the PELM Will Trust valuations file, which lives at `data/pelm/pelm_monthly.csv` (gitignored). Columns: `month_end_date`, `value_gbp`, `external_flow_gbp` — the flow is positive for money in, negative for money out, blank if none. dbt reads it during `dbt build` (run from the `dbt/` directory); there is no seed step. See [docs/pelm-integration-plan.md](../../docs/pelm-integration-plan.md).
+Layout for the PELM Will Trust valuations file, which lives at `data/pelm/pelm_monthly.csv` (gitignored). Columns: `month_end_date`, `value_gbp`, as in Barratt & Cooke's End of Month Valuations spreadsheet. External cash flows come from the ledgers, not this file. dbt reads it during `dbt build` (run from the `dbt/` directory); there is no seed step. See [docs/pelm-integration-plan.md](../../docs/pelm-integration-plan.md).
 
-## `pelm_transactions_example.csv`
+## `pelm_reported_returns_example.csv`
 
-Layout of `data/pelm/pelm_transactions.csv` (gitignored), which is generated — not hand-written — by `backend/scripts/parse_pelm_ledger.py` from the Barratt & Cooke ledger PDF, on the laptop or inside the cron container. `amount_gbp` is the cash effect on the ledger (positive in, negative out, blank if none).
+Layout of `data/pelm/pelm_reported_returns.csv` (gitignored, hand-entered): one row per Barratt & Cooke formal total-return performance report, with `return_pct` from its header line (4.48 means 4.48%). dbt checks the dashboard's own return for each period against it.
+
+## `pelm_transactions_example.csv` and `pelm_ledger_coverage_example.csv`
+
+Layouts of `data/pelm/pelm_transactions.csv` and `data/pelm/pelm_ledger_coverage.csv` (gitignored). Both are generated, not hand-written, by `backend/scripts/parse_pelm_ledger.py` from the Barratt & Cooke ledger PDFs, on the laptop or inside the cron container. `ledger` is `capital`, `dividends`, `income` or `fees`; `amount_gbp` is the cash effect on that ledger (positive in, negative out, blank if none). The coverage file lists one row per parsed statement, and dbt uses it to tell which months have complete cash flows.

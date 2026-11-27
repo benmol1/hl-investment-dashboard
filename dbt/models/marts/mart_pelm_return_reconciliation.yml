@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: mart_pelm_return_reconciliation
+    description: >
+      Reconciles the PELM Will Trust's total return as reported by Barratt & Cooke with the
+      dashboard's own figure, one row per report period. The dashboard figure links the monthly
+      Modified Dietz returns from mart_portfolio_returns_monthly over the same months. Barratt &
+      Cooke link daily returns, so a fully covered period agrees to within a few hundredths of a
+      percentage point; the singular test assert_pelm_reported_returns_reconcile fails above 0.1pp.
+
+      **Grain**: One row per reported period (period_start)
+      **Sources**: base__pelm_reported_returns, mart_portfolio_returns_monthly
+    columns:
+      - name: period_start
+        description: "First day of the reported period."
+        tests:
+          - not_null
+          - unique
+      - name: period_end
+        description: "Last day of the reported period."
+      - name: source
+        description: "The Barratt & Cooke report the figure came from."
+      - name: reported_return
+        description: "Barratt & Cooke's total return for the period, as a fraction."
+      - name: dashboard_return
+        description: "The dashboard's linked monthly Modified Dietz return for the same months, as a fraction. Null if no months were found."
+      - name: difference_pp
+        description: "dashboard_return minus reported_return, in percentage points."
+      - name: months_in_period
+        description: "Calendar months the period spans."
+      - name: months_found
+        description: "Months with a dashboard return inside the period. Fewer than months_in_period means valuations are missing."
+      - name: net_outflows_gbp
+        description: "Net external money out of the trust over the period (BACS income payments and withdrawals, less money in)."
+      - name: cash_flow_coverage_indicator
+        description: >
+          'Complete' when every month in the period has a dashboard return and complete cash flows;
+          'Incomplete' when some month lacks the dividends ledger (its income payments are unknown);
+          'Missing months' when valuations are missing for part of the period.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [Complete, Incomplete, Missing months]

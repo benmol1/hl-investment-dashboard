@@ -3,20 +3,29 @@ version: 2
 models:
   - name: base__pelm_transactions
     description: >
-      Typed table over data/pelm/pelm_transactions.csv: the GIA cash ledger for the P E L
-      Molyneaux Will Trust (account C070982, Barratt & Cooke), parsed from the ledger PDF by
+      Typed table over data/pelm/pelm_transactions.csv: the Barratt & Cooke ledgers for the P E L
+      Molyneaux Will Trust (account C070982), parsed from the ledger PDFs by
       backend/scripts/parse_pelm_ledger.py. Empty if the file is absent.
 
-      The ledger has no dividends or fees, and in-specie stock transfers carry a quantity but no
-      value.
+      Four sub-ledgers: capital (trades, deposit sweeps, withdrawals), dividends (dividends, FX
+      commission, BACS income payments to the beneficiary), income (interest, settlement
+      transfers) and fees (custody fee and VAT). Only some periods have all four — see
+      base__pelm_ledger_coverage. In-specie stock transfers carry a quantity but no value.
 
       **Grain**: One row per ledger line (a stock transfer in produces one row per security)
       **Source**: data/pelm/pelm_transactions.csv (gitignored)
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [reference, tx_type, security]
+            combination_of_columns: [ledger, tx_date, reference, tx_type, security]
     columns:
+      - name: ledger
+        description: "capital, dividends, income or fees. Defaults to capital for files from older parser versions."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [capital, dividends, income, fees]
       - name: tx_date
         description: "Ledger (tax) date."
         tests:
@@ -25,15 +34,19 @@ models:
         description: "Barratt & Cooke ledger reference."
       - name: tx_type
         description: >
-          BUY, SELL, CASH_TRANSFER_IN (cash from the deceased's accounts), WITHDRAWAL (BACS out),
-          DEPOSIT_TRANSFER_IN / DEPOSIT_TRANSFER_OUT (sweeps to and from the deposit account),
-          STOCK_TRANSFER_IN (in-specie), CORPORATE_ACTION, CASH_FRACTION, OTHER, and
-          OPENING_BALANCE (one row: the ledger's opening cash balance).
+          BUY, SELL, CASH_TRANSFER_IN (cash from the deceased's accounts), WITHDRAWAL (capital
+          BACS out), INCOME_DISTRIBUTION (BACS payment of income to the beneficiary, from the
+          dividends ledger), DIVIDEND, INTEREST, FX_COMMISSION (on overseas dividends), FEE and
+          FEE_VAT (custody fee), DEPOSIT_TRANSFER_IN / DEPOSIT_TRANSFER_OUT (sweeps to and from
+          the deposit account), SETTLEMENT_TRANSFER (between the income account and settlement),
+          STOCK_TRANSFER_IN (in-specie), CORPORATE_ACTION, CASH_FRACTION, OPENING_BALANCE (each
+          ledger's first opening balance), BALANCE_ADJUSTMENT (unseen net movement across a gap
+          between statements), OTHER.
         tests:
           - not_null
           - accepted_values:
               arguments:
-                values: [BUY, SELL, CASH_TRANSFER_IN, WITHDRAWAL, DEPOSIT_TRANSFER_IN, DEPOSIT_TRANSFER_OUT, STOCK_TRANSFER_IN, CORPORATE_ACTION, CASH_FRACTION, OPENING_BALANCE, OTHER]
+                values: [BUY, SELL, CASH_TRANSFER_IN, WITHDRAWAL, INCOME_DISTRIBUTION, DIVIDEND, INTEREST, FX_COMMISSION, FEE, FEE_VAT, DEPOSIT_TRANSFER_IN, DEPOSIT_TRANSFER_OUT, SETTLEMENT_TRANSFER, STOCK_TRANSFER_IN, CORPORATE_ACTION, CASH_FRACTION, OPENING_BALANCE, BALANCE_ADJUSTMENT, OTHER]
       - name: security
         description: "Security name as printed on the ledger (truncated by the custodian). Empty for pure cash entries."
         tests:
@@ -43,6 +56,6 @@ models:
       - name: amount_gbp
         description: "Cash effect on the ledger: positive for money in, negative for money out. Null for in-specie transfers and corporate actions."
       - name: notes
-        description: "Extra detail from the ledger (FX rate, source account, corporate action wording)."
+        description: "Extra detail from the ledger (FX rate, source account, corporate action wording, narrative)."
         tests:
           - not_null

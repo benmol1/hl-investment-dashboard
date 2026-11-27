@@ -1,17 +1,22 @@
--- PELM ledger lines with a category, so consumers can tell real activity from internal cash
--- sweeps and from money that crossed the trust's boundary.
+-- PELM ledger lines with a category, so consumers can tell income, fees and real activity from
+-- internal cash sweeps and from money that crossed the trust's boundary.
 select
-    {{ dbt_utils.generate_surrogate_key(['reference', 'tx_type', 'security']) }} as transaction_id,
+    {{ dbt_utils.generate_surrogate_key(['ledger', 'tx_date', 'reference', 'tx_type', 'security']) }} as transaction_id,
+    ledger,
     tx_date,
     strftime(tx_date, '%Y-%m')                                                  as year_month,
     reference,
     tx_type,
     case
-        when tx_type in ('BUY', 'SELL')                                      then 'trade'
-        when tx_type in ('CASH_TRANSFER_IN', 'WITHDRAWAL', 'STOCK_TRANSFER_IN') then 'external_flow'
-        when tx_type in ('DEPOSIT_TRANSFER_IN', 'DEPOSIT_TRANSFER_OUT')      then 'internal_transfer'
-        when tx_type in ('CORPORATE_ACTION', 'CASH_FRACTION')                then 'corporate_action'
-        when tx_type = 'OPENING_BALANCE'                                     then 'opening_balance'
+        when tx_type in ('BUY', 'SELL')                                         then 'trade'
+        when tx_type in ('CASH_TRANSFER_IN', 'WITHDRAWAL', 'STOCK_TRANSFER_IN',
+                         'INCOME_DISTRIBUTION')                                 then 'external_flow'
+        when tx_type in ('DIVIDEND', 'INTEREST')                                then 'income'
+        when tx_type in ('FEE', 'FEE_VAT', 'FX_COMMISSION')                     then 'fee'
+        when tx_type in ('DEPOSIT_TRANSFER_IN', 'DEPOSIT_TRANSFER_OUT',
+                         'SETTLEMENT_TRANSFER')                                 then 'internal_transfer'
+        when tx_type in ('CORPORATE_ACTION', 'CASH_FRACTION')                   then 'corporate_action'
+        when tx_type in ('OPENING_BALANCE', 'BALANCE_ADJUSTMENT')               then 'opening_balance'
         else 'other'
     end                                                                         as category,
     security,

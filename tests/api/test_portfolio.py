@@ -126,14 +126,19 @@ def test_ingest_log(client, tmp_path, monkeypatch):
 
 
 def test_ingest_log_includes_pelm_rows(client, tmp_path, monkeypatch):
-    for name in ("pelm_transactions.csv", "pelm_monthly.csv"):
+    for name in (
+        "pelm_transactions.csv",
+        "pelm_monthly.csv",
+        "pelm_ledger_coverage.csv",
+    ):
         (tmp_path / name).write_text("x\n")
     monkeypatch.setattr("app.routers.portfolio.PELM_DIR", tmp_path)
     by_source = {e["source"]: e for e in client.get("/portfolio/ingest-log").json()}
     # Latest data dates come from the data; run times are the files' modified times.
     assert by_source["pelm_transactions"]["latest_data_date"] == "2024-02-02"
     assert by_source["pelm_valuations"]["latest_data_date"] == "2024-02-29"
-    for source in ("pelm_transactions", "pelm_valuations"):
+    assert by_source["pelm_income_ledgers"]["latest_data_date"] == "2024-03-31"
+    for source in ("pelm_transactions", "pelm_valuations", "pelm_income_ledgers"):
         assert by_source[source]["last_successful_at"] is not None
         assert by_source[source]["last_rows_imported_at"] is not None
 
@@ -194,3 +199,53 @@ def test_performance_default_excludes_pelm(client):
     data = r.json()
     # ISA + SIPP only: PELM's 10% month would otherwise lift the blended index.
     assert data["portfolio"][-1]["indexed"] < 103
+
+
+def test_performance_pelm_lists_months_with_incomplete_flows(client):
+    data = client.get("/portfolio/performance?account=PELM").json()
+    assert data["incomplete_flow_dates"] == ["2024-02-29"]
+
+
+def test_performance_hl_accounts_have_complete_flows(client):
+    assert client.get("/portfolio/performance").json()["incomplete_flow_dates"] == []
+
+
+def test_performance_estimate_lifts_only_incomplete_months(client):
+    actual = client.get("/portfolio/performance?account=PELM").json()["portfolio"]
+    est = client.get("/portfolio/performance?account=PELM&estimate=true").json()[
+        "portfolio"
+    ]
+    assert actual[-1]["indexed"] == 110.0
+    assert est[-1]["indexed"] == 111.0  # Feb is incomplete: 10% + 1% uplift
+
+
+def test_performance_estimate_leaves_hl_accounts_unchanged(client):
+    a = client.get("/portfolio/performance").json()["portfolio"]
+    b = client.get("/portfolio/performance?estimate=true").json()["portfolio"]
+    assert a == b
+
+
+def test_quarterly_returns_link_months_and_match_benchmark_months(client):
+    [q] = client.get("/portfolio/returns/quarterly?account=PELM").json()["quarters"]
+    # Jan is the anchor month; only Feb's return falls in the window, so Q1 is partial.
+    assert q["quarter"] == "2024-Q1"
+    assert q["months"] == 1
+    assert q["start_date"] == "2024-01-31" and q["end_date"] == "2024-02-29"
+    assert round(q["portfolio"], 6) == 0.10
+    assert round(q["FTSE100"], 6) == round(7600 / 7500 - 1, 6)
+    assert q["flows_complete"] is False and q["estimated"] is False
+
+
+def test_quarterly_returns_estimate_flag(client):
+    [q] = client.get("/portfolio/returns/quarterly?account=PELM&estimate=true").json()[
+        "quarters"
+    ]
+    assert round(q["portfolio"], 6) == 0.11
+    assert q["estimated"] is True
+
+
+def test_quarterly_returns_default_is_isa_plus_sipp(client):
+    [q] = client.get("/portfolio/returns/quarterly").json()["quarters"]
+    assert q["flows_complete"] is True
+    # BMV-weighted Feb: (0.02*10050 + 0.01*5025) / 15075
+    assert round(q["portfolio"], 6) == round((0.02 * 10050 + 0.01 * 5025) / 15075, 6)

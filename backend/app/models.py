@@ -75,6 +75,7 @@ class TransactionPage(BaseModel):
 
 class PelmTransaction(BaseModel):
     id: str
+    ledger: str  # capital, dividends, income or fees
     tx_date: date
     reference: Optional[str]
     tx_type: str
@@ -96,6 +97,37 @@ class PelmCompositionPoint(BaseModel):
     date: date
     cash_gbp: float
     invested_gbp: float
+
+
+class PelmIncomePeriod(BaseModel):
+    period: str  # "2025-Q3" or "2025-07"
+    period_start: date
+    period_end: date
+    dividends_gbp: float
+    interest_gbp: float
+    income_gbp: float
+    fx_commission_gbp: float
+    custody_fees_gbp: float
+    income_distributed_gbp: float
+    income_complete: bool  # dividends + income ledgers cover every month in the period
+    fees_complete: bool  # a fees ledger covers every month in the period
+
+
+class PelmIncomeResponse(BaseModel):
+    periods: list[PelmIncomePeriod]
+    trailing_12m_income_gbp: Optional[float]  # null until 12 complete months exist
+    trailing_12m_income_yield: Optional[float]
+
+
+class PelmReconciliationRow(BaseModel):
+    period_start: date
+    period_end: date
+    source: str
+    reported_return: float
+    dashboard_return: Optional[float]
+    difference_pp: Optional[float]
+    net_outflows_gbp: Optional[float]
+    coverage: str  # Complete, Incomplete or Missing months
 
 
 class HoldingItem(BaseModel):
@@ -136,6 +168,23 @@ class SharpeRatios(BaseModel):
     trailing_36m: Optional[float]
 
 
+class QuarterlyReturn(BaseModel):
+    quarter: str  # "2025-Q3"
+    start_date: date  # month-end before the quarter's first return month
+    end_date: date
+    months: int  # monthly returns linked; fewer than 3 means a partial quarter
+    portfolio: float  # total return as a fraction
+    flows_complete: bool  # every month's external cash flows are known
+    estimated: bool  # incomplete months were filled with the best estimate
+    FTSE100: Optional[float]
+    SP500: Optional[float]
+    NASDAQ: Optional[float]
+
+
+class QuarterlyReturnsResponse(BaseModel):
+    quarters: list[QuarterlyReturn]
+
+
 class PortfolioPerformanceResponse(BaseModel):
     start_date: date
     portfolio: list[PerformancePoint]
@@ -143,3 +192,6 @@ class PortfolioPerformanceResponse(BaseModel):
     SP500: list[PerformancePoint]
     NASDAQ: list[PerformancePoint]
     sharpe: dict[str, SharpeRatios]
+    # Month-ends whose external cash flows are not fully known (PELM months without a dividends
+    # ledger): the portfolio return for those months is understated.
+    incomplete_flow_dates: list[date] = []

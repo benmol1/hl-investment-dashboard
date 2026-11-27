@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: base__pelm_reported_returns
+    description: >
+      Barratt & Cooke's own total-return figures for the PELM Will Trust, one row per report
+      period, hand-entered from the header line of each "Formal total-return performance report"
+      ("The total-return performance between the beginning of 1 Jul 2025 and the end of 30 Sep
+      2025 ... was 4.48%"). Empty if data/pelm/pelm_reported_returns.csv is absent.
+
+      **Grain**: One row per period_start
+      **Source**: data/pelm/pelm_reported_returns.csv (hand-entered; layout in data/examples/)
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [period_start]
+    columns:
+      - name: period_start
+        description: "First day of the reported period (the first of a month)."
+        tests:
+          - not_null
+      - name: period_end
+        description: "Last day of the reported period (a calendar month-end)."
+        tests:
+          - not_null
+      - name: reported_return
+        description: "Reported total return as a fraction (4.48% = 0.0448)."
+        tests:
+          - not_null
+      - name: source
+        description: "Which report the figure came from."

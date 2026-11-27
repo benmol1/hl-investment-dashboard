@@ -11,6 +11,8 @@ from app.models import (
     InflowPoint,
     PerformancePoint,
     PortfolioPerformanceResponse,
+    QuarterlyReturn,
+    QuarterlyReturnsResponse,
     SharpeRatios,
     HoldingItem,
     DataFreshness,
@@ -215,11 +217,113 @@ def contributions_by_financial_year(con: duckdb.DuckDBPyConnection = Depends(get
     ]
 
 
+def _monthly_return_rows(
+    con: duckdb.DuckDBPyConnection,
+    account: Optional[str],
+    from_date: date,
+    to_date: date,
+    estimate: bool = False,
+) -> list[tuple]:
+    """
+    (month_end_date, monthly_return, flows_complete) from mart_portfolio_returns_monthly, for one
+    account or, with none given, ISA + SIPP aggregated by BMV weighting. With estimate, months
+    with incomplete cash flows use estimated_monthly_return instead of the actual return.
+    """
+    ret = "estimated_monthly_return" if estimate else "monthly_return"
+    params: list = [from_date, to_date] + ([account] if account else [])
+    return con.execute(
+        f"""
+        SELECT
+            month_end_date,
+            CASE
+                WHEN SUM(prev_month_end_value_gbp + 0.5 * month_inflows_gbp) = 0 THEN 0
+                ELSE SUM({ret} * (prev_month_end_value_gbp + 0.5 * month_inflows_gbp))
+                     / SUM(prev_month_end_value_gbp + 0.5 * month_inflows_gbp)
+            END AS monthly_return,
+            BOOL_AND(cash_flow_coverage_indicator = 'Complete') AS flows_complete
+        FROM mart_portfolio_returns_monthly
+        WHERE month_end_date BETWEEN ? AND ?
+        {_account_scope(account)}
+        GROUP BY month_end_date
+        ORDER BY month_end_date
+        """,
+        params,
+    ).fetchall()
+
+
+def _quarter(d: date) -> str:
+    return f"{d.year}-Q{(d.month - 1) // 3 + 1}"
+
+
+@router.get("/returns/quarterly", response_model=QuarterlyReturnsResponse)
+def quarterly_returns(
+    from_date: date = Query(date(2017, 1, 1), alias="from"),
+    to_date: date = Query(default_factory=date.today, alias="to"),
+    account: Optional[AccountName] = None,
+    estimate: bool = Query(
+        False,
+        description="Use the best-estimate return for months with incomplete cash flows (PELM).",
+    ),
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    """
+    Total return per calendar quarter, linking the monthly Modified Dietz returns, with the three
+    benchmarks over exactly the same months. A quarter is partial when the account has fewer than
+    three monthly returns in it (its first quarter, or the quarter in progress).
+    """
+    # The first row has no prior month-end inside the window, so it only anchors the start.
+    rows = _monthly_return_rows(con, account, from_date, to_date, estimate)[1:]
+    levels = {
+        (r[0], r[1]): r[2]
+        for r in con.execute(
+            "SELECT index_id, month_end_date, month_end_level FROM mart_benchmarks_monthly"
+        ).fetchall()
+    }
+    # Month-end dates in order, to find the month-end before each quarter's first month.
+    all_dates = sorted({d for (_, d) in levels} | {r[0] for r in rows})
+
+    groups: dict[str, list[tuple]] = {}
+    for r in rows:
+        if r[1] is not None:
+            groups.setdefault(_quarter(r[0]), []).append(r)
+
+    quarters = []
+    for q, months in groups.items():
+        total = 1.0
+        for m in months:
+            total *= 1 + m[1]
+        first, last = months[0][0], months[-1][0]
+        i = all_dates.index(first)
+        base_date = all_dates[i - 1] if i > 0 else None
+        bench = {}
+        for index_id in ("FTSE100", "SP500", "NASDAQ"):
+            b0, b1 = levels.get((index_id, base_date)), levels.get((index_id, last))
+            bench[index_id] = (b1 / b0 - 1) if b0 and b1 else None
+        complete = all(m[2] for m in months)
+        quarters.append(
+            QuarterlyReturn(
+                quarter=q,
+                start_date=base_date or first,
+                end_date=last,
+                months=len(months),
+                portfolio=total - 1,
+                flows_complete=complete,
+                estimated=estimate and not complete,
+                **bench,
+            )
+        )
+    return QuarterlyReturnsResponse(quarters=quarters)
+
+
 @router.get("/performance", response_model=PortfolioPerformanceResponse)
 def portfolio_performance(
     from_date: date = Query(date(2017, 1, 1), alias="from"),
     to_date: date = Query(default_factory=date.today, alias="to"),
     account: Optional[AccountName] = None,
+    estimate: bool = Query(
+        False,
+        description="Use the best-estimate return for months with incomplete cash flows (PELM).",
+    ),
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
     """
@@ -231,27 +335,8 @@ def portfolio_performance(
     # compared by selecting it explicitly.
     account_filter = _account_scope(account)
     monthly_grain = _data_grain(con, account) == "monthly"
-    params: list = [from_date, to_date]
-    if account:
-        params.append(account)
 
-    # Compound monthly Modified Dietz returns from mart_portfolio_returns_monthly.
-    # Aggregate across accounts (sum weighted by BMV) when no account filter is applied.
-    returns_sql = f"""
-    SELECT
-        month_end_date,
-        CASE
-            WHEN SUM(prev_month_end_value_gbp + 0.5 * month_inflows_gbp) = 0 THEN 0
-            ELSE SUM(monthly_return * (prev_month_end_value_gbp + 0.5 * month_inflows_gbp))
-                 / SUM(prev_month_end_value_gbp + 0.5 * month_inflows_gbp)
-        END AS monthly_return
-    FROM mart_portfolio_returns_monthly
-    WHERE month_end_date BETWEEN ? AND ?
-    {account_filter}
-    GROUP BY month_end_date
-    ORDER BY month_end_date
-    """
-    return_rows = con.execute(returns_sql, params).fetchall()
+    return_rows = _monthly_return_rows(con, account, from_date, to_date, estimate)
 
     portfolio_series: list[PerformancePoint] = []
     start_date = from_date
@@ -326,6 +411,8 @@ def portfolio_performance(
         SP500=bench_series("SP500"),
         NASDAQ=bench_series("NASDAQ"),
         sharpe=sharpe,
+        # The first point is the base (indexed 100), so its own month's return isn't used.
+        incomplete_flow_dates=[r[0] for r in return_rows[1:] if r[2] is False],
     )
 
 
@@ -453,6 +540,11 @@ def _pelm_ingest_entries(con: duckdb.DuckDBPyConnection) -> list[IngestLogEntry]
             "pelm_transactions",
             "SELECT MAX(tx_date) FROM fct_pelm_transactions",
             PELM_DIR / "pelm_transactions.csv",
+        ),
+        (
+            "pelm_income_ledgers",
+            "SELECT MAX(period_end) FROM base__pelm_ledger_coverage WHERE ledger = 'dividends'",
+            PELM_DIR / "pelm_ledger_coverage.csv",
         ),
         (
             "pelm_valuations",

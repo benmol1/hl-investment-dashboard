@@ -9,6 +9,7 @@ const SOURCE_LABELS: Record<string, string> = {
   prices: 'Prices',
   pelm_transactions: 'PELM transactions',
   pelm_valuations: 'PELM month-end positions',
+  pelm_income_ledgers: 'PELM income & fee ledgers',
 }
 
 export default function IngestLog() {

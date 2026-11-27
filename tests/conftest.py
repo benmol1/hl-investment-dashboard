@@ -80,7 +80,8 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
             prev_month_end_value_gbp    DOUBLE,
             month_inflows_gbp           DOUBLE,
             trailing_12m_sharpe         DOUBLE,
-            trailing_36m_sharpe         DOUBLE
+            trailing_36m_sharpe         DOUBLE,
+            cash_flow_coverage_indicator VARCHAR DEFAULT 'Complete'
         )
     """)
     con.execute("""
@@ -149,7 +150,49 @@ def _create_schema(con: duckdb.DuckDBPyConnection) -> None:
             security       VARCHAR,
             quantity       DOUBLE,
             amount_gbp     DOUBLE,
-            notes          VARCHAR
+            notes          VARCHAR,
+            ledger         VARCHAR
+        )
+    """)
+    con.execute("""
+        CREATE TABLE mart_pelm_income_monthly (
+            year_month                VARCHAR,
+            month_end_date            DATE,
+            month_end_value_gbp       DOUBLE,
+            dividends_gbp             DOUBLE,
+            interest_gbp              DOUBLE,
+            income_gbp                DOUBLE,
+            fx_commission_gbp         DOUBLE,
+            custody_fees_gbp          DOUBLE,
+            income_distributed_gbp    DOUBLE,
+            income_coverage_indicator VARCHAR,
+            fees_coverage_indicator   VARCHAR,
+            trailing_12m_income_gbp   DOUBLE,
+            trailing_12m_income_yield DOUBLE
+        )
+    """)
+    con.execute("""
+        CREATE TABLE mart_pelm_return_reconciliation (
+            period_start                 DATE,
+            period_end                   DATE,
+            source                       VARCHAR,
+            reported_return              DOUBLE,
+            dashboard_return             DOUBLE,
+            difference_pp                DOUBLE,
+            months_in_period             INTEGER,
+            months_found                 INTEGER,
+            net_outflows_gbp             DOUBLE,
+            cash_flow_coverage_indicator VARCHAR
+        )
+    """)
+    con.execute("""
+        CREATE TABLE base__pelm_ledger_coverage (
+            ledger       VARCHAR,
+            period_start DATE,
+            period_end   DATE,
+            opening_gbp  DOUBLE,
+            closing_gbp  DOUBLE,
+            source_file  VARCHAR
         )
     """)
     con.execute("""
@@ -220,12 +263,21 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     """)
     con.execute("""
         INSERT INTO mart_portfolio_returns_monthly VALUES
-        ('2024-01-31', 'ISA',  0.01,  9900.0,  0.0,   0.5,  0.4),
-        ('2024-01-31', 'SIPP', 0.015, 4900.0,  0.0,   0.4,  0.3),
-        ('2024-02-29', 'ISA',  0.02,  10000.0, 100.0, 0.6,  NULL),
-        ('2024-02-29', 'SIPP', 0.01,  5000.0,   50.0, 0.5,  NULL),
-        ('2024-01-31', 'PELM', 0.05,  1000.0,    0.0,   0.9,  0.8),
-        ('2024-02-29', 'PELM', 0.10,  1050.0,    0.0,   0.9,  NULL)
+        ('2024-01-31', 'ISA',  0.01,  9900.0,  0.0,   0.5,  0.4,  'Complete'),
+        ('2024-01-31', 'SIPP', 0.015, 4900.0,  0.0,   0.4,  0.3,  'Complete'),
+        ('2024-02-29', 'ISA',  0.02,  10000.0, 100.0, 0.6,  NULL, 'Complete'),
+        ('2024-02-29', 'SIPP', 0.01,  5000.0,   50.0, 0.5,  NULL, 'Complete'),
+        ('2024-01-31', 'PELM', 0.05,  1000.0,    0.0,   0.9,  0.8,  'Complete'),
+        ('2024-02-29', 'PELM', 0.10,  1050.0,    0.0,   0.9,  NULL, 'Incomplete')
+    """)
+    # Best estimate: actual return, plus a 1% income uplift on months with incomplete flows.
+    con.execute("""
+        ALTER TABLE mart_portfolio_returns_monthly ADD COLUMN estimated_monthly_return DOUBLE
+    """)
+    con.execute("""
+        UPDATE mart_portfolio_returns_monthly
+        SET estimated_monthly_return = monthly_return
+            + CASE WHEN cash_flow_coverage_indicator = 'Incomplete' THEN 0.01 ELSE 0 END
     """)
     con.execute("""
         INSERT INTO mart_portfolio_snapshot_monthly VALUES
@@ -270,11 +322,28 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     """)
     con.execute("""
         INSERT INTO fct_pelm_transactions VALUES
-        ('P1', '2024-01-10', '2024-01', 'B1', 'BUY',                'trade',            'ACME PLC',  10.0, -500.0, ''),
-        ('P2', '2024-01-15', '2024-01', 'S1', 'SELL',               'trade',            'ACME PLC',   4.0,  250.0, ''),
-        ('P3', '2024-01-20', '2024-01', 'T1', 'DEPOSIT_TRANSFER_OUT','internal_transfer','',        NULL, -250.0, ''),
-        ('P4', '2024-02-01', '2024-02', 'W1', 'WITHDRAWAL',         'external_flow',    '',          NULL, -1000.0, 'BACS Payment'),
-        ('P5', '2024-02-02', '2024-02', 'X1', 'STOCK_TRANSFER_IN',  'external_flow',    'OLD CO',   50.0, NULL, 'in specie')
+        ('P1', '2024-01-10', '2024-01', 'B1', 'BUY',                'trade',            'ACME PLC',  10.0, -500.0, '', 'capital'),
+        ('P2', '2024-01-15', '2024-01', 'S1', 'SELL',               'trade',            'ACME PLC',   4.0,  250.0, '', 'capital'),
+        ('P3', '2024-01-20', '2024-01', 'T1', 'DEPOSIT_TRANSFER_OUT','internal_transfer','',        NULL, -250.0, '', 'capital'),
+        ('P4', '2024-02-01', '2024-02', 'W1', 'WITHDRAWAL',         'external_flow',    '',          NULL, -1000.0, 'BACS Payment', 'capital'),
+        ('P5', '2024-02-02', '2024-02', 'X1', 'STOCK_TRANSFER_IN',  'external_flow',    'OLD CO',   50.0, NULL, 'in specie', 'capital')
+    """)
+    con.execute("""
+        INSERT INTO mart_pelm_income_monthly VALUES
+        ('2023-12', '2023-12-31', 1000.0,  0.0,  0.0,  0.0, 0.0,  0.0,  0.0, 'Incomplete', 'Incomplete', NULL, NULL),
+        ('2024-01', '2024-01-31', 1050.0, 10.0,  1.0, 11.0, 0.1, 90.0, 12.0, 'Complete',   'Complete',   NULL, NULL),
+        ('2024-02', '2024-02-29', 1155.0, 20.0,  0.0, 20.0, 0.2,  0.0, 15.0, 'Complete',   'Incomplete', NULL, NULL),
+        ('2024-03', '2024-03-31', 1160.0, 30.0,  2.0, 32.0, 0.3,  0.0, 25.0, 'Complete',   'Incomplete', NULL, NULL),
+        ('2024-04', '2024-04-30', 1170.0,  0.0,  0.0,  0.0, 0.0,  0.0,  0.0, 'Incomplete', 'Incomplete', NULL, NULL)
+    """)
+    con.execute("""
+        INSERT INTO mart_pelm_return_reconciliation VALUES
+        ('2024-01-01', '2024-03-31', 'Report to 31.3.24', 0.0448, 0.0450, 0.02, 3, 3, 52.0, 'Complete')
+    """)
+    con.execute("""
+        INSERT INTO base__pelm_ledger_coverage VALUES
+        ('capital',   '2023-12-01', '2024-02-29', 0.0, 0.0, 'a.pdf'),
+        ('dividends', '2024-01-01', '2024-03-31', 0.0, 5.0, 'a.pdf')
     """)
     con.execute("""
         INSERT INTO fct_transactions VALUES

@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ReferenceLine,
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ReferenceLine, ReferenceArea,
 } from 'recharts'
 import { useApi } from '../hooks/useApi'
 import { useChartHeight } from '../hooks/useChartHeight'
-import { fetchPortfolioPerformance } from '../api/portfolio'
+import { fetchPortfolioPerformance, fetchQuarterlyReturns } from '../api/portfolio'
 import Card from '../components/Card'
 import StatusMessage from '../components/StatusMessage'
 import MultiToggle from '../components/MultiToggle'
 import { fmtQuarterTick, quarterTicks, quarterReferenceLines } from '../chartDates'
-import type { Account, Benchmark, PerformancePoint, PortfolioPerformanceResponse, SharpeRatios } from '../types'
+import type { Account, Benchmark, PerformancePoint, PortfolioPerformanceResponse, QuarterlyReturn, SharpeRatios } from '../types'
 
 // 'ALL' is the combined ISA + SIPP view (the API's no-account default). PELM is only ever
 // shown when selected explicitly.
@@ -39,6 +39,30 @@ const BENCH_DEFS: Record<Benchmark, SeriesDef> = {
 
 const month = (d: string) => d.slice(0, 7)
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const fmtMonth = (m: string) => `${MONTH_NAMES[parseInt(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`
+const prevMonth = (m: string) => {
+  const y = parseInt(m.slice(0, 4))
+  const mo = parseInt(m.slice(5, 7))
+  return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, '0')}`
+}
+
+/** '2025-Q3' -> 'Q3 2025'. */
+const fmtQuarter = (q: string) => q.replace(/^(\d{4})-(Q\d)$/, '$2 $1')
+const fmtPct2 = (v: number) => `${(v * 100).toFixed(2)}%`
+
+/** Group month-end dates into runs of consecutive months, as [firstMonth, lastMonth] (YYYY-MM). */
+function monthRanges(dates: string[]): [string, string][] {
+  const months = [...new Set(dates.map(month))].sort()
+  const ranges: [string, string][] = []
+  for (const m of months) {
+    const last = ranges.at(-1)
+    if (last && prevMonth(m) === last[1]) last[1] = m
+    else ranges.push([m, m])
+  }
+  return ranges
+}
+
 interface MergedRow {
   date: string
   [seriesKey: string]: number | string | undefined
@@ -50,14 +74,31 @@ interface MergedRow {
  * useApi only clears its data after the render in which the inputs change, so for one render the
  * previous response is paired with the new account list. Each response is therefore tagged with
  * the accounts it was fetched for and treated as still loading unless they match.
+ *
+ * `pelmEstimate` requests the best-estimate return for PELM (it has no effect on ISA/SIPP).
  */
-function usePerformance(accounts: AccountKey[], from: string | undefined) {
-  const wanted = accounts.join(',')
+function usePerformance(accounts: AccountKey[], from: string | undefined, pelmEstimate: boolean) {
+  return usePerAccount(accounts, from, pelmEstimate, fetchPortfolioPerformance)
+}
+
+/** Quarterly returns for each selected account, with the same staleness handling as usePerformance. */
+function useQuarterlyReturns(accounts: AccountKey[], from: string | undefined, pelmEstimate: boolean) {
+  return usePerAccount(accounts, from, pelmEstimate, fetchQuarterlyReturns)
+}
+
+function usePerAccount<T>(
+  accounts: AccountKey[],
+  from: string | undefined,
+  pelmEstimate: boolean,
+  fetcher: (from?: string, to?: string, account?: Account, estimate?: boolean) => Promise<T>,
+) {
+  const estimate = pelmEstimate && accounts.includes('PELM')
+  const wanted = `${accounts.join(',')}|${estimate}`
   const state = useApi(
     async () => ({
       for: wanted,
       responses: await Promise.all(
-        accounts.map((k) => fetchPortfolioPerformance(from, undefined, k === 'ALL' ? undefined : k)),
+        accounts.map((k) => fetcher(from, undefined, k === 'ALL' ? undefined : k, k === 'PELM' && estimate)),
       ),
     }),
     [from, wanted],
@@ -130,14 +171,18 @@ export default function Benchmarks() {
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>(['ALL'])
   const [selectedBenchmarks, setSelectedBenchmarks] = useState<string[]>([...BENCH_ORDER])
   const [startDate, setStartDate] = useState(`${currentYear - 3}-12-31`)
+  const [pelmEstimate, setPelmEstimate] = useState(false)
 
   const accounts = ACCOUNT_ORDER.filter((k) => selectedAccounts.includes(k))
   const benchmarks = BENCH_ORDER.filter((k) => selectedBenchmarks.includes(k))
   const series: SeriesDef[] = [...accounts.map((k) => ACCOUNT_DEFS[k]), ...benchmarks.map((k) => BENCH_DEFS[k])]
   const accountKeys: string[] = accounts
 
-  const { data: perf, loading, error } = usePerformance(accounts, startDate)
-  const { data: allPerf } = usePerformance(accounts, undefined)
+  const pelmSelected = accounts.includes('PELM')
+  const estimateOn = pelmSelected && pelmEstimate
+  const { data: perf, loading, error } = usePerformance(accounts, startDate, pelmEstimate)
+  const { data: allPerf } = usePerformance(accounts, undefined, pelmEstimate)
+  const quarterly = useQuarterlyReturns(accounts, startDate, pelmEstimate)
 
   const rawSeries = (responses: PortfolioPerformanceResponse[] | null) => {
     if (!responses?.length) return {}
@@ -223,7 +268,43 @@ export default function Benchmarks() {
     const i = accounts.indexOf(key as AccountKey)
     return i >= 0 ? perf[i].sharpe.portfolio : sharpeSource?.sharpe[key]
   }
+  // PELM months whose return is understated because the income paid out to the beneficiary is unknown.
+  const pelmIncomplete = accounts.includes('PELM') && perf ? perf[accounts.indexOf('PELM')].incomplete_flow_dates ?? [] : []
+  const pelmIncompleteRanges = monthRanges(pelmIncomplete)
+  // Shade each range on the chart: a month's return runs from the previous month-end to its own.
+  const rowDateByMonth = new Map(merged.map((r) => [month(r.date), r.date]))
+  const pelmShading = pelmIncompleteRanges.flatMap(([a, b]) => {
+    const x1 = rowDateByMonth.get(prevMonth(a)) ?? rowDateByMonth.get(a)
+    const x2 = rowDateByMonth.get(b)
+    return x1 && x2 && x1 !== x2 ? [{ x1, x2 }] : []
+  })
   const pelmLastDate = accounts.includes('PELM') && perf ? perf[accounts.indexOf('PELM')].portfolio.at(-1)?.date : undefined
+
+  // Quarterly returns: one row per quarter (newest first), one column per account then benchmark.
+  const quarterRows = (() => {
+    const responses = quarterly.data
+    if (!responses?.length) return []
+    const byAccount = responses.map((r) => new Map(r.quarters.map((q) => [q.quarter, q])))
+    const quarters = [...new Set(responses.flatMap((r) => r.quarters.map((q) => q.quarter)))].sort().reverse()
+    return quarters.map((quarter) => {
+      const cells = accounts.map((_, i) => byAccount[i].get(quarter))
+      // Benchmarks come from the first account's response, falling back to the next account
+      // that has this quarter (e.g. when the first account started later).
+      const bench = cells.find((c): c is QuarterlyReturn => !!c)
+      const present = cells.filter((c): c is QuarterlyReturn => !!c)
+      const monthsSet = new Set(present.map((c) => c.months))
+      // If every account covers the same part-quarter, say so once on the row label.
+      const rowMonths = monthsSet.size === 1 && present[0].months < 3 ? present[0].months : undefined
+      return { quarter, cells, bench, rowMonths }
+    })
+  })()
+  const anyCellPartial = quarterRows.some((r) => r.rowMonths == null && r.cells.some((c) => c && c.months < 3))
+  const anyRowPartial = quarterRows.some((r) => r.rowMonths != null)
+  const anyIncompleteQuarter = quarterRows.some((r) => r.cells.some((c) => c && !c.flows_complete))
+  const retClass = (v: number) => (v >= 0 ? 'text-emerald-400' : 'text-red-400')
+  const quarterlyTitle = estimateOn
+    ? 'Best estimate: includes estimated income paid out'
+    : 'Understated: income paid out data missing'
 
   return (
     <div className="space-y-6">
@@ -244,6 +325,33 @@ export default function Benchmarks() {
             selected={selectedBenchmarks}
             onChange={setSelectedBenchmarks}
           />
+          {pelmSelected && (
+            <div className="flex items-center gap-2 text-sm flex-wrap sm:justify-end">
+              <span className="text-gray-500">PELM returns:</span>
+              <div className="inline-flex rounded-md border border-gray-700 overflow-hidden" role="group" aria-label="PELM returns">
+                {([false, true] as const).map((on) => (
+                  <button
+                    key={String(on)}
+                    onClick={() => setPelmEstimate(on)}
+                    aria-pressed={pelmEstimate === on}
+                    className={`px-2 py-1 text-xs font-medium transition-colors ${on ? 'border-l border-gray-700' : ''} ${
+                      pelmEstimate === on
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-900 text-gray-400 hover:text-gray-300'
+                    }`}
+                  >
+                    {on ? 'Best estimate' : 'Actual data'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {estimateOn && (
+            <p className="text-xs text-gray-500 max-w-md sm:text-right">
+              Best estimate: for months without income data, adds the average monthly uplift that income
+              paid out adds in the months that have it (Jul 2025 – Mar 2026).
+            </p>
+          )}
           <div className="flex items-center gap-2 text-sm flex-wrap sm:justify-end">
             <span className="text-gray-500">Start date:</span>
             {yearEndPresets.map(({ label, value }) => (
@@ -323,6 +431,9 @@ export default function Benchmarks() {
                 const s = series.find((x) => x.key === v)
                 return <span style={{ color: '#9ca3af', fontSize: 12 }}>{s?.label ?? v}</span>
               }} />
+              {pelmShading.map(({ x1, x2 }) => (
+                <ReferenceArea key={x1} x1={x1} x2={x2} fill="#e879f9" fillOpacity={0.06} stroke="none" ifOverflow="hidden" />
+              ))}
               <ReferenceLine y={100} stroke="#4b5563" strokeDasharray="4 2" />
               {quarterReferenceLines(dates)}
               {series.map(({ key, colour, dash }) => (
@@ -339,6 +450,95 @@ export default function Benchmarks() {
               ))}
             </LineChart>
           </ResponsiveContainer>
+        )}
+        {pelmIncompleteRanges.length > 0 && (
+          <p className="text-xs text-gray-500 mt-3">
+            PELM Trust: {pelmIncomplete.length} month{pelmIncomplete.length === 1 ? ' is' : 's are'} missing
+            income payment data from Barratt &amp; Cooke
+            ({pelmIncompleteRanges.map(([a, b]) => (a === b ? fmtMonth(a) : `${fmtMonth(a)} – ${fmtMonth(b)}`)).join(', ')}),
+            so its return for those months is {estimateOn ? 'a best estimate' : 'understated'}
+            {pelmShading.length > 0 && ' (shaded on the chart)'}.
+          </p>
+        )}
+      </Card>
+
+      <Card title="Quarterly total returns">
+        {quarterly.loading || quarterly.error || !quarterRows.length ? (
+          <StatusMessage loading={quarterly.loading} error={quarterly.error} empty={!quarterRows.length} />
+        ) : (
+          <>
+            <div className="max-h-[28rem] overflow-auto -mx-1 px-1">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-gray-900">
+                  <tr className="text-gray-500 text-xs uppercase">
+                    <th className="text-left py-2 pr-2"></th>
+                    {series.map(({ key, label, colour }) => (
+                      <th key={key} className="text-right py-2 pl-3 whitespace-nowrap">
+                        <span className="flex items-center justify-end gap-1.5">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: colour }} />
+                          {label}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {quarterRows.map(({ quarter, cells, bench, rowMonths }) => (
+                    <tr key={quarter}>
+                      <td className="py-2 pr-2 text-gray-500 text-xs uppercase tracking-wider whitespace-nowrap">
+                        {fmtQuarter(quarter)}
+                        {rowMonths != null && <span className="normal-case text-gray-600"> ({rowMonths} mo)</span>}
+                      </td>
+                      {accounts.map((k, i) => {
+                        const c = cells[i]
+                        return (
+                          <td key={k} className="py-2 pl-3 text-right font-semibold tabular-nums whitespace-nowrap">
+                            {c == null ? (
+                              <span className="text-gray-600">—</span>
+                            ) : (
+                              <>
+                                <span className={retClass(c.portfolio)}>{fmtPct2(c.portfolio)}</span>
+                                {!c.flows_complete && (
+                                  <sup className="text-yellow-500 ml-0.5" title={quarterlyTitle}>
+                                    {estimateOn ? 'e' : '*'}
+                                  </sup>
+                                )}
+                                {rowMonths == null && c.months < 3 && (
+                                  <sup className="text-gray-500 font-normal ml-0.5" title={`Partial quarter: ${c.months} month${c.months === 1 ? '' : 's'}`}>
+                                    {c.months}m
+                                  </sup>
+                                )}
+                              </>
+                            )}
+                          </td>
+                        )
+                      })}
+                      {benchmarks.map((b) => {
+                        const v = bench?.[b]
+                        return (
+                          <td key={b} className="py-2 pl-3 text-right font-semibold tabular-nums whitespace-nowrap">
+                            {v == null
+                              ? <span className="text-gray-600">—</span>
+                              : <span className={retClass(v)}>{fmtPct2(v)}</span>}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="text-xs text-gray-500 mt-3 space-y-1">
+              <p>Benchmarks are measured over the same months as {accounts.length > 1 ? 'the first selected account' : 'the account'}.</p>
+              {anyRowPartial && <p>(n mo): partial quarter, covering only n months (the first quarter, or the one in progress).</p>}
+              {anyCellPartial && <p><sup>1m</sup>, <sup>2m</sup>: this account covers only 1 or 2 months of the quarter (its first quarter, or its latest valuation).</p>}
+              {anyIncompleteQuarter && (estimateOn ? (
+                <p><sup className="text-yellow-500">e</sup> PELM Trust: estimated, because income paid out data is missing for some months.</p>
+              ) : (
+                <p><sup className="text-yellow-500">*</sup> PELM Trust: understated, because income paid out data is missing for some months.</p>
+              ))}
+            </div>
+          </>
         )}
       </Card>
 
