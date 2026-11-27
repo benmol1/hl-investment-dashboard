@@ -373,3 +373,25 @@ Recommended and agreed: **leave them unestimated and flag them.** For now these 
 4. **Is the custody fee annual or quarterly?** One charge of £750 + VAT in nine months, and the
    Q3 and Q4 2025 packs had no fees page.
 
+### 7.6 Quarterly returns and the best-estimate toggle (2026-11-27)
+
+The reconciliation table moved to its own PELM Reconciliation page. Benchmarks gained a table of
+quarterly total returns for every quarter (`/portfolio/returns/quarterly`, with benchmarks over the
+same months), and a toggle between **actual data** and a **best estimate** for PELM.
+
+**The estimate, as requested:** for each PELM month with complete cash flows, take its return minus
+the same return calculated without the BACS income payments. Average that uplift over those
+months, and add it to every month whose income data is missing. Columns in
+`mart_portfolio_returns_monthly`:
+- `estimated_monthly_return`: the actual return wherever flows are complete
+- `avg_income_uplift`
+- `monthly_income_distributed_gbp`: carried from the snapshot mart
+
+Trailing returns and Sharpe ratios stay on actual data.
+
+**Caveat: the estimate overshoots B&C.** The uplift is 0.295% a month, measured over Jul 2025 –
+Mar 2026. Inception to May 2026 is 21.95% on actual data and 30.46% with the estimate, against
+B&C's 23.4% (4 Sep 2023 – 4 Jun 2026). Their figure implies only about 0.05% a month for the
+missing months. That suggests far less income was paid out before Jul 2025 than since, or that
+income was then retained in the deposit account. The estimate should be treated as an upper
+bound until the earlier dividends ledgers arrive (§7.5 item 1).

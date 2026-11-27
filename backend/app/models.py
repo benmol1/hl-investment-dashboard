@@ -168,6 +168,23 @@ class SharpeRatios(BaseModel):
     trailing_36m: Optional[float]
 
 
+class QuarterlyReturn(BaseModel):
+    quarter: str  # "2025-Q3"
+    start_date: date  # month-end before the quarter's first return month
+    end_date: date
+    months: int  # monthly returns linked; fewer than 3 means a partial quarter
+    portfolio: float  # total return as a fraction
+    flows_complete: bool  # every month's external cash flows are known
+    estimated: bool  # incomplete months were filled with the best estimate
+    FTSE100: Optional[float]
+    SP500: Optional[float]
+    NASDAQ: Optional[float]
+
+
+class QuarterlyReturnsResponse(BaseModel):
+    quarters: list[QuarterlyReturn]
+
+
 class PortfolioPerformanceResponse(BaseModel):
     start_date: date
     portfolio: list[PerformancePoint]

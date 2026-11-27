@@ -101,6 +101,13 @@ Plan §7. Months without a dividends ledger are flagged, not estimated (decision
 
 ---
 
+## Phase 7b — Quarterly returns and best-estimate toggle (plan §7.6)
+
+- [x] Reconciliation table moved to its own PELM Reconciliation page
+- [x] `/portfolio/returns/quarterly` and a quarterly total-returns table on Benchmarks (every quarter, benchmarks over the same months, partial quarters marked)
+- [x] `estimated_monthly_return` / `avg_income_uplift` in `mart_portfolio_returns_monthly`; `estimate=true` on `/portfolio/performance` and the quarterly endpoint; Actual / Best estimate toggle on Benchmarks
+- [ ] Decide whether to keep the estimate method: it gives 30.5% inception to May 2026 against B&C's 23.4% (the recent income payout rate overstates earlier months)
+
 ## Phase 8 — Ask Barratt & Cooke (plan §7.5)
 
 - [ ] Dividends, income and fees ledgers for Sep 2023 – Jun 2025 (closes the remaining gap to 23.4%)

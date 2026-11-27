@@ -176,3 +176,23 @@ export interface PelmReconciliationRow {
   net_outflows_gbp: number | null
   coverage: string           // 'Complete' | 'Incomplete' | 'Missing months'
 }
+
+export interface QuarterlyReturn {
+  quarter: string          // '2025-Q3'
+  start_date: string
+  end_date: string
+  /** Months covered; < 3 for a partial quarter (the account's first, or the one in progress). */
+  months: number
+  portfolio: number        // fraction
+  /** False when some month's cash flows are incomplete (PELM only), so the return is understated. */
+  flows_complete: boolean
+  /** True when estimate=true and the quarter contains best-estimate months. */
+  estimated: boolean
+  FTSE100: number | null
+  SP500: number | null
+  NASDAQ: number | null
+}
+
+export interface QuarterlyReturnsResponse {
+  quarters: QuarterlyReturn[]
+}

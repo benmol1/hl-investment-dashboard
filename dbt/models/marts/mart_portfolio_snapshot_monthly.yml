@@ -64,6 +64,11 @@ models:
           included where those ledgers were supplied, so this is an estimate.
       - name: invested_value_gbp
         description: "PELM only: month_end_value_gbp minus cash_balance_gbp. Null where either is null."
+      - name: monthly_income_distributed_gbp
+        description: >
+          PELM only: income paid out to the beneficiary by BACS in the month (positive), already
+          included in monthly_inflows_gbp as an outflow. Zero where the dividends ledger is
+          missing (unknown, not none). Null for ISA/SIPP.
       - name: cash_flow_coverage_indicator
         description: >
           'Complete' when every external cash flow in the month is known: always for ISA/SIPP;

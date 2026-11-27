@@ -195,7 +195,7 @@ On the Pi (the `data/` folder is bind-mounted into the containers, so none of th
    It reads all four sub-ledgers (capital, dividends, income account, fees) from every PDF, drops entries repeated across overlapping statements, and refuses to write unless every statement balances and each opening balance agrees with the statements before it. It writes `pelm_transactions.csv` and `pelm_ledger_coverage.csv` and prints the external cash flows by month.
 5. Rebuild the models: `docker compose exec -w /app/dbt cron /app/.venv/bin/dbt build --profiles-dir .`, or wait for the 01:00 refresh. The test `assert_pelm_reported_returns_reconcile` fails the build if the dashboard's return for a fully covered report period differs from Barratt & Cooke's by more than 0.1pp.
 
-Months without a dividends ledger are flagged as having incomplete cash flows: the BACS income payments to the beneficiary are missing, so their returns are understated. The Benchmarks page says which months are affected.
+Months without a dividends ledger are flagged as having incomplete cash flows: the BACS income payments to the beneficiary are missing, so their returns are understated. The Benchmarks page says which months are affected, and its "Best estimate" toggle fills them in by adding the average uplift the income data adds in the months that have it. The reconciliation against Barratt & Cooke's reports has its own PELM Reconciliation page.
 
 The parser's `pdfplumber` is installed in the images, so after pulling a change that adds it, run `docker compose up -d --build` once. Locally, the same steps work with the files in `pelm-inputs/` and `data/pelm/`, using `uv run python backend/scripts/parse_pelm_ledger.py`.
 
@@ -222,6 +222,7 @@ All endpoints are read-only (GET). Interactive docs at `http://localhost:8000/do
 | `GET /transactions` | Paginated, filterable transaction log |
 | `GET /pelm/transactions` | PELM Will Trust ledger lines from all four sub-ledgers (trades, dividends, interest, fees, income paid out, transfers); filter by `type` or `category`; deposit and settlement sweeps hidden unless `include_internal=true` |
 | `GET /pelm/income?grain=quarter\|month` | PELM income received, FX commission, custody fees and income paid out per quarter or month, with ledger-coverage flags and trailing-12m yield |
+| `GET /portfolio/returns/quarterly` | Total return per calendar quarter (linked monthly returns) with the three benchmarks over the same months; `estimate=true` fills PELM months with incomplete cash flows with the best estimate |
 | `GET /pelm/reconciliation` | Barratt & Cooke's reported total return per report period beside the dashboard's own figure |
 
 All portfolio/transaction endpoints accept an `account` query param (`ISA`, `SIPP`, or omit for combined ISA + SIPP). The `/portfolio/*` endpoints also accept `PELM`, which has month-end valuations only: `/portfolio/value` and `/portfolio/performance` serve it, while holdings, allocation and inflows return a 400. PELM is never part of the combined default.

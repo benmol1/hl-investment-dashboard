@@ -270,6 +270,15 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
         ('2024-01-31', 'PELM', 0.05,  1000.0,    0.0,   0.9,  0.8,  'Complete'),
         ('2024-02-29', 'PELM', 0.10,  1050.0,    0.0,   0.9,  NULL, 'Incomplete')
     """)
+    # Best estimate: actual return, plus a 1% income uplift on months with incomplete flows.
+    con.execute("""
+        ALTER TABLE mart_portfolio_returns_monthly ADD COLUMN estimated_monthly_return DOUBLE
+    """)
+    con.execute("""
+        UPDATE mart_portfolio_returns_monthly
+        SET estimated_monthly_return = monthly_return
+            + CASE WHEN cash_flow_coverage_indicator = 'Incomplete' THEN 0.01 ELSE 0 END
+    """)
     con.execute("""
         INSERT INTO mart_portfolio_snapshot_monthly VALUES
         ('PELM', '2023-12-31', 1000.0, NULL,  NULL),

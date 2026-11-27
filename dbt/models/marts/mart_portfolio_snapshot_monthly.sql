@@ -79,6 +79,20 @@ monthly_inflows as (
     group by da.account_key, t.year_month
 ),
 
+-- PELM income paid out to the beneficiary (BACS from the dividends ledger), as a positive amount.
+-- Already inside monthly_inflows_gbp; kept separately so the returns mart can measure what the
+-- income data adds to the return.
+pelm_income_distributions as (
+    select
+        da.account_key,
+        t.year_month,
+        -sum(t.amount_gbp) as income_distributed_gbp
+    from {{ ref('fct_pelm_transactions') }} t
+    inner join {{ ref('dim_account') }} da on da.account_name = 'PELM'
+    where t.tx_type = 'INCOME_DISTRIBUTION'
+    group by da.account_key, t.year_month
+),
+
 -- Net fund trades (buy value minus sell proceeds) within each month.
 monthly_fund_purchases as (
     select
@@ -126,6 +140,10 @@ select
     -- PELM only; null for the daily-grain accounts.
     pc.cash_balance_gbp,
     mev.month_end_value_gbp - pc.cash_balance_gbp      as invested_value_gbp,
+    -- PELM only: income paid out to the beneficiary in the month; null for ISA/SIPP.
+    case when ams.data_grain = 'monthly'
+         then coalesce(pid.income_distributed_gbp, 0)
+    end                                                as monthly_income_distributed_gbp,
     -- HL accounts have every transaction. PELM is only complete where the ledgers holding its
     -- external flows were supplied; elsewhere income paid out is missing and the return is low.
     case when ams.data_grain = 'monthly'
@@ -145,6 +163,9 @@ left join monthly_fund_purchases mfp
 left join pelm_cash pc
     on  pc.account_key = ams.account_key
     and pc.year_month  = ams.year_month
+left join pelm_income_distributions pid
+    on  pid.account_key = ams.account_key
+    and pid.year_month  = ams.year_month
 left join {{ ref('int_pelm_ledger_coverage_monthly') }} cov
     on  ams.data_grain = 'monthly'
     and cov.year_month = ams.year_month
