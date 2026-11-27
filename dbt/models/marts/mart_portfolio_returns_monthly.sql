@@ -8,7 +8,8 @@ monthly_inputs as (
         month_end_date,
         month_end_value_gbp                                                         as emv,
         lag(month_end_value_gbp) over (partition by account_name order by year_month) as bmv,
-        monthly_inflows_gbp                                                          as cf
+        monthly_inflows_gbp                                                          as cf,
+        cash_flow_coverage_indicator
     from {{ ref('mart_portfolio_snapshot_monthly') }}
 ),
 
@@ -22,6 +23,7 @@ monthly_returns as (
         emv,
         bmv,
         cf,
+        cash_flow_coverage_indicator,
         -- Modified Dietz: (EMV - BMV - CF) / (BMV + 0.5 * CF), mid-period cash flow weighting
         case
             when (bmv + 0.5 * cf) = 0 then null
@@ -42,6 +44,7 @@ trailing_returns as (
         bmv as prev_month_end_value_gbp,
         cf  as month_inflows_gbp,
         monthly_return,
+        cash_flow_coverage_indicator,
         case
             when count(*) over (
                 partition by account_name
@@ -132,6 +135,7 @@ select
     prev_month_end_value_gbp,
     month_inflows_gbp,
     monthly_return,
+    cash_flow_coverage_indicator,
     trailing_12m_return,
     trailing_36m_return_annualised,
     trailing_12m_sharpe,

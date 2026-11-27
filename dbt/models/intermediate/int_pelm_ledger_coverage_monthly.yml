@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: int_pelm_ledger_coverage_monthly
+    description: >
+      Which Barratt & Cooke sub-ledgers cover each PELM valuation month in full. The cash
+      flows that drive the PELM return (capital withdrawals and transfers, and BACS income
+      payments to the beneficiary) are only complete when both the capital and dividends ledgers
+      cover the month. Months without them have understated returns, because income paid out
+      looks like a fall in value.
+
+      **Grain**: One row per year_month in base__pelm_valuations
+      **Source**: base__pelm_valuations, base__pelm_ledger_coverage
+    columns:
+      - name: year_month
+        description: "YYYY-MM."
+        tests:
+          - not_null
+          - unique
+      - name: month_end_date
+        description: "Calendar month-end."
+      - name: capital_ledger_covered
+        description: "True if a capital (C070982) statement covers the whole month."
+      - name: dividends_ledger_covered
+        description: "True if a dividends and claims (E070982) statement covers the whole month."
+      - name: income_ledger_covered
+        description: "True if an income account (t070982) statement covers the whole month."
+      - name: fees_ledger_covered
+        description: >
+          True if a fees (d070982) statement covers the whole month. Barratt & Cooke seem to
+          send this page only when there is fee activity, so false does not prove there were no fees.
+      - name: cash_flow_coverage_indicator
+        description: "'Complete' when both the capital and dividends ledgers cover the month, otherwise 'Incomplete'."
+        tests:
+          - accepted_values:
+              arguments:
+                values: [Complete, Incomplete]

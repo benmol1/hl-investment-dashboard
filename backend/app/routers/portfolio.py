@@ -244,7 +244,8 @@ def portfolio_performance(
             WHEN SUM(prev_month_end_value_gbp + 0.5 * month_inflows_gbp) = 0 THEN 0
             ELSE SUM(monthly_return * (prev_month_end_value_gbp + 0.5 * month_inflows_gbp))
                  / SUM(prev_month_end_value_gbp + 0.5 * month_inflows_gbp)
-        END AS monthly_return
+        END AS monthly_return,
+        BOOL_AND(cash_flow_coverage_indicator = 'Complete') AS flows_complete
     FROM mart_portfolio_returns_monthly
     WHERE month_end_date BETWEEN ? AND ?
     {account_filter}
@@ -326,6 +327,8 @@ def portfolio_performance(
         SP500=bench_series("SP500"),
         NASDAQ=bench_series("NASDAQ"),
         sharpe=sharpe,
+        # The first point is the base (indexed 100), so its own month's return isn't used.
+        incomplete_flow_dates=[r[0] for r in return_rows[1:] if r[2] is False],
     )
 
 
@@ -453,6 +456,11 @@ def _pelm_ingest_entries(con: duckdb.DuckDBPyConnection) -> list[IngestLogEntry]
             "pelm_transactions",
             "SELECT MAX(tx_date) FROM fct_pelm_transactions",
             PELM_DIR / "pelm_transactions.csv",
+        ),
+        (
+            "pelm_income_ledgers",
+            "SELECT MAX(period_end) FROM base__pelm_ledger_coverage WHERE ledger = 'dividends'",
+            PELM_DIR / "pelm_ledger_coverage.csv",
         ),
         (
             "pelm_valuations",

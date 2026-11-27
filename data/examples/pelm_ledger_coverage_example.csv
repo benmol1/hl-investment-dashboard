@@ -1,0 +1,4 @@
+ledger,period_start,period_end,opening_gbp,closing_gbp,source_file
+capital,2024-01-01,2024-05-31,0.0,0.0,C070982 Ledgers to 31.05.24.pdf
+dividends,2024-01-01,2024-05-31,0.0,0.0,C070982 Ledgers to 31.05.24.pdf
+fees,2024-01-01,2024-05-31,0.0,0.0,C070982 Ledgers to 31.05.24.pdf

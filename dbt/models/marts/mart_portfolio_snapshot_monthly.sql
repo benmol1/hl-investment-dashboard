@@ -64,13 +64,19 @@ monthly_inflows as (
 
     union all
 
-    -- PELM external flows (transfers in, withdrawals out) are hand-entered in the seed.
+    -- PELM external flows come from the ledger: cash transferred in, capital withdrawals, and the
+    -- BACS payments of income to the beneficiary. Flows on or before the first valuation date are
+    -- already inside the opening value, so they are left out.
     select
         da.account_key,
-        pv.year_month,
-        pv.external_flow_gbp
-    from {{ ref('base__pelm_valuations') }} pv
+        t.year_month,
+        sum(t.amount_gbp)
+    from {{ ref('fct_pelm_transactions') }} t
     inner join {{ ref('dim_account') }} da on da.account_name = 'PELM'
+    where t.category = 'external_flow'
+      and t.amount_gbp is not null
+      and t.tx_date > (select min(valuation_date) from {{ ref('base__pelm_valuations') }})
+    group by da.account_key, t.year_month
 ),
 
 -- Net fund trades (buy value minus sell proceeds) within each month.
@@ -89,9 +95,10 @@ monthly_fund_purchases as (
     group by ft.account_key, dd.year_month
 ),
 
--- PELM cash at each month-end: opening balance plus every cash movement up to that date. Deposit
--- sweeps are left out because the deposit account is still cash held by the trust (the GIA
--- ledger itself runs at about zero). Null for months before the ledger starts.
+-- PELM cash at each month-end: every sub-ledger's opening balance plus every cash movement up to
+-- that date. Deposit and settlement sweeps are left out because they move cash between parts of
+-- the trust (the capital ledger itself runs at about zero). Null for months before the ledger
+-- starts.
 pelm_cash as (
     select
         ams.account_key,
@@ -118,7 +125,13 @@ select
     end                                                as monthly_net_fund_purchases_gbp,
     -- PELM only; null for the daily-grain accounts.
     pc.cash_balance_gbp,
-    mev.month_end_value_gbp - pc.cash_balance_gbp      as invested_value_gbp
+    mev.month_end_value_gbp - pc.cash_balance_gbp      as invested_value_gbp,
+    -- HL accounts have every transaction. PELM is only complete where the ledgers holding its
+    -- external flows were supplied; elsewhere income paid out is missing and the return is low.
+    case when ams.data_grain = 'monthly'
+         then coalesce(cov.cash_flow_coverage_indicator, 'Incomplete')
+         else 'Complete'
+    end                                                as cash_flow_coverage_indicator
 from account_month_spine ams
 left join month_end_values mev
     on  mev.account_key = ams.account_key
@@ -132,3 +145,6 @@ left join monthly_fund_purchases mfp
 left join pelm_cash pc
     on  pc.account_key = ams.account_key
     and pc.year_month  = ams.year_month
+left join {{ ref('int_pelm_ledger_coverage_monthly') }} cov
+    on  ams.data_grain = 'monthly'
+    and cov.year_month = ams.year_month

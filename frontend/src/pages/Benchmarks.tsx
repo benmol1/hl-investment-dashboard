@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ReferenceLine,
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ReferenceLine, ReferenceArea,
 } from 'recharts'
 import { useApi } from '../hooks/useApi'
 import { useChartHeight } from '../hooks/useChartHeight'
@@ -38,6 +38,26 @@ const BENCH_DEFS: Record<Benchmark, SeriesDef> = {
 }
 
 const month = (d: string) => d.slice(0, 7)
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const fmtMonth = (m: string) => `${MONTH_NAMES[parseInt(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`
+const prevMonth = (m: string) => {
+  const y = parseInt(m.slice(0, 4))
+  const mo = parseInt(m.slice(5, 7))
+  return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, '0')}`
+}
+
+/** Group month-end dates into runs of consecutive months, as [firstMonth, lastMonth] (YYYY-MM). */
+function monthRanges(dates: string[]): [string, string][] {
+  const months = [...new Set(dates.map(month))].sort()
+  const ranges: [string, string][] = []
+  for (const m of months) {
+    const last = ranges.at(-1)
+    if (last && prevMonth(m) === last[1]) last[1] = m
+    else ranges.push([m, m])
+  }
+  return ranges
+}
 
 interface MergedRow {
   date: string
@@ -223,6 +243,16 @@ export default function Benchmarks() {
     const i = accounts.indexOf(key as AccountKey)
     return i >= 0 ? perf[i].sharpe.portfolio : sharpeSource?.sharpe[key]
   }
+  // PELM months whose return is understated because the income paid out to the beneficiary is unknown.
+  const pelmIncomplete = accounts.includes('PELM') && perf ? perf[accounts.indexOf('PELM')].incomplete_flow_dates ?? [] : []
+  const pelmIncompleteRanges = monthRanges(pelmIncomplete)
+  // Shade each range on the chart: a month's return runs from the previous month-end to its own.
+  const rowDateByMonth = new Map(merged.map((r) => [month(r.date), r.date]))
+  const pelmShading = pelmIncompleteRanges.flatMap(([a, b]) => {
+    const x1 = rowDateByMonth.get(prevMonth(a)) ?? rowDateByMonth.get(a)
+    const x2 = rowDateByMonth.get(b)
+    return x1 && x2 && x1 !== x2 ? [{ x1, x2 }] : []
+  })
   const pelmLastDate = accounts.includes('PELM') && perf ? perf[accounts.indexOf('PELM')].portfolio.at(-1)?.date : undefined
 
   return (
@@ -323,6 +353,9 @@ export default function Benchmarks() {
                 const s = series.find((x) => x.key === v)
                 return <span style={{ color: '#9ca3af', fontSize: 12 }}>{s?.label ?? v}</span>
               }} />
+              {pelmShading.map(({ x1, x2 }) => (
+                <ReferenceArea key={x1} x1={x1} x2={x2} fill="#e879f9" fillOpacity={0.06} stroke="none" ifOverflow="hidden" />
+              ))}
               <ReferenceLine y={100} stroke="#4b5563" strokeDasharray="4 2" />
               {quarterReferenceLines(dates)}
               {series.map(({ key, colour, dash }) => (
@@ -339,6 +372,14 @@ export default function Benchmarks() {
               ))}
             </LineChart>
           </ResponsiveContainer>
+        )}
+        {pelmIncompleteRanges.length > 0 && (
+          <p className="text-xs text-gray-500 mt-3">
+            PELM Trust: {pelmIncomplete.length} month{pelmIncomplete.length === 1 ? ' is' : 's are'} missing
+            income payment data from Barratt &amp; Cooke
+            ({pelmIncompleteRanges.map(([a, b]) => (a === b ? fmtMonth(a) : `${fmtMonth(a)} – ${fmtMonth(b)}`)).join(', ')}),
+            so its return is understated for those months{pelmShading.length > 0 && ' (shaded on the chart)'}.
+          </p>
         )}
       </Card>
 

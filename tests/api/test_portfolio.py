@@ -126,14 +126,19 @@ def test_ingest_log(client, tmp_path, monkeypatch):
 
 
 def test_ingest_log_includes_pelm_rows(client, tmp_path, monkeypatch):
-    for name in ("pelm_transactions.csv", "pelm_monthly.csv"):
+    for name in (
+        "pelm_transactions.csv",
+        "pelm_monthly.csv",
+        "pelm_ledger_coverage.csv",
+    ):
         (tmp_path / name).write_text("x\n")
     monkeypatch.setattr("app.routers.portfolio.PELM_DIR", tmp_path)
     by_source = {e["source"]: e for e in client.get("/portfolio/ingest-log").json()}
     # Latest data dates come from the data; run times are the files' modified times.
     assert by_source["pelm_transactions"]["latest_data_date"] == "2024-02-02"
     assert by_source["pelm_valuations"]["latest_data_date"] == "2024-02-29"
-    for source in ("pelm_transactions", "pelm_valuations"):
+    assert by_source["pelm_income_ledgers"]["latest_data_date"] == "2024-03-31"
+    for source in ("pelm_transactions", "pelm_valuations", "pelm_income_ledgers"):
         assert by_source[source]["last_successful_at"] is not None
         assert by_source[source]["last_rows_imported_at"] is not None
 
@@ -194,3 +199,12 @@ def test_performance_default_excludes_pelm(client):
     data = r.json()
     # ISA + SIPP only: PELM's 10% month would otherwise lift the blended index.
     assert data["portfolio"][-1]["indexed"] < 103
+
+
+def test_performance_pelm_lists_months_with_incomplete_flows(client):
+    data = client.get("/portfolio/performance?account=PELM").json()
+    assert data["incomplete_flow_dates"] == ["2024-02-29"]
+
+
+def test_performance_hl_accounts_have_complete_flows(client):
+    assert client.get("/portfolio/performance").json()["incomplete_flow_dates"] == []

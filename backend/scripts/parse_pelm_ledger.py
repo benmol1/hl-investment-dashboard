@@ -1,47 +1,69 @@
-"""Parse the Barratt & Cooke ledger PDF for the PELM Will Trust into a transactions CSV.
+"""Parse the Barratt & Cooke ledger PDFs for the PELM Will Trust into a transactions CSV.
 
-    uv run python backend/scripts/parse_pelm_ledger.py [LEDGER_PDF] [OUT_CSV]
+    uv run python backend/scripts/parse_pelm_ledger.py [PDF_OR_DIR ...] [--out-dir DIR]
 
-With no arguments it looks for "C070982 Ledger statements.pdf" in pelm-inputs/ (on a laptop) and
-then in data/pelm/ (on the server, where only data/ is mounted), and writes
-data/pelm/pelm_transactions.csv. In the cron container:
+With no inputs it reads every "C070982 Ledger*.pdf" under pelm-inputs/ (on a laptop) or, if
+there are none, under data/pelm/ (on the server, where only data/ is mounted). Subfolders are
+searched, so each quarterly pack can stay in its own dated folder. In the cron container:
 
     docker compose exec cron /app/.venv/bin/python backend/scripts/parse_pelm_ledger.py
 
-The ledger is read by word position (debit amounts are right-aligned under one column header,
-credits under another), which is reliable where plain text extraction shuffles the columns.
-Nothing is written unless the ledger reconciles: opening balance + credits - debits must equal
-the closing balance. Afterwards the external flows found in the ledger are compared with the
-external_flow_gbp column of data/pelm/pelm_monthly.csv, and any difference is reported.
+Each PDF holds one or more statements, one per sub-ledger, each with its own opening and
+closing balance:
 
-Output columns: tx_date, reference, tx_type, security, quantity, amount_gbp, notes.
-amount_gbp is the cash effect on the ledger: positive for money in, negative for money out,
-blank where there is none (in-specie transfers, corporate actions). The first row is the
-OPENING_BALANCE of the cash ledger.
+    capital    C070982  General Investment Account ledger: trades, deposit sweeps, withdrawals
+    dividends  E070982  GIA dividends and claims ledger: dividends, FX commission, BACS income
+                        payments to the beneficiary
+    income     t070982  GIA income account ledger: interest, settlement transfers
+    fees       d070982  Fees ledger: custody fee and VAT
+
+Statements may overlap (the first pack's capital ledger runs Sep 2023 - Jun 2026; later packs
+are quarterly); duplicate entries are dropped. Lines are read by word position (debits sit
+under one column header, credits under another). Nothing is written unless every statement
+reconciles (opening + credits - debits = closing) and each statement's opening balance agrees
+with the entries already seen for that ledger. Where there is a gap between two statements of
+the same ledger, a BALANCE_ADJUSTMENT row carries the unseen net movement.
+
+Writes two files to data/pelm/:
+
+  pelm_transactions.csv  ledger, tx_date, reference, tx_type, security, quantity, amount_gbp, notes
+      amount_gbp is the cash effect on that ledger: positive in, negative out, blank where there
+      is none (in-specie transfers, corporate actions). Each ledger starts with an
+      OPENING_BALANCE row.
+  pelm_ledger_coverage.csv  ledger, period_start, period_end, opening_gbp, closing_gbp, source_file
+      One row per statement. dbt uses it to tell which months have a complete set of cash flows.
 """
 
+import argparse
 import collections
 import csv
 import re
 import sys
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pdfplumber
 
 REPO = Path(__file__).resolve().parents[2]
-LEDGER_NAME = "C070982 Ledger statements.pdf"
-DEFAULT_PDF_LOCATIONS = [
-    REPO / "pelm-inputs" / LEDGER_NAME,
-    REPO / "data" / "pelm" / LEDGER_NAME,
-]
-DEFAULT_OUT = REPO / "data" / "pelm" / "pelm_transactions.csv"
-MONTHLY_CSV = REPO / "data" / "pelm" / "pelm_monthly.csv"
+PDF_GLOB = "C070982 Ledger*.pdf"
+DEFAULT_SEARCH_DIRS = [REPO / "pelm-inputs", REPO / "data" / "pelm"]
+DEFAULT_OUT_DIR = REPO / "data" / "pelm"
 
 DATE_RE = re.compile(r"^\d{2}-[A-Z][a-z]{2}-\d{4}$")
 AMOUNT_RE = re.compile(r"^-?[\d,]+\.\d{2}$")
 QTY_NAME_RE = re.compile(r"^([\d,]+(?:\.\d+)?)\s+(.+)$")
 FX_RE = re.compile(r"^GBP/[A-Z]{3}\s+[\d.]+$")
+PERIOD_RE = re.compile(
+    r"statement for (\d{1,2} [A-Z][a-z]{2} \d{4}) to (\d{1,2} [A-Z][a-z]{2} \d{4})"
+)
+
+# Statement heading -> ledger name. Checked in order, so the longer GIA headings come first.
+LEDGER_HEADINGS = [
+    ("GIA dividends and claims ledger", "dividends"),
+    ("GIA income account ledger", "income"),
+    ("Fees ledger", "fees"),
+    ("General Investment Account ledger", "capital"),
+]
 
 # Column geometry (PDF points): narrative text starts at x=215; amounts start right of x=380.
 # Debit amounts end near x=461 and credit amounts near x=531.
@@ -49,6 +71,7 @@ NARRATIVE_MIN_X, AMOUNT_MIN_X, CREDIT_MIN_X1 = 215, 380, 500
 DATE_MAX_X = 100  # a row starts with a date whose left edge is at x<100
 
 FIELDS = [
+    "ledger",
     "tx_date",
     "reference",
     "tx_type",
@@ -57,14 +80,60 @@ FIELDS = [
     "amount_gbp",
     "notes",
 ]
+COVERAGE_FIELDS = [
+    "ledger",
+    "period_start",
+    "period_end",
+    "opening_gbp",
+    "closing_gbp",
+    "source_file",
+]
 
 
-def read_entries(pdf_path: Path) -> list[dict]:
-    """One dict per ledger entry: date, reference, narrative line(s), debit, credit, detail lines."""
-    entries: list[dict] = []
+def _iso(ledger_date: str) -> str:
+    return datetime.strptime(ledger_date, "%d-%b-%Y").date().isoformat()
+
+
+def read_statements(pdf_path: Path) -> list[dict]:
+    """Split a PDF into statements: ledger, period, opening, closing and the entries between."""
+    statements: list[dict] = []
+    statement = None
     current = None
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
+            text = page.extract_text() or ""
+            heading = next(
+                (line for line in text.splitlines() if PERIOD_RE.search(line)), None
+            )
+            if heading is None:
+                raise ValueError(
+                    f"{pdf_path.name}: page {page.page_number} has no statement heading"
+                )
+            ledger = next(
+                (name for key, name in LEDGER_HEADINGS if key in heading), None
+            )
+            if ledger is None:
+                raise ValueError(
+                    f"{pdf_path.name}: unrecognised ledger heading {heading!r}"
+                )
+            start, end = (
+                datetime.strptime(d, "%d %b %Y").date()
+                for d in PERIOD_RE.search(heading).groups()
+            )
+            if statement is None or (
+                statement["ledger"],
+                statement["period_start"],
+            ) != (ledger, start):
+                statement = {
+                    "ledger": ledger,
+                    "period_start": start,
+                    "period_end": end,
+                    "source_file": pdf_path.name,
+                    "entries": [],
+                }
+                statements.append(statement)
+                current = None
+
             lines = collections.defaultdict(list)
             for word in page.extract_words():
                 lines[round(word["top"])].append(word)
@@ -84,10 +153,10 @@ def read_entries(pdf_path: Path) -> list[dict]:
                         "credit": None,
                         "detail": [],
                     }
-                    entries.append(current)
+                    statement["entries"].append(current)
                 if current is None:
                     continue  # page header before the first entry
-                text = " ".join(
+                line_text = " ".join(
                     w["text"]
                     for w in words
                     if w["x0"] > NARRATIVE_MIN_X
@@ -99,27 +168,75 @@ def read_entries(pdf_path: Path) -> list[dict]:
                         side = "credit" if w["x1"] > CREDIT_MIN_X1 else "debit"
                         current[side] = value
                 if starts_entry:
-                    current["narrative"] = text
-                elif text:
-                    current["detail"].append(text)
-    return entries
+                    current["narrative"] = line_text
+                elif line_text and not line_text.startswith("Page "):
+                    current["detail"].append(line_text)
+    for s in statements:
+        reconcile(s)
+    return statements
 
 
-def classify(entry: dict) -> list[dict]:
+def reconcile(statement: dict) -> None:
+    """Split off the opening/closing balance entries and check the statement adds up."""
+    opening = closing = None
+    body = []
+    for e in statement["entries"]:
+        value = e["credit"] if e["credit"] is not None else (e["debit"] or 0.0)
+        if e["narrative"].startswith("Opening balance"):
+            # A debit opening balance would be an overdrawn ledger.
+            opening = (
+                -value
+                if e["debit"] is not None and e["credit"] is None and value
+                else value
+            )
+        elif e["narrative"].startswith("Closing balance"):
+            closing = (
+                -value
+                if e["debit"] is not None and e["credit"] is None and value
+                else value
+            )
+        else:
+            body.append(e)
+    name = (
+        f"{statement['source_file']} {statement['ledger']} {statement['period_start']}"
+    )
+    if opening is None or closing is None:
+        raise ValueError(f"{name}: could not find the opening and closing balance rows")
+    credits = sum(e["credit"] or 0.0 for e in body)
+    debits = sum(e["debit"] or 0.0 for e in body)
+    expected = round(opening + credits - debits, 2)
+    if abs(expected - closing) > 0.005:
+        raise ValueError(
+            f"{name} does NOT reconcile: opening {opening:,.2f} + credits {credits:,.2f} "
+            f"- debits {debits:,.2f} = {expected:,.2f}, but closing balance is {closing:,.2f}"
+        )
+    statement.update(
+        entries=body, opening=opening, closing=closing, credits=credits, debits=debits
+    )
+
+
+def classify(entry: dict, ledger: str) -> list[dict]:
     """Turn one ledger entry into one or more output rows."""
     narrative, detail = entry["narrative"], entry["detail"]
     debit, credit = entry["debit"], entry["credit"]
     amount = credit if credit is not None else (-debit if debit is not None else None)
     base = {
+        "ledger": ledger,
         "reference": entry["reference"],
         "quantity": None,
         "security": "",
         "notes": "",
     }
-    date = datetime.strptime(entry["date"], "%d-%b-%Y").date().isoformat()
+    tx_date = _iso(entry["date"])
 
     def row(tx_type, **kw):
-        return {"tx_date": date, **base, "tx_type": tx_type, "amount_gbp": amount, **kw}
+        return {
+            "tx_date": tx_date,
+            **base,
+            "tx_type": tx_type,
+            "amount_gbp": amount,
+            **kw,
+        }
 
     fx_notes = "; ".join(d for d in detail if FX_RE.match(d))
 
@@ -134,6 +251,29 @@ def classify(entry: dict) -> list[dict]:
                 notes=fx_notes,
             )
         ]
+    if narrative.startswith("DIV ON "):
+        return [
+            row(
+                "DIVIDEND",
+                security=narrative.removeprefix("DIV ON ").strip(),
+                notes=" ".join(detail),
+            )
+        ]
+    if narrative.startswith("FX COMM"):
+        return [
+            row(
+                "FX_COMMISSION",
+                security=re.sub(r"^FX COMM[- ]?", "", narrative).strip(),
+            )
+        ]
+    if narrative.startswith(("INTEREST (GROSS)", "INT (GROSS)")):
+        return [row("INTEREST", notes=narrative)]
+    if narrative.startswith("VAT ON"):
+        return [row("FEE_VAT", notes=narrative)]
+    if "FEE" in narrative and ledger == "fees":
+        return [row("FEE", notes=narrative)]
+    if narrative.lstrip("*").startswith(("TO SETTLEMENT", "FROM SETTLEMENT")):
+        return [row("SETTLEMENT_TRANSFER", notes=narrative)]
     if narrative.startswith("TRANSFERRED TO DEPOSIT"):
         return [row("DEPOSIT_TRANSFER_OUT")]
     if narrative.startswith("TRANSFERRED FROM DEPOSIT"):
@@ -141,7 +281,14 @@ def classify(entry: dict) -> list[dict]:
     if narrative.startswith("TRANSFER FROM"):
         return [row("CASH_TRANSFER_IN", notes=narrative)]
     if narrative.startswith("BACS Payment"):
-        return [row("WITHDRAWAL", notes=narrative)]
+        # From the dividends ledger these are income paid out to the beneficiary; from the
+        # capital ledger, a capital withdrawal. Both leave the trust.
+        return [
+            row(
+                "INCOME_DISTRIBUTION" if ledger == "dividends" else "WITHDRAWAL",
+                notes=narrative,
+            )
+        ]
     if narrative.startswith("CASH FRACTION"):
         return [
             row(
@@ -173,135 +320,189 @@ def classify(entry: dict) -> list[dict]:
     return [row("OTHER", security=narrative, notes=" ".join(detail))]
 
 
-def reconcile(entries: list[dict]) -> tuple[list[dict], float, float, float, float]:
-    """Split off the opening/closing balance entries and check the ledger adds up."""
-    opening = closing = None
-    body = []
-    for e in entries:
-        value = e["credit"] if e["credit"] is not None else e["debit"]
-        if e["narrative"].startswith("Opening balance"):
-            opening = value
-        elif e["narrative"].startswith("Closing balance"):
-            closing = value
-        else:
-            body.append(e)
-    if opening is None or closing is None:
-        raise ValueError("Could not find the opening and closing balance rows")
-    credits = sum(e["credit"] or 0.0 for e in body)
-    debits = sum(e["debit"] or 0.0 for e in body)
-    return body, opening, closing, credits, debits
+def _entry_key(ledger: str, e: dict) -> tuple:
+    return (ledger, e["date"], e["reference"], e["narrative"], e["debit"], e["credit"])
 
 
-def external_flows_by_month(rows: list[dict]) -> dict[str, float]:
-    flows: dict[str, float] = collections.defaultdict(float)
-    for r in rows:
-        if (
-            r["tx_type"] in ("CASH_TRANSFER_IN", "WITHDRAWAL")
-            and r["amount_gbp"] is not None
-        ):
-            flows[r["tx_date"][:7]] += r["amount_gbp"]
-    return {k: round(v, 2) for k, v in flows.items()}
+def combine(statements: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Merge statements into one row list per ledger, dropping duplicates across overlaps.
 
+    Returns (rows, coverage). Raises if a statement's opening balance disagrees with the entries
+    already seen for its ledger over a contiguous or overlapping period.
+    """
+    rows: list[dict] = []
+    coverage: list[dict] = []
+    by_ledger = collections.defaultdict(list)
+    for s in statements:
+        by_ledger[s["ledger"]].append(s)
 
-def compare_with_monthly(flows: dict[str, float]) -> list[str]:
-    """Compare ledger external flows with the hand-entered column in pelm_monthly.csv."""
-    if not MONTHLY_CSV.exists():
-        return [f"(skipped flow check: {MONTHLY_CSV} not found)"]
-    with MONTHLY_CSV.open() as f:
-        monthly = list(csv.DictReader(f))
-    if not monthly:
-        return ["(skipped flow check: pelm_monthly.csv is empty)"]
-    first_month = monthly[0]["month_end_date"][:7]
-    entered = {
-        r["month_end_date"][:7]: float(r["external_flow_gbp"] or 0) for r in monthly
-    }
-    problems = []
-    # The first month's flow is inside the opening valuation, so it is not compared.
-    for month in sorted((set(flows) | set(entered)) - {first_month}):
-        if month < first_month:
-            continue
-        ledger, seed = flows.get(month, 0.0), entered.get(month, 0.0)
-        if abs(ledger - seed) > 0.005:
-            problems.append(
-                f"{month}: ledger {ledger:,.2f} vs pelm_monthly.csv {seed:,.2f}"
+    for ledger, group in by_ledger.items():
+        group.sort(key=lambda s: (s["period_start"], s["period_end"]))
+        seen: set[tuple] = set()
+        ledger_rows: list[dict] = []
+        covered_to: date | None = None
+        for s in group:
+            balance_before = round(
+                sum(
+                    r["amount_gbp"] or 0.0
+                    for r in ledger_rows
+                    if r["tx_date"] < s["period_start"].isoformat()
+                ),
+                2,
             )
-    return problems
+            start_iso = s["period_start"].isoformat()
+            if covered_to is None:
+                ledger_rows.append(
+                    _balance_row(
+                        ledger,
+                        start_iso,
+                        "OPENING_BALANCE",
+                        s["opening"],
+                        "Ledger opening cash balance",
+                    )
+                )
+            elif s["period_start"] <= covered_to + timedelta(days=1):
+                if abs(balance_before - s["opening"]) > 0.005:
+                    raise ValueError(
+                        f"{s['source_file']} {ledger}: opening balance {s['opening']:,.2f} on {start_iso} "
+                        f"does not match {balance_before:,.2f} from the earlier statements"
+                    )
+            else:
+                gap = round(s["opening"] - balance_before, 2)
+                ledger_rows.append(
+                    _balance_row(
+                        ledger,
+                        start_iso,
+                        "BALANCE_ADJUSTMENT",
+                        gap,
+                        f"Unseen net movement between {covered_to} and {start_iso} (no statement)",
+                    )
+                )
+            for e in s["entries"]:
+                key = _entry_key(ledger, e)
+                if key in seen:
+                    continue
+                seen.add(key)
+                ledger_rows.extend(classify(e, ledger))
+            covered_to = max(covered_to or s["period_end"], s["period_end"])
+            coverage.append(
+                {
+                    "ledger": ledger,
+                    "period_start": start_iso,
+                    "period_end": s["period_end"].isoformat(),
+                    "opening_gbp": s["opening"],
+                    "closing_gbp": s["closing"],
+                    "source_file": s["source_file"],
+                }
+            )
+        rows.extend(ledger_rows)
+
+    order = {name: i for i, (_, name) in enumerate(reversed(LEDGER_HEADINGS))}
+    rows.sort(
+        key=lambda r: (
+            order[r["ledger"]],
+            r["tx_date"],
+            r["tx_type"] not in ("OPENING_BALANCE", "BALANCE_ADJUSTMENT"),
+        )
+    )
+    coverage.sort(key=lambda c: (order[c["ledger"]], c["period_start"]))
+    return rows, coverage
+
+
+def _balance_row(
+    ledger: str, tx_date: str, tx_type: str, amount: float, notes: str
+) -> dict:
+    return {
+        "ledger": ledger,
+        "tx_date": tx_date,
+        "reference": None,
+        "tx_type": tx_type,
+        "security": "",
+        "quantity": None,
+        "amount_gbp": amount,
+        "notes": notes,
+    }
+
+
+def find_pdfs(inputs: list[str]) -> list[Path]:
+    if inputs:
+        paths: list[Path] = []
+        for item in inputs:
+            p = Path(item)
+            paths.extend(sorted(p.rglob(PDF_GLOB)) if p.is_dir() else [p])
+        return paths
+    for d in DEFAULT_SEARCH_DIRS:
+        found = sorted(d.rglob(PDF_GLOB)) if d.exists() else []
+        if found:
+            return found
+    return []
+
+
+def write_csv(path: Path, fields: list[str], rows: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for r in rows:
+            writer.writerow({k: ("" if r[k] is None else r[k]) for k in fields})
+
+
+EXTERNAL_TYPES = ("CASH_TRANSFER_IN", "WITHDRAWAL", "INCOME_DISTRIBUTION")
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) > 1:
-        pdf_path = Path(argv[1])
-    else:
-        pdf_path = next(
-            (p for p in DEFAULT_PDF_LOCATIONS if p.exists()), DEFAULT_PDF_LOCATIONS[0]
-        )
-    out_path = Path(argv[2]) if len(argv) > 2 else DEFAULT_OUT
-    if not pdf_path.exists():
-        looked = (
-            ", ".join(str(p) for p in DEFAULT_PDF_LOCATIONS)
-            if len(argv) <= 1
-            else str(pdf_path)
-        )
-        print(f"Ledger PDF not found (looked in: {looked})", file=sys.stderr)
-        return 1
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("inputs", nargs="*", help="Ledger PDFs or folders to search")
+    parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
+    args = parser.parse_args(argv[1:])
 
-    entries = read_entries(pdf_path)
-    body, opening, closing, credits, debits = reconcile(entries)
-    expected_close = round(opening + credits - debits, 2)
-    if abs(expected_close - closing) > 0.005:
+    pdfs = find_pdfs(args.inputs)
+    if not pdfs:
+        looked = ", ".join(args.inputs) or ", ".join(
+            str(d) for d in DEFAULT_SEARCH_DIRS
+        )
         print(
-            f"Ledger does NOT reconcile: opening {opening:,.2f} + credits {credits:,.2f} "
-            f"- debits {debits:,.2f} = {expected_close:,.2f}, but closing balance is {closing:,.2f}. "
-            "Nothing written.",
+            f"No ledger PDFs matching {PDF_GLOB!r} found (looked in: {looked})",
             file=sys.stderr,
         )
         return 1
 
-    rows = [r for e in body for r in classify(e)]
-    # The opening balance is kept as a row so cash at any month-end can be rebuilt downstream.
-    opening_date = next(
-        e["date"] for e in entries if e["narrative"].startswith("Opening balance")
-    )
-    rows.insert(
-        0,
-        {
-            "tx_date": datetime.strptime(opening_date, "%d-%b-%Y").date().isoformat(),
-            "reference": None,
-            "tx_type": "OPENING_BALANCE",
-            "security": "",
-            "quantity": None,
-            "amount_gbp": opening,
-            "notes": "Ledger opening cash balance",
-        },
-    )
-    other = [r for r in rows if r["tx_type"] == "OTHER"]
+    try:
+        statements = [s for p in pdfs for s in read_statements(p)]
+        rows, coverage = combine(statements)
+    except ValueError as exc:
+        print(f"{exc}. Nothing written.", file=sys.stderr)
+        return 1
 
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with out_path.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDS)
-        writer.writeheader()
-        for r in rows:
-            writer.writerow({k: ("" if r[k] is None else r[k]) for k in FIELDS})
+    write_csv(args.out_dir / "pelm_transactions.csv", FIELDS, rows)
+    write_csv(args.out_dir / "pelm_ledger_coverage.csv", COVERAGE_FIELDS, coverage)
 
-    print(
-        f"Reconciled: opening {opening:,.2f} + credits {credits:,.2f} - debits {debits:,.2f} "
-        f"= closing {closing:,.2f}"
-    )
-    print(f"Wrote {len(rows)} rows to {out_path}")
+    print(f"Read {len(pdfs)} PDF(s), {len(statements)} statements, all reconciled:")
+    for c in coverage:
+        print(
+            f"  {c['ledger']:9} {c['period_start']} to {c['period_end']}  "
+            f"opening {c['opening_gbp']:>11,.2f}  closing {c['closing_gbp']:>11,.2f}  ({c['source_file']})"
+        )
+    print(f"Wrote {len(rows)} rows to {args.out_dir / 'pelm_transactions.csv'}")
     for tx_type, n in sorted(collections.Counter(r["tx_type"] for r in rows).items()):
         print(f"  {tx_type:22} {n}")
-    for r in other:
-        print(
-            f"  note: unclassified entry kept as OTHER: {r['tx_date']} {r['security']}"
-        )
+    for r in rows:
+        if r["tx_type"] == "OTHER":
+            print(
+                f"  note: unclassified entry kept as OTHER: {r['ledger']} {r['tx_date']} {r['security']}"
+            )
+        if r["tx_type"] == "BALANCE_ADJUSTMENT":
+            print(
+                f"  note: {r['ledger']} gap before {r['tx_date']}: {r['amount_gbp']:,.2f} carried as BALANCE_ADJUSTMENT"
+            )
 
-    problems = compare_with_monthly(external_flows_by_month(rows))
-    if problems:
-        print("External flow differences vs pelm_monthly.csv:")
-        for p in problems:
-            print(f"  {p}")
-    else:
-        print("External flows agree with pelm_monthly.csv.")
+    flows: dict[str, float] = collections.defaultdict(float)
+    for r in rows:
+        if r["tx_type"] in EXTERNAL_TYPES and r["amount_gbp"] is not None:
+            flows[r["tx_date"][:7]] += r["amount_gbp"]
+    print("External cash flows by month (dbt derives the PELM flows from these):")
+    for month in sorted(flows):
+        print(f"  {month}  {flows[month]:>12,.2f}")
     return 0
 
 

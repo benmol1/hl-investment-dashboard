@@ -15,7 +15,7 @@ Runs on a Raspberry Pi on the home network, accessible via browser or Telegram f
 - **Holdings Table** — units, price, value, cost basis, unrealised gain/loss; sortable columns; cash rows included
 - **Transaction Log** — paginated, filterable across both accounts
 - **ISA / SIPP filter** — every view can be scoped to a single account or combined
-- **PELM Will Trust (optional)** — a family trust tracked from month-end valuations and a parsed ledger, for comparison against the ISA/SIPP and benchmarks. It is not your money, so it is never in any total: the default view is ISA + SIPP and PELM appears only when selected (Overview, Benchmarks, Transactions). See [Updating PELM Will Trust data](#updating-pelm-will-trust-data)
+- **PELM Will Trust (optional)** — a family trust tracked from month-end valuations and its parsed ledgers (trades, dividends, interest, fees and income paid out), with returns reconciled against the manager's own reports, for comparison against the ISA/SIPP and benchmarks. It is not your money, so it is never in any total: the default view is ISA + SIPP and PELM appears only when selected (Overview, Benchmarks, Transactions). See [Updating PELM Will Trust data](#updating-pelm-will-trust-data)
 - **Weekly HL download** — cron container logs in to HL with Playwright and downloads fresh ISA/SIPP transaction CSVs on Sundays at 00:00 (optional; manual CSV drop also works)
 - **Daily refresh** — cron container runs ingest + prices + `dbt build` automatically at 01:00
 - **Telegram notifications** — failure alerts, daily success confirmation, and a monthly portfolio summary
@@ -65,7 +65,7 @@ hl-investment-dashboard/
 │   │   ├── ingest_transactions.py
 │   │   ├── fetch_prices.py      # --backfill YYYY-MM-DD, --all
 │   │   ├── cleanup_db.py
-│   │   ├── parse_pelm_ledger.py # PELM ledger PDF -> data/pelm/pelm_transactions.csv
+│   │   ├── parse_pelm_ledger.py # PELM ledger PDFs -> data/pelm/pelm_transactions.csv
 │   │   ├── run_ground_truth.py  # Bot eval ground-truth answers
 │   │   └── summarise_evals.py   # Summarise bot eval results
 │   ├── migrations/              # DB migrations
@@ -84,7 +84,7 @@ hl-investment-dashboard/
 │   └── models/                  # base → core → intermediate → marts
 ├── data/
 │   ├── imports/                 # Drop HL CSV exports here
-│   ├── pelm/                    # PELM Will Trust CSVs (gitignored) + ledger PDF
+│   ├── pelm/                    # PELM Will Trust CSVs (gitignored) + ledger PDFs
 │   ├── examples/                # Example CSV layouts
 │   └── hl_dashboard.duckdb
 ├── pelm-inputs/                 # Drop folder for the Barratt & Cooke pack (gitignored)
@@ -187,12 +187,15 @@ The PELM Will Trust (Barratt & Cooke, account `C070982`) is optional and manual 
 
 On the Pi (the `data/` folder is bind-mounted into the containers, so none of this needs an image rebuild):
 
-1. Copy the email attachments into `/srv/hl-dashboard/data/pelm/`. Keep the ledger's filename, `C070982 Ledger statements.pdf`.
-2. Append the new months to `pelm_monthly.csv` in that folder. Columns: `month_end_date,value_gbp,external_flow_gbp`; the flow is positive for money in, negative for money out, blank if none (read any transfer or withdrawal off the ledger PDF). Layout: [`data/examples/pelm_monthly_example.csv`](data/examples/pelm_monthly_example.csv).
-3. Parse the ledger into the transactions file:
+1. Copy the email attachments into a dated folder under `/srv/hl-dashboard/data/pelm/` (e.g. `data/pelm/20261127/`). Keep the ledger filenames (`C070982 Ledgers to 31.03.26.pdf`, …): the parser picks up every `C070982 Ledger*.pdf` in `data/pelm/` and its subfolders.
+2. Append the new months from `C070982 End of Month Valuations.xlsx` to `pelm_monthly.csv`. Columns: `month_end_date,value_gbp`, the same two columns as the spreadsheet. Layout: [`data/examples/pelm_monthly_example.csv`](data/examples/pelm_monthly_example.csv). External cash flows are not entered by hand any more; they come from the ledgers.
+3. Append each new formal total-return performance report to `pelm_reported_returns.csv`: `period_start,period_end,return_pct,source`, with the figure from the report's header line (e.g. `2025-07-01,2025-09-30,4.48,Formal total-return performance report to 30.9.25`). Layout: [`data/examples/pelm_reported_returns_example.csv`](data/examples/pelm_reported_returns_example.csv).
+4. Parse the ledgers:
    `docker compose exec cron /app/.venv/bin/python backend/scripts/parse_pelm_ledger.py`
-   It refuses to write unless the ledger balances, writes `pelm_transactions.csv`, and reports any difference between the ledger's external flows and the `external_flow_gbp` you entered in step 2. Fix any reported difference before continuing.
-4. Rebuild the models: `docker compose exec -w /app/dbt cron /app/.venv/bin/dbt build --profiles-dir .`, or wait for the 01:00 refresh.
+   It reads all four sub-ledgers (capital, dividends, income account, fees) from every PDF, drops entries repeated across overlapping statements, and refuses to write unless every statement balances and each opening balance agrees with the statements before it. It writes `pelm_transactions.csv` and `pelm_ledger_coverage.csv` and prints the external cash flows by month.
+5. Rebuild the models: `docker compose exec -w /app/dbt cron /app/.venv/bin/dbt build --profiles-dir .`, or wait for the 01:00 refresh. The test `assert_pelm_reported_returns_reconcile` fails the build if the dashboard's return for a fully covered report period differs from Barratt & Cooke's by more than 0.1pp.
+
+Months without a dividends ledger are flagged as having incomplete cash flows: the BACS income payments to the beneficiary are missing, so their returns are understated. The Benchmarks page says which months are affected.
 
 The parser's `pdfplumber` is installed in the images, so after pulling a change that adds it, run `docker compose up -d --build` once. Locally, the same steps work with the files in `pelm-inputs/` and `data/pelm/`, using `uv run python backend/scripts/parse_pelm_ledger.py`.
 
@@ -217,7 +220,9 @@ All endpoints are read-only (GET). Interactive docs at `http://localhost:8000/do
 | `GET /funds` | List all funds |
 | `GET /funds/{id}/performance` | Fund indexed to 100 + benchmark overlay |
 | `GET /transactions` | Paginated, filterable transaction log |
-| `GET /pelm/transactions` | PELM Will Trust ledger lines (trades and cash movements); deposit-account sweeps hidden unless `include_internal=true` |
+| `GET /pelm/transactions` | PELM Will Trust ledger lines from all four sub-ledgers (trades, dividends, interest, fees, income paid out, transfers); filter by `type` or `category`; deposit and settlement sweeps hidden unless `include_internal=true` |
+| `GET /pelm/income?grain=quarter\|month` | PELM income received, FX commission, custody fees and income paid out per quarter or month, with ledger-coverage flags and trailing-12m yield |
+| `GET /pelm/reconciliation` | Barratt & Cooke's reported total return per report period beside the dashboard's own figure |
 
 All portfolio/transaction endpoints accept an `account` query param (`ISA`, `SIPP`, or omit for combined ISA + SIPP). The `/portfolio/*` endpoints also accept `PELM`, which has month-end valuations only: `/portfolio/value` and `/portfolio/performance` serve it, while holdings, allocation and inflows return a 400. PELM is never part of the combined default.
 
@@ -229,11 +234,11 @@ Raw source tables (`accounts`, `funds`, `transactions`, `prices`, `benchmarks`) 
 
 | Layer | Models | Notes |
 |---|---|---|
-| `base` | `base__hl_transactions`, `base__hl_prices`, `base__hl_benchmarks`, `base__pelm_valuations`, `base__pelm_transactions` | Typed, renamed views over raw tables; the two PELM models are tables read from `data/pelm/*.csv` |
+| `base` | `base__hl_transactions`, `base__hl_prices`, `base__hl_benchmarks`, `base__pelm_valuations`, `base__pelm_transactions`, `base__pelm_ledger_coverage`, `base__pelm_reported_returns` | Typed, renamed views over raw tables; the PELM models are tables read from `data/pelm/*.csv` |
 | `core` | `dim_fund`, `dim_account`, `dim_date`, `dim_transaction_type`, `fct_transactions`, `fct_holdings_daily`, `fct_cash_position_daily`, `fct_fund_prices_daily`, `fct_benchmarks_monthly`, `fct_pelm_transactions` | Kimball-style dims and facts |
-| `intermediate` | `int_fund_values_daily`, `int_cash_values_daily` | Pre-aggregated inputs for marts |
-| `marts` | `mart_portfolio_value_daily`, `mart_holdings_latest`, `mart_portfolio_inflows_daily`, `mart_portfolio_returns_monthly`, `mart_fund_snapshot_monthly`, `mart_fund_returns_monthly`, `mart_benchmarks_monthly`, `mart_portfolio_snapshot_monthly`, `mart_contributions_by_financial_year` | API-ready aggregates |
+| `intermediate` | `int_fund_values_daily`, `int_cash_values_daily`, `int_pelm_ledger_coverage_monthly` | Pre-aggregated inputs for marts |
+| `marts` | `mart_portfolio_value_daily`, `mart_holdings_latest`, `mart_portfolio_inflows_daily`, `mart_portfolio_returns_monthly`, `mart_fund_snapshot_monthly`, `mart_fund_returns_monthly`, `mart_benchmarks_monthly`, `mart_portfolio_snapshot_monthly`, `mart_contributions_by_financial_year`, `mart_pelm_income_monthly`, `mart_pelm_return_reconciliation` | API-ready aggregates |
 
-`dim_account.data_grain` is `daily` for ISA/SIPP (full holdings and transactions) and `monthly` for PELM (month-end valuations only); daily-only models and endpoints filter on it. PELM is unioned into `mart_portfolio_snapshot_monthly`, so the returns and benchmark marts pick it up unchanged. Design notes: [docs/pelm-integration-plan.md](docs/pelm-integration-plan.md).
+`dim_account.data_grain` is `daily` for ISA/SIPP (full holdings and transactions) and `monthly` for PELM (month-end valuations only); daily-only models and endpoints filter on it. PELM is unioned into `mart_portfolio_snapshot_monthly`, with its external cash flows (including income paid out to the beneficiary) derived from the ledgers, so the returns and benchmark marts pick it up unchanged. `cash_flow_coverage_indicator` marks the PELM months whose flows are incomplete. Design notes: [docs/pelm-integration-plan.md](docs/pelm-integration-plan.md).
 
 Key conventions: `value_gbp` is negative for debits (buys, fees) and positive for credits (contributions, sells). Fund prices are stored in pence (`price_pence`) to match HL's raw format.

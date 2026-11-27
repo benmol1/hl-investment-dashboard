@@ -4,7 +4,10 @@
 
 -- Ledger rows for the PELM Will Trust, produced by backend/scripts/parse_pelm_ledger.py.
 -- amount_gbp is the cash effect on the ledger: positive in, negative out, null if none.
+-- Files written before the parser read the sub-ledgers have no ledger column; those rows all
+-- came from the capital ledger.
 select
+    coalesce(ledger, 'capital')     as ledger,
     tx_date,
     nullif(reference, '')           as reference,
     tx_type,

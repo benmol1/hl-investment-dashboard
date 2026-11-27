@@ -1,0 +1,54 @@
+version: 2
+
+models:
+  - name: mart_pelm_income_monthly
+    description: >
+      PELM Will Trust income and costs per valuation month: dividends and interest received,
+      FX commission on overseas dividends, the custody fee (with VAT), and income paid out to
+      the beneficiary by BACS. All amounts are positive. Dealing costs are not here: they are
+      inside the trade amounts. Fees are already netted into the month-end valuations (they are
+      paid from cash inside the portfolio), so these figures are for reporting, not for
+      adjusting returns.
+
+      **Grain**: One row per year_month in base__pelm_valuations
+      **Sources**: fct_pelm_transactions, int_pelm_ledger_coverage_monthly, base__pelm_valuations
+    columns:
+      - name: year_month
+        description: "YYYY-MM."
+        tests:
+          - not_null
+          - unique
+      - name: month_end_date
+        description: "Calendar month-end."
+      - name: month_end_value_gbp
+        description: "Barratt & Cooke month-end valuation."
+      - name: dividends_gbp
+        description: "Dividends credited to the dividends ledger (net of overseas withholding tax)."
+      - name: interest_gbp
+        description: "Interest credited to the income account."
+      - name: income_gbp
+        description: "dividends_gbp + interest_gbp."
+      - name: fx_commission_gbp
+        description: "FX commission charged on converting overseas dividends."
+      - name: custody_fees_gbp
+        description: "Custody management fee plus VAT, from the fees ledger."
+      - name: income_distributed_gbp
+        description: "Income paid out of the trust to the beneficiary by BACS (from the dividends ledger)."
+      - name: income_coverage_indicator
+        description: "'Complete' if both the dividends and income ledgers cover the month; otherwise income figures are unknown (shown as zero)."
+        tests:
+          - accepted_values:
+              arguments:
+                values: [Complete, Incomplete]
+      - name: fees_coverage_indicator
+        description: >
+          'Complete' if a fees ledger statement covers the month. Barratt & Cooke appear to send
+          the fees page only for quarters with fee activity, so 'Incomplete' may still mean no fees.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [Complete, Incomplete]
+      - name: trailing_12m_income_gbp
+        description: "Income over the 12 months to this month. Null unless all 12 have complete income ledgers."
+      - name: trailing_12m_income_yield
+        description: "trailing_12m_income_gbp / month_end_value_gbp. Null unless all 12 months are complete."
